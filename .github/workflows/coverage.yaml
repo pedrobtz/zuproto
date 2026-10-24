@@ -1,8 +1,6 @@
 on:
   push:
     branches: [main, master]
-    paths-ignore:
-      - ".github/badges/coverage.svg"
   pull_request:
 
 name: coverage
@@ -13,6 +11,11 @@ concurrency:
 
 jobs:
   coverage:
-    uses: pedrobtz/r-actions/.github/workflows/coverage.yml@v1
+    # Pinned to a commit because this workflow holds a write token.
+    uses: pedrobtz/r-actions/.github/workflows/coverage.yml@8caf5119301bb2a3bd433b92045b8c75b3097096 # v1.24.0
     permissions:
       contents: write
+    with:
+      # The main ruleset takes no direct pushes, so the badge goes to gh-pages.
+      badge-branch: gh-pages
+      badge-path: badges/coverage.svg

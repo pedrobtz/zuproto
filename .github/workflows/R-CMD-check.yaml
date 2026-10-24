@@ -21,4 +21,12 @@ jobs:
     with:
       # Quick on each push to a pull request, full after merge. The
       # `full-ci` label runs the full set on a pull request before merging.
+      # The four default legs plus Windows R-devel, the combination CRAN's
+      # own Windows check runs. The extra row runs in the full profile only.
+      runners: |
+        [{"os": "macos-latest", "r": "release"},
+         {"os": "windows-latest", "r": "release"},
+         {"os": "windows-latest", "r": "devel"},
+         {"os": "ubuntu-latest", "r": "release"},
+         {"os": "ubuntu-latest", "r": "oldrel-1"}]
       profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}

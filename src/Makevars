@@ -1,0 +1,3 @@
+# Hide every symbol but R_init_zuproto (design section 3, R3). There is no
+# Makevars.win: R on Windows uses this file when that one is absent.
+PKG_CFLAGS = $(C_VISIBILITY)
