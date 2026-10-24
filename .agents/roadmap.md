@@ -1,6 +1,7 @@
 # zuproto: roadmap
 
-Status: draft 2026-10-24. Implements [design.md](design.md).
+Status: draft 2026-10-24, revised 2026-10-24 in Stage 0 (`Suggests`
+moved to the stages that use them). Implements [design.md](design.md).
 Target: v0.1.0, the first CRAN release.
 Tracking: [v0.1.0 (#1)](https://github.com/pedrobtz/zuproto/issues/1), with
 one sub-issue per stage;
@@ -14,7 +15,7 @@ documentation and release, and `Full CI` goes in before the release.
 
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuproto/issues/2) | | |
+| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuproto/issues/2) | | 2026-10-24 |
 | 1 | [Vendor upb](#stage-1--vendor-upb) | full | [#3](https://github.com/pedrobtz/zuproto/issues/3) | | |
 | 2 | [Shim, pools and well-known types](#stage-2--shim-pools-and-well-known-types) | quick | [#4](https://github.com/pedrobtz/zuproto/issues/4) | | |
 | 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | | |
@@ -39,8 +40,11 @@ documentation and release, and `Full CI` goes in before the release.
 
 - `DESCRIPTION`: real Title and Description, `Authors@R` with `cre`, `aut`,
   `cph`, `Depends: R (>= 4.1)`, `Language: en-GB`,
-  `Suggests: bit64, testthat (>= 3.0.0), withr, zuint`, no `Imports` or
-  `LinkingTo`, `BugReports`.
+  `Suggests: testthat (>= 3.0.0)`, no `Imports` or `LinkingTo`,
+  `BugReports`. *Deviation, 2026-10-24:* bit64 and zuint move to Stage 6
+  and withr to the first stage whose tests use it. zuint is at 0.0.0.9000
+  on neither CRAN nor r-universe, so suggesting it now is a NOTE and a
+  failed dependency install in CI.
 - Settle the name (open question 1): CRAN, r-universe and PyPI checked, and
   the result recorded in the design.
 - Check the `zpb_` / `ZPB_` prefix against every sibling's source and record
@@ -255,7 +259,7 @@ have their lossless options.
 - `proto_unpack_any()`.
 - `int64 = "zuint"` and `"integer64"`, each guarded by
   `requireNamespace()`, and the `zuproto_precision_loss` warning under
-  `"double"`.
+  `"double"`. bit64 and zuint join `Suggests` here (moved from Stage 0).
 
 **Exit criteria.**
 
@@ -385,7 +389,10 @@ No new features.
 
 ## Open questions
 
-- **Name** (§18 question 1): blocks Stage 0.
+- **zuint not on CRAN**: blocks Stage 6's `"zuint"` option. zuint must
+  reach CRAN (or at least r-universe, with `Additional_repositories`)
+  before zuproto can suggest it; otherwise `int64 = "zuint"` waits for
+  0.2.0.
 - **Ruby or PHP amalgamation** (question 4): blocks Stage 1.
 - **Extensions** (question 7): blocks Stage 2.
 - **`defaults = TRUE`** (question 2) and **a message class** (question 5):

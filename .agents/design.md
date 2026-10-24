@@ -97,7 +97,8 @@ The rows for `zu-family.md` (alignment R1):
 | Language | en-GB (R2) |
 
 The `zpb_` prefix is unused in this repository's documents on
-2026-10-09; Stage 0 checks it against every sibling's source.
+2026-10-09. Stage 0 checked it on 2026-10-24: a GitHub code search over
+every `pedrobtz` repository finds `zpb_` only in this design's RFC.
 
 **Relationships, as decided rather than as hoped:**
 
@@ -524,7 +525,8 @@ Reasons where they are not in the section cited:
 1. **The name.** `zuproto` or `zupb`? `zupb` names the runtime,
    `zuproto` the format; the family names formats (`zucbor`,
    `zumsgpack`). Recommended: `zuproto`, after a CRAN, r-universe and
-   PyPI check.
+   PyPI check. **Decided 2026-10-24: `zuproto`.** Neither name is on
+   CRAN (current or archived), r-universe or PyPI.
 2. **`defaults = TRUE`.** Proto3 cannot tell an unset scalar from its
    zero value without presence; returning defaults matches every other
    runtime, returning `NULL` matches the wire. Recommended: defaults, as
