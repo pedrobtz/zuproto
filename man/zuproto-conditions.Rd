@@ -24,6 +24,29 @@ file of the same name is already in the pool, or earlier in the set,
 with different contents. Carries \code{file}.}
 \item{\code{zuproto_unknown_type}}{A message type is not in the pool.
 Carries \code{type}.}
+\item{\code{zuproto_parse_error}}{The input is not a valid message of the
+type: it ends early, has a bad tag, a length beyond the input, or the
+wrong wire type. Carries \code{status}.}
+\item{\code{zuproto_invalid_utf8}}{A subclass of \code{zuproto_parse_error}: a
+\code{string} field is not valid UTF-8, in proto2 as in proto3.}
+\item{\code{zuproto_unrepresentable}}{The input is valid but holds a value
+R cannot: a string containing a NUL byte, or longer than an R string
+may be. Carries \code{field}, the field's full name.}
+\item{\code{zuproto_limit_error}}{A limit was reached. The subclasses
+\code{zuproto_size_limit} (the input, or the memory decoding it needs,
+is too large for \code{max_size}) and \code{zuproto_depth_limit} (messages
+nest deeper than \code{max_depth}) name which. Carries \code{limit}, the
+argument's name, and \code{limit_value}.}
+}
+
+Warnings inherit \code{zuproto_warning}:
+
+\describe{
+\item{\code{zuproto_precision_loss}}{Values could not be represented
+exactly: 64-bit integers beyond 2^53 decoded as doubles, or a 32-bit
+\code{-2^31}, which R reserves for \code{NA}. Carries \code{n}, how many.}
+\item{\code{zuproto_unknown_enum}}{Enum numbers the enum does not define
+became \code{NA}. Carries \code{n}.}
 }
 }
 \examples{

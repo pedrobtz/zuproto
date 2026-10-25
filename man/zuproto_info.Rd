@@ -13,6 +13,8 @@ A list of class \code{zuproto_info} with elements:
 \item \code{protobuf}: the protobuf release tag upb was vendored from, such as
 \code{"v36.2"}.
 \item \code{protobuf_commit}: that tag's commit.
+\item \code{limits}: the default \code{max_size} (bytes) and \code{max_depth} of
+\code{\link[=proto_decode]{proto_decode()}}.
 }
 }
 \description{

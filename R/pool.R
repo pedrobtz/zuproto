@@ -110,13 +110,14 @@ wkt_bytes <- function() {
   readBin(path, "raw", file.size(path))
 }
 
-# A raw vector, a path, or a connection, as raw bytes.
-read_input <- function(x, arg, call = NULL) {
+# A raw vector, a path, or a connection, as raw bytes: at most `limit` of
+# them from a file or connection.
+read_input <- function(x, arg, call = NULL, limit = Inf) {
   if (is.raw(x)) {
     return(x)
   }
   if (inherits(x, "connection")) {
-    return(read_connection(x, call))
+    return(read_connection(x, call, limit))
   }
   if (is.character(x) && length(x) == 1L && !is.na(x)) {
     if (!file.exists(x) || dir.exists(x)) {
@@ -126,7 +127,7 @@ read_input <- function(x, arg, call = NULL) {
         call = call
       )
     }
-    size <- file.size(x)
+    size <- min(file.size(x), limit)
     return(tryCatch(
       readBin(x, "raw", size),
       error = function(e) {
@@ -145,7 +146,7 @@ read_input <- function(x, arg, call = NULL) {
   )
 }
 
-read_connection <- function(con, call = NULL) {
+read_connection <- function(con, call = NULL, limit = Inf) {
   if (!isOpen(con)) {
     tryCatch(open(con, "rb"), error = function(e) {
       zpb_abort(
@@ -157,18 +158,23 @@ read_connection <- function(con, call = NULL) {
     on.exit(close(con))
   }
   chunks <- list()
-  repeat {
-    chunk <- tryCatch(readBin(con, "raw", 65536L), error = function(e) {
-      zpb_abort(
-        "zuproto_io_error",
-        sprintf("Cannot read connection: %s", conditionMessage(e)),
-        call = call
-      )
-    })
+  got <- 0
+  while (got < limit) {
+    chunk <- tryCatch(
+      readBin(con, "raw", min(65536, limit - got)),
+      error = function(e) {
+        zpb_abort(
+          "zuproto_io_error",
+          sprintf("Cannot read connection: %s", conditionMessage(e)),
+          call = call
+        )
+      }
+    )
     if (length(chunk) == 0L) {
       break
     }
     chunks[[length(chunks) + 1L]] <- chunk
+    got <- got + length(chunk)
   }
   unlist(chunks, use.names = FALSE) %||% raw()
 }

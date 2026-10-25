@@ -1,0 +1,284 @@
+# proto_decode(), design sections 5, 6 and 12. C decodes and builds;
+# R checks arguments, reads input within max_size, and turns C's error
+# codes and warning counts into classed conditions.
+
+# Default limits, design section 5. zuproto_info() reports these.
+zpb_default_limits <- function() {
+  list(max_size = 64 * 1024^2, max_depth = 100L)
+}
+
+#' Decode one Protocol Buffers message
+#'
+#' Decodes the bytes of one message of type `type` into a named list, one
+#' element per field, by the field's name. upb decodes the whole message
+#' first; R values are built only from a message that decoded completely.
+#'
+#' @section Protobuf to R:
+#' | Protobuf | R |
+#' | --- | --- |
+#' | `double`, `float` | double |
+#' | `int32`, `sint32`, `sfixed32` | integer |
+#' | `uint32`, `fixed32` | double, exact |
+#' | `int64`, `uint64`, `sint64`, `fixed64`, `sfixed64` | per `int64` |
+#' | `bool` | logical |
+#' | `string` | character, UTF-8 |
+#' | `bytes` | raw, or per `bytes` |
+#' | enum | factor with the enum's value names as levels, or per `enums` |
+#' | message | named list |
+#' | `repeated` scalar | vector |
+#' | `repeated` message | list of lists |
+#' | `map<K, V>` | named vector or named list, sorted by key |
+#' | `oneof` | the member that is set |
+#' | extension | element named by its full name in brackets, `[pkg.ext]` |
+#'
+#' Well-known types: `Timestamp` becomes `POSIXct` in UTC, rounded to the
+#' microsecond; `Duration` a `difftime` in seconds; a wrapper
+#' (`Int32Value` and the rest) its value; `Struct` a named list, `Value`
+#' its value (`NULL` for `null`) and `ListValue` a list, as in protobuf
+#' JSON; `Any` a list of `type_url` and `value` (the packed bytes);
+#' `FieldMask` a character vector of paths; `Empty` an empty list.
+#' Repeated `Timestamp`, `Duration` and wrapper fields become vectors.
+#'
+#' A field that tracks presence (a message, a oneof member, a proto2 or
+#' proto3 `optional` field) is left out when it is not set. A field that
+#' does not track presence cannot be told apart from its default on the
+#' wire; with `defaults = TRUE` it takes its default (`0`, `""`, `FALSE`,
+#' the enum's first value, an empty vector), as other protobuf runtimes
+#' do; with `defaults = FALSE` it is left out when it holds its default.
+#'
+#' Required fields are not checked: a proto2 `required` field missing
+#' from the input decodes like any unset field.
+#'
+#' @param x The serialised message: a raw vector, a path to a file, or a
+#'   connection. A file or connection is read up to `max_size` bytes.
+#' @param type The message type's full name, such as `"pkg.Message"`.
+#' @param pool A pool from [proto_pool()] holding `type`.
+#' @param int64 How 64-bit integer fields become R values: `"double"`
+#'   (values beyond 2^53 lose precision, with a `zuproto_precision_loss`
+#'   warning) or `"character"` (exact decimal strings).
+#' @param enums How enum fields become R values: `"factor"`, `"integer"`
+#'   (the numbers) or `"character"` (the names). A number the enum does not
+#'   define is `NA` with a `zuproto_unknown_enum` warning, except as an
+#'   integer.
+#' @param defaults Whether unset fields without presence take their
+#'   defaults (`TRUE`) or are left out (`FALSE`).
+#' @param unknown `"drop"` to discard fields the type does not define,
+#'   `"keep"` to keep their bytes in an attribute `proto_unknown` on the
+#'   message (and on each nested message) holding them.
+#' @param bytes How `bytes` fields become R values: `"raw"` or `"base64"`
+#'   (strings, as protobuf JSON writes them).
+#' @param max_size The largest input accepted, in bytes. upb's memory for
+#'   the decode is capped at four times this.
+#' @param max_depth The deepest nesting accepted: how many levels of
+#'   messages within messages, the top-level message being level 0. A
+#'   message holding a message holding a message is depth 2. A map entry
+#'   counts as a level too, as upb counts it, so a message reached through
+#'   a map is two levels down. At most 1000, so that hostile input cannot
+#'   exhaust the C stack.
+#' @return A named list. An `int32`-family value of `-2^31` is `NA`, with
+#'   a `zuproto_precision_loss` warning, since R reserves it for `NA`.
+#' @seealso [zuproto-conditions] for the errors it raises.
+#' @export
+#' @examples
+#' pool <- proto_pool()
+#' # A Timestamp of 1.5 seconds after the epoch: field 1 = 1, field 2 = 5e8.
+#' bytes <- as.raw(c(0x08, 0x01, 0x10, 0x80, 0xca, 0xb5, 0xee, 0x01))
+#' proto_decode(bytes, "google.protobuf.Timestamp", pool)
+#' proto_decode(as.raw(c(0x08, 0x2a)), "google.protobuf.Int32Value", pool)
+proto_decode <- function(
+  x,
+  type,
+  pool,
+  int64 = c("double", "character"),
+  enums = c("factor", "integer", "character"),
+  defaults = TRUE,
+  unknown = c("drop", "keep"),
+  bytes = c("raw", "base64"),
+  max_size = zpb_default_limits()$max_size,
+  max_depth = zpb_default_limits()$max_depth
+) {
+  call <- sys.call()
+  check_pool(pool, call = call)
+  check_type(type, call = call)
+  int64 <- zpb_match_arg(int64, c("double", "character"), "int64", call)
+  enums <- zpb_match_arg(
+    enums,
+    c("factor", "integer", "character"),
+    "enums",
+    call
+  )
+  unknown <- zpb_match_arg(unknown, c("drop", "keep"), "unknown", call)
+  bytes <- zpb_match_arg(bytes, c("raw", "base64"), "bytes", call)
+  check_flag(defaults, "defaults", call)
+  check_limit(max_size, "max_size", 1, 2^53, call)
+  # upb's decoder recurses once per level; 1000 stays far below the depth
+  # (about 5000) at which the C stack ran out on an 8 MB stack.
+  check_limit(max_depth, "max_depth", 1, 1000, call)
+
+  raw <- read_message(x, max_size, call)
+  opts <- list(
+    int64 = match(int64, c("double", "character")) - 1L,
+    enums = match(enums, c("factor", "integer", "character")) - 1L,
+    defaults = as.integer(defaults),
+    keep_unknown = as.integer(unknown == "keep"),
+    bytes_base64 = as.integer(bytes == "base64"),
+    max_depth = as.integer(max_depth),
+    # The arena ceiling (design section 12), with room for upb's own
+    # overhead on tiny inputs.
+    arena_limit = max(4 * max_size, 65536)
+  )
+  res <- .Call(zpb_decode, pool$ptr, type, raw, opts)
+  if (!is.null(res$error)) {
+    decode_error(res, type, max_size, max_depth, call)
+  }
+  decode_warnings(res, type, call)
+  res$value
+}
+
+decode_error <- function(res, type, max_size, max_depth, call) {
+  switch(
+    res$error,
+    unknown_type = zpb_abort(
+      "zuproto_unknown_type",
+      sprintf("Message type '%s' is not in the pool.", type),
+      type = type,
+      call = call
+    ),
+    malformed = ,
+    other = zpb_abort(
+      "zuproto_parse_error",
+      sprintf(
+        "Cannot decode the input as '%s': the bytes are not a valid message of that type.",
+        type
+      ),
+      status = res$error,
+      call = call
+    ),
+    invalid_utf8 = zpb_abort(
+      c("zuproto_invalid_utf8", "zuproto_parse_error"),
+      sprintf(
+        "Cannot decode the input as '%s': a string field is not valid UTF-8.",
+        type
+      ),
+      status = res$error,
+      call = call
+    ),
+    max_depth = zpb_abort(
+      c("zuproto_depth_limit", "zuproto_limit_error"),
+      sprintf(
+        "Cannot decode the input as '%s': messages are nested deeper than `max_depth` (%d).",
+        type,
+        as.integer(max_depth)
+      ),
+      limit = "max_depth",
+      limit_value = max_depth,
+      call = call
+    ),
+    arena_limit = zpb_abort(
+      c("zuproto_size_limit", "zuproto_limit_error"),
+      sprintf(
+        "Cannot decode the input as '%s': it needs more than %s bytes of memory, four times `max_size`.",
+        type,
+        format(4 * max_size, scientific = FALSE)
+      ),
+      limit = "max_size",
+      limit_value = max_size,
+      call = call
+    ),
+    nul_in_string = ,
+    string_too_long = zpb_abort(
+      "zuproto_unrepresentable",
+      sprintf(
+        "Cannot decode the input as '%s': field '%s' holds a string R cannot, %s.",
+        type,
+        res$field,
+        if (res$error == "nul_in_string") {
+          "one containing a NUL byte"
+        } else {
+          "one longer than 2^31 - 1 bytes"
+        }
+      ),
+      field = res$field,
+      call = call
+    ),
+    zpb_abort(
+      "zuproto_error",
+      sprintf("Cannot decode the input as '%s': out of memory.", type),
+      call = call
+    )
+  )
+}
+
+decode_warnings <- function(res, type, call) {
+  if (res$precision_loss > 0) {
+    zpb_warn(
+      "zuproto_precision_loss",
+      sprintf(
+        "%s in '%s' could not be represented exactly: 64-bit integers beyond 2^53 were rounded, and 32-bit -2^31 became NA. Use `int64 = \"character\"` for exact 64-bit values.",
+        plural(res$precision_loss, "value"),
+        type
+      ),
+      n = res$precision_loss,
+      call = call
+    )
+  }
+  if (res$unknown_enum > 0) {
+    zpb_warn(
+      "zuproto_unknown_enum",
+      sprintf(
+        "%s in '%s' named no value of its enum and became NA.",
+        plural(res$unknown_enum, "enum value"),
+        type
+      ),
+      n = res$unknown_enum,
+      call = call
+    )
+  }
+}
+
+plural <- function(n, what) {
+  sprintf(
+    "%s %s%s",
+    format(n, scientific = FALSE),
+    what,
+    if (n == 1) "" else "s"
+  )
+}
+
+# Input for one message, refused beyond max_size before upb sees it.
+read_message <- function(x, max_size, call) {
+  too_big <- function(n) {
+    zpb_abort(
+      c("zuproto_size_limit", "zuproto_limit_error"),
+      sprintf(
+        "The input is larger than `max_size` (%s bytes).",
+        format(max_size, scientific = FALSE)
+      ),
+      limit = "max_size",
+      limit_value = max_size,
+      size = n,
+      call = call
+    )
+  }
+  if (is.raw(x)) {
+    if (length(x) > max_size) {
+      too_big(length(x))
+    }
+    return(x)
+  }
+  if (
+    is.character(x) &&
+      length(x) == 1L &&
+      !is.na(x) &&
+      file.exists(x) &&
+      !dir.exists(x)
+  ) {
+    size <- file.size(x)
+    if (size > max_size) too_big(size)
+  }
+  raw <- read_input(x, "x", call, limit = max_size + 1)
+  if (length(raw) > max_size) {
+    too_big(NA_real_)
+  }
+  raw
+}

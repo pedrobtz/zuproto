@@ -1,0 +1,24 @@
+// proto2: closed enums, explicit defaults, required, extensions.
+syntax = "proto2";
+
+package zpb.decode2;
+
+enum Closed {
+  ZERO = 0;
+  ONE = 1;
+  TWO = 2;
+}
+
+message Legacy {
+  required int32 id = 1;
+  optional string name = 2 [default = "anon"];
+  optional int32 count = 3 [default = 7];
+  optional Closed closed = 4 [default = TWO];
+  repeated int32 values = 5;
+  extensions 100 to 199;
+}
+
+extend Legacy {
+  optional string tag = 100;
+  repeated int32 codes = 101;
+}

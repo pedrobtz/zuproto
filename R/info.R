@@ -8,6 +8,8 @@
 #'   * `protobuf`: the protobuf release tag upb was vendored from, such as
 #'     `"v36.2"`.
 #'   * `protobuf_commit`: that tag's commit.
+#'   * `limits`: the default `max_size` (bytes) and `max_depth` of
+#'     [proto_decode()].
 #' @export
 #' @examples
 #' zuproto_info()
@@ -17,7 +19,8 @@ zuproto_info <- function() {
     list(
       version = unname(getNamespaceVersion("zuproto")),
       protobuf = info$protobuf_tag,
-      protobuf_commit = info$protobuf_commit
+      protobuf_commit = info$protobuf_commit,
+      limits = zpb_default_limits()
     ),
     class = "zuproto_info"
   )
@@ -34,7 +37,13 @@ format.zuproto_info <- function(x, ...) {
       " (",
       substr(x$protobuf_commit, 1, 7),
       ")"
-    )
+    ),
+    paste0(
+      "max_size: ",
+      format(x$limits$max_size, scientific = FALSE),
+      " bytes"
+    ),
+    paste0("max_depth: ", x$limits$max_depth)
   )
 }
 
