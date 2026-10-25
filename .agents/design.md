@@ -362,8 +362,9 @@ and it is the one every CI leg measured.
 
 Kept as files in `tools/patches/`, applied in order. Revised 2026-10-25
 after the Stage 1 measurement (pull request #15): the first proposal
-was two patches, and the full CI profile on unpatched v36.2 showed
-three are needed, plus one define. None touches decoder logic.
+was two patches, and the full CI profile on unpatched v36.2 and the
+runs after it showed four are needed, plus one define. None touches
+decoder logic.
 
 1. `0001-no-stdio.patch`: `_upb_UnreachableFailure()` (`fprintf` to
    `stderr`, then `abort()`) is compiled only without `NDEBUG`, which
@@ -375,7 +376,10 @@ three are needed, plus one define. None touches decoder logic.
    block silencing false `-Warray-bounds` and `-Wstringop-*` warnings
    (`R CMD check`: "pragma(s) suppressing important diagnostics"), and
    MSVC-only `section` and `intrinsic` lines ("non-portable pragma(s)").
-   No GCC leg reported the silenced warnings without them.
+   Without them Rtools' gcc reported the false warnings, as significant
+   ones, when it inlined `_upb_MiniTableField_DataCopy` into callers;
+   the patch therefore also makes upstream's `UPB_INLINE_IF_NOT_GCC`
+   (already non-inline on gcc) `noinline`, so gcc never sees them.
 3. `0003-pedantic.patch`, made by `tools/make-pedantic-patch`: the 21
    generated enum tables of `descriptor.proto` initialise
    `upb_MiniTableEnum`'s flexible array member, which gcc and clang
@@ -383,11 +387,14 @@ three are needed, plus one define. None touches decoder logic.
    struct with the same layout, and a macro keeps its name as a
    `upb_MiniTableEnum`; no code that reads the tables changes. The same
    patch drops one extra `;` after a function in the header.
+4. `0004-mingw-printf-format.patch`: on MinGW, `UPB_PRINTF` checks
+   formats as `gnu_printf`. Rtools' gcc reads plain `printf` as
+   Microsoft's, which has no `%zu`, and warned on two error messages.
 
 No `assert()` patch: `R CMD INSTALL` defines `NDEBUG`, so `UPB_ASSERT`
 is already empty. `__USE_MINGW_ANSI_STDIO=1` in `src/Makevars` gives
-Rtools the C99 `printf` family, which ends a `%zu` format warning on
-Windows without a patch.
+Rtools the C99 `printf` family, so the `%zu` that patch 4 lets through
+is also what runs.
 
 A patch that touches decoder logic is still a reason to stop and
 report upstream instead.

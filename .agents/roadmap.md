@@ -113,7 +113,7 @@ Stage 2.
 **Deviations, 2026-10-25.** Decided with the maintainer after the
 unpatched full CI run on #15:
 
-- Three patches plus one define, not two patches (design §9.2, revised).
+- Four patches plus one define, not two patches (design §9.2, revised).
   The `UPB_ASSERT` patch is not needed, since `R CMD INSTALL` defines
   `NDEBUG`.
 - Layout `src/vendor/{upb,utf8_range}/` with `src/vendor/PROVENANCE`, as
