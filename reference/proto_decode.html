@@ -54,8 +54,8 @@ first; R values are built only from a message that decoded completely.</p>
 <span>  defaults <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  unknown <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"drop"</span>, <span class="st">"keep"</span><span class="op">)</span>,</span>
 <span>  bytes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"raw"</span>, <span class="st">"base64"</span><span class="op">)</span>,</span>
-<span>  max_size <span class="op">=</span> <span class="fu">zpb_default_limits</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">max_size</span>,</span>
-<span>  max_depth <span class="op">=</span> <span class="fu">zpb_default_limits</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">max_depth</span></span>
+<span>  max_size <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_size</span>,</span>
+<span>  max_depth <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_depth</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 

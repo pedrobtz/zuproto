@@ -67,8 +67,8 @@ instead, so a stream larger than memory can be processed.
 <span>  enums <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"factor"</span>, <span class="st">"integer"</span>, <span class="st">"character"</span><span class="op">)</span>,</span>
 <span>  defaults <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  bytes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"raw"</span>, <span class="st">"base64"</span><span class="op">)</span>,</span>
-<span>  max_size <span class="op">=</span> <span class="fu">zpb_default_limits</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">max_size</span>,</span>
-<span>  max_depth <span class="op">=</span> <span class="fu">zpb_default_limits</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">max_depth</span>,</span>
+<span>  max_size <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_size</span>,</span>
+<span>  max_depth <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_depth</span>,</span>
 <span>  max_rows <span class="op">=</span> <span class="fl">1e+07</span></span>
 <span><span class="op">)</span></span>
 <span></span>

@@ -41,3 +41,8 @@
   [`proto_unpack_any()`](https://pedrobtz.github.io/zuproto/reference/proto_unpack_any.md)
   decodes an `Any`. `int64 = "integer64"` decodes 64-bit fields as bit64
   vectors.
+- Encoding accepts NaN in `double` and `float` fields, writes `NULL` in
+  a `Value` field as JSON null, and takes any `Timestamp` or `Duration`
+  the binary format allows; the JSON mapping’s narrower ranges are
+  enforced by
+  [`proto_to_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md).

@@ -59,8 +59,8 @@ types take their special JSON forms (<code>Timestamp</code> as an RFC 3339 strin
 <span>  proto_names <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  enums <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"integer"</span><span class="op">)</span>,</span>
 <span>  parse <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  max_size <span class="op">=</span> <span class="fu">zpb_default_limits</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">max_size</span>,</span>
-<span>  max_depth <span class="op">=</span> <span class="fu">zpb_default_limits</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">max_depth</span></span>
+<span>  max_size <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_size</span>,</span>
+<span>  max_depth <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_depth</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">proto_from_json</span><span class="op">(</span></span>
@@ -69,7 +69,7 @@ types take their special JSON forms (<code>Timestamp</code> as an RFC 3339 strin
 <span>  <span class="va">pool</span>,</span>
 <span>  ignore_unknown <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  check_required <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  max_size <span class="op">=</span> <span class="fu">zpb_default_limits</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">max_size</span></span>
+<span>  max_size <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_size</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 

@@ -80,6 +80,12 @@
 <span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="ex">tools/verify-vendor</span>                              <span class="co"># vendor, wkt.binpb, shim</span></span>
 <span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="ex">tools/make-test-descriptors</span>                      <span class="co"># after editing fixtures/proto/</span></span></code></pre></div>
 <p><code>tools/vendor-upb</code>, <code>tools/make-test-descriptors</code> and the fixtures need <code>protoc</code> (<code>brew install protobuf</code>).</p>
+<p>Occasional, for C changes and before a release:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">tools/run-fuzz</span> 60                                <span class="co"># fuzz targets, ASan + UBSan</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="va">CANARY_ONLY</span><span class="op">=</span>1 <span class="ex">tools/run-fuzz</span>                     <span class="co"># every canary must crash</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="va">CONFORMANCE_RUNNER</span><span class="op">=&lt;</span>path<span class="op">&gt;</span> tools/conformance/run  <span class="co"># protobuf conformance suite</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="ex">R</span> CMD INSTALL . <span class="kw">&amp;&amp;</span> <span class="ex">tools/run-benchmarks</span>          <span class="co"># design section 16</span></span></code></pre></div>
+<p>The conformance runner is built from protobuf at the vendored tag with CMake (<code>-Dprotobuf_BUILD_CONFORMANCE=ON</code>); <code>.github/workflows/conformance.yaml</code> shows how. The runner matches each expected failure’s message, so after a change that alters how a listed test fails, regenerate the list with <code>tools/conformance/update-failure-list.py</code>. After changing fixtures, run <code>Rscript tools/fuzz/make-fuzz-data.R</code> to refresh the fuzz seeds and <code>tools/fuzz/data.h</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
