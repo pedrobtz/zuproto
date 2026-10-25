@@ -63,8 +63,8 @@ proto_decode_df <- function(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_default_limits()$max_size,
-  max_depth = zpb_default_limits()$max_depth,
+  max_size = zpb_limits$max_size,
+  max_depth = zpb_limits$max_depth,
   max_rows = 1e7
 ) {
   call <- sys.call()
@@ -165,8 +165,8 @@ proto_read_delimited <- function(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_default_limits()$max_size,
-  max_depth = zpb_default_limits()$max_depth,
+  max_size = zpb_limits$max_size,
+  max_depth = zpb_limits$max_depth,
   max_rows = 1e7
 ) {
   call <- sys.call()

@@ -48,8 +48,8 @@ proto_to_json <- function(
   proto_names = FALSE,
   enums = c("name", "integer"),
   parse = FALSE,
-  max_size = zpb_default_limits()$max_size,
-  max_depth = zpb_default_limits()$max_depth
+  max_size = zpb_limits$max_size,
+  max_depth = zpb_limits$max_depth
 ) {
   call <- sys.call()
   check_pool(pool, call = call)
@@ -92,7 +92,7 @@ proto_from_json <- function(
   pool,
   ignore_unknown = FALSE,
   check_required = TRUE,
-  max_size = zpb_default_limits()$max_size
+  max_size = zpb_limits$max_size
 ) {
   call <- sys.call()
   check_pool(pool, call = call)
