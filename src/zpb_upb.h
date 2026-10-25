@@ -695,4 +695,43 @@ static inline const zpb_fielddef *zpb_msg_which_oneof(const zpb_msg *msg,
     return upb_Message_WhichOneofByDef(msg, o);
 }
 
+/* ---- Protobuf JSON (design section 5) ---- */
+
+enum {
+    ZPB_JSON_EMIT_DEFAULTS = upb_JsonEncode_EmitDefaults,
+    ZPB_JSON_PROTO_NAMES = upb_JsonEncode_UseProtoNames,
+    ZPB_JSON_ENUMS_AS_INTEGERS = upb_JsonEncode_FormatEnumsAsIntegers
+};
+
+/* JSON for msg into buf (size bytes, NUL-terminated). Returns the length
+ * the whole text needs, excluding the NUL, or (size_t) -1 with upb's
+ * message in err. Call with size 0 to measure. */
+static inline size_t zpb_json_encode(const zpb_msg *msg, const zpb_msgdef *m,
+                                     const zpb_defpool *p, int options, char *buf,
+                                     size_t size, char *err, size_t err_len)
+{
+    upb_Status status;
+    upb_Status_Clear(&status);
+    err[0] = '\0';
+    size_t n = upb_JsonEncode(msg, m, p, options, buf, size, &status);
+    if (n == (size_t) -1) snprintf(err, err_len, "%s", upb_Status_ErrorMessage(&status));
+    return n;
+}
+
+/* Parse JSON text into msg; false with upb's message in err. */
+static inline bool zpb_json_decode(const char *buf, size_t len, zpb_msg *msg,
+                                   const zpb_msgdef *m, const zpb_defpool *p,
+                                   bool ignore_unknown, zpb_arena *a, char *err,
+                                   size_t err_len)
+{
+    upb_Status status;
+    upb_Status_Clear(&status);
+    err[0] = '\0';
+    bool ok = upb_JsonDecode(buf, len, msg, m, p,
+                             ignore_unknown ? upb_JsonDecode_IgnoreUnknown : 0, a,
+                             &status);
+    if (!ok) snprintf(err, err_len, "%s", upb_Status_ErrorMessage(&status));
+    return ok;
+}
+
 #endif

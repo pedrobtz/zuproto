@@ -14,6 +14,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"zpb_encode", (DL_FUNC) &zpb_encode, 4},
     {"zpb_decode_df", (DL_FUNC) &zpb_decode_df, 4},
     {"zpb_frame_delimited", (DL_FUNC) &zpb_frame_delimited, 1},
+    {"zpb_to_json", (DL_FUNC) &zpb_to_json, 4},
+    {"zpb_from_json", (DL_FUNC) &zpb_from_json, 4},
     {NULL, NULL, 0}
 };
 

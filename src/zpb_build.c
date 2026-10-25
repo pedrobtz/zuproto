@@ -166,7 +166,19 @@ static int set_value(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out,
     case ZPB_CTYPE_INT64:
     case ZPB_CTYPE_UINT64: {
         int is_signed = zpb_field_ctype(f) == ZPB_CTYPE_INT64;
-        if (ctx->int64 == ZPB_INT64_CHARACTER) {
+        if (ctx->int64 == ZPB_INT64_INTEGER64) {
+            /* bit64 stores the int64 in the double's bits, and its NA is
+             * INT64_MIN: that value, and uint64 values above INT64_MAX,
+             * become NA with a precision-loss warning. */
+            int64_t bits;
+            if (is_signed ? v.int64_val == INT64_MIN : v.uint64_val > (uint64_t) INT64_MAX) {
+                ctx->precision_loss++;
+                bits = INT64_MIN;
+            } else {
+                bits = is_signed ? v.int64_val : (int64_t) v.uint64_val;
+            }
+            memcpy(&REAL(out)[i], &bits, sizeof bits);
+        } else if (ctx->int64 == ZPB_INT64_CHARACTER) {
             char buf[32];
             if (is_signed)
                 snprintf(buf, sizeof buf, "%lld", (long long) v.int64_val);
@@ -240,7 +252,9 @@ static int set_value(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out,
 static void finish_values(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out)
 {
     int ct = zpb_field_ctype(f);
-    if (ct == ZPB_CTYPE_ENUM && ctx->enums == ZPB_ENUMS_FACTOR) {
+    if ((ct == ZPB_CTYPE_INT64 || ct == ZPB_CTYPE_UINT64) && ctx->int64 == ZPB_INT64_INTEGER64) {
+        Rf_setAttrib(out, R_ClassSymbol, Rf_mkString("integer64"));
+    } else if (ct == ZPB_CTYPE_ENUM && ctx->enums == ZPB_ENUMS_FACTOR) {
         Rf_setAttrib(out, R_LevelsSymbol, enum_levels(zpb_field_enumdef(f)));
         Rf_setAttrib(out, R_ClassSymbol, Rf_mkString("factor"));
     } else if (ct == ZPB_CTYPE_MESSAGE) {
@@ -665,8 +679,24 @@ SEXP zpb_build(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg *msg)
  * message, or NULL where the row has none (a nested message its parent did
  * not set), which makes every column of that row NA. */
 
-static void set_na(SEXP col, R_xlen_t i)
+/* Whether f's values are bit64 integer64s, whose NA is INT64_MIN's bits,
+ * not NA_real_. Decided from the field: the class comes later, in
+ * finish_values(). */
+static int is_integer64_field(zpb_build_ctx *ctx, const zpb_fielddef *f)
 {
+    int ct = zpb_field_ctype(f);
+    if (ct == ZPB_CTYPE_MESSAGE && zpb_msgdef_wkt(zpb_field_msgdef(f)) == ZPB_WKT_WRAPPER)
+        ct = zpb_field_ctype(wrapper_value_field(zpb_field_msgdef(f)));
+    return ctx->int64 == ZPB_INT64_INTEGER64 && (ct == ZPB_CTYPE_INT64 || ct == ZPB_CTYPE_UINT64);
+}
+
+static void set_na(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP col, R_xlen_t i)
+{
+    if (is_integer64_field(ctx, f)) {
+        int64_t na = INT64_MIN;
+        memcpy(&REAL(col)[i], &na, sizeof na);
+        return;
+    }
     switch (TYPEOF(col)) {
     case LGLSXP: LOGICAL(col)[i] = NA_LOGICAL; break;
     case INTSXP: INTEGER(col)[i] = NA_INTEGER; break;
@@ -738,12 +768,12 @@ static SEXP singular_column(zpb_build_ctx *ctx, const zpb_fielddef *f, const zpb
         check_interrupt(i);
         const zpb_msg *row = rows[i];
         if (row == NULL || (presence && !zpb_msg_has(row, f))) {
-            set_na(col, i);
+            set_na(ctx, f, col, i);
             continue;
         }
         zpb_value v = zpb_msg_get(row, f);
         if (!presence && !ctx->defaults && is_default(f, v)) {
-            set_na(col, i);
+            set_na(ctx, f, col, i);
             continue;
         }
         if (set_value(ctx, f, col, i, v) < 0) {

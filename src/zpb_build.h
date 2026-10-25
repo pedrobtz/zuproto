@@ -4,7 +4,7 @@
 #include "zpb_upb.h"
 
 /* Options and state of one decode (design section 5). */
-enum { ZPB_INT64_DOUBLE = 0, ZPB_INT64_CHARACTER };
+enum { ZPB_INT64_DOUBLE = 0, ZPB_INT64_CHARACTER, ZPB_INT64_INTEGER64 };
 enum { ZPB_ENUMS_FACTOR = 0, ZPB_ENUMS_INTEGER, ZPB_ENUMS_CHARACTER };
 enum {
     ZPB_BUILD_ERR_NONE = 0,

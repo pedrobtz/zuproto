@@ -17,5 +17,7 @@ SEXP zpb_decode(SEXP ptr, SEXP type, SEXP raw, SEXP opts);
 SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts);
 SEXP zpb_decode_df(SEXP ptr, SEXP type, SEXP x, SEXP opts);
 SEXP zpb_frame_delimited(SEXP msgs);
+SEXP zpb_to_json(SEXP ptr, SEXP type, SEXP raw, SEXP opts);
+SEXP zpb_from_json(SEXP ptr, SEXP type, SEXP json, SEXP opts);
 
 #endif
