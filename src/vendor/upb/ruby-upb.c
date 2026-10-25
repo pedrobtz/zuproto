@@ -5448,16 +5448,21 @@ static void jsonenc_wrapper(jsonenc* e, const upb_Message* msg,
 
 static const upb_MessageDef* jsonenc_getanymsg(jsonenc* e,
                                                upb_StringView type_url) {
-  /* Find last '/', if any. */
-  const char* end = type_url.data + type_url.size;
-  const char* ptr = end;
+  const char* end;
+  const char* ptr;
   const upb_MessageDef* ret;
 
   if (!e->ext_pool) {
     jsonenc_err(e, "Tried to encode Any, but no symtab was provided");
   }
 
+  // zuproto: check for the empty URL before the pointer arithmetic, whose
+  // data is then NULL; NULL + 0 is undefined in C, and UBSan reports it.
   if (type_url.size == 0) goto badurl;
+
+  /* Find last '/', if any. */
+  end = type_url.data + type_url.size;
+  ptr = end;
 
   while (true) {
     if (--ptr == type_url.data) {
