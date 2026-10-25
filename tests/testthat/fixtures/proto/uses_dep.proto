@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package zpb.uses;
+
+import "dep.proto";
+
+message Branch {
+  zpb.dep.Leaf leaf = 1;
+}

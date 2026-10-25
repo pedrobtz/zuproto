@@ -1,0 +1,8 @@
+edition = "2023";
+
+package zpb.editions;
+
+message Thing {
+  int32 x = 1;
+  string label = 2;
+}

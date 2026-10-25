@@ -1,0 +1,39 @@
+// A proto3 schema covering the field kinds proto_fields() reports.
+syntax = "proto3";
+
+package zpb.test;
+
+import "google/protobuf/timestamp.proto";
+
+enum Color {
+  COLOR_UNSPECIFIED = 0;
+  RED = 1;
+  GREEN = 2;
+}
+
+message Scalars {
+  double f_double = 1;
+  float f_float = 2;
+  int64 f_int64 = 3;
+  uint32 f_uint32 = 4;
+  sint64 f_sint64 = 5;
+  bool f_bool = 6;
+  string f_string = 7;
+  bytes f_bytes = 8;
+  optional int32 f_optional = 9;
+  repeated int32 f_packed = 10;
+  Color color = 11;
+  google.protobuf.Timestamp when = 12;
+}
+
+message Holder {
+  message Inner {
+    string id = 1;
+  }
+  repeated Inner inners = 1;
+  map<string, int32> counts = 2;
+  oneof choice {
+    string text = 3;
+    int64 number = 4;
+  }
+}

@@ -15,10 +15,27 @@ test_that("the shared object links no symbol CRAN's compiled-code check rejects"
   undefined <- sub("^_", "", trimws(sub("^\\s*U\\s+", "", undefined)))
   undefined <- sub("@.*$", "", undefined)
   forbidden <- c(
-    "abort", "exit", "_exit", "printf", "puts", "putchar", "fprintf",
-    "vprintf", "sprintf", "vsprintf", "stdout", "stderr", "__stdoutp",
-    "__stderrp", "rand", "srand", "random", "srandom", "assert",
-    "__assert_fail", "__assert_rtn"
+    "abort",
+    "exit",
+    "_exit",
+    "printf",
+    "puts",
+    "putchar",
+    "fprintf",
+    "vprintf",
+    "sprintf",
+    "vsprintf",
+    "stdout",
+    "stderr",
+    "__stdoutp",
+    "__stderrp",
+    "rand",
+    "srand",
+    "random",
+    "srandom",
+    "assert",
+    "__assert_fail",
+    "__assert_rtn"
   )
   expect_equal(intersect(undefined, forbidden), character())
 })

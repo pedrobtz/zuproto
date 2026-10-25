@@ -1,0 +1,8 @@
+// Same file name as ../dep.proto, different contents: a pool conflict.
+syntax = "proto3";
+
+package zpb.dep;
+
+message Leaf {
+  int64 value = 1;
+}
