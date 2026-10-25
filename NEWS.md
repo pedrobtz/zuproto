@@ -12,3 +12,6 @@
 * `proto_decode()` decodes one message to a named list: every scalar type,
   enums as factors, repeated fields, maps, oneofs, extensions and the
   well-known types, with limits on size, nesting and memory.
+* `proto_encode()` encodes a named list as one message, deterministically,
+  the inverse of `proto_decode()`; a value of the wrong form fails with a
+  `zuproto_type_mismatch` naming the field.

@@ -109,6 +109,11 @@ Grows as stages land; `.agents/design.md` §4 has the whole plan.
   message by reflection. A value R cannot hold sets `ctx->err`, and every
   builder then returns `NULL` with its PROTECTs undone; warnings are counted
   in `ctx` and raised once by R.
+- **Encoding** (`R/encode.R`, `src/zpb_fill.c`): the R value is walked
+  against the message definition and set on a upb message, then upb encodes.
+  A wrong value stops the walk with an error code, a detail and the field's
+  path (`ctx->path`), which R raises. Strings handed to upb point into R
+  memory, valid until the `.Call` returns.
 - **Message fixtures** come from Python `protobuf` 7.36.2 through
   `tools/make-fixtures.py` (it says how to set up the venv), stored as hex
   in `tests/testthat/fixtures/msg/` with a `MANIFEST.tsv`.
