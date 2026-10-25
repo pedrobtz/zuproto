@@ -150,8 +150,11 @@ Error, UINTPTR_MAX is undefined
 #endif
 
 // UPB_INLINE_IF_NOT_GCC: because gcc can be very noisy at times.
+// zuproto: also noinline, so gcc does not inline these field copies into
+// callers and then report false -Warray-bounds and -Wstringop-overflow
+// warnings, which upstream silenced with #pragma GCC diagnostic.
 #if defined(__GNUC__) && !defined(__clang__)
-#define UPB_INLINE_IF_NOT_GCC static
+#define UPB_INLINE_IF_NOT_GCC static __attribute__((noinline))
 #else
 #define UPB_INLINE_IF_NOT_GCC UPB_INLINE
 #endif

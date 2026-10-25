@@ -1,7 +1,7 @@
 diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
 --- a/upb/ruby-upb.c
 +++ b/upb/ruby-upb.c
-@@ -2241,7 +2241,7 @@
+@@ -2244,7 +2244,7 @@
    })
  };
  
@@ -10,7 +10,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      11,
      {
-@@ -2261,7 +2261,7 @@
+@@ -2264,7 +2264,7 @@
      },
  };
  
@@ -19,7 +19,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2270,7 +2270,7 @@
+@@ -2273,7 +2273,7 @@
      },
  };
  
@@ -28,7 +28,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2279,7 +2279,7 @@
+@@ -2282,7 +2282,7 @@
      },
  };
  
@@ -37,7 +37,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2288,7 +2288,7 @@
+@@ -2291,7 +2291,7 @@
      },
  };
  
@@ -46,7 +46,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2297,7 +2297,7 @@
+@@ -2300,7 +2300,7 @@
      },
  };
  
@@ -55,7 +55,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2306,7 +2306,7 @@
+@@ -2309,7 +2309,7 @@
      },
  };
  
@@ -64,7 +64,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2315,7 +2315,7 @@
+@@ -2318,7 +2318,7 @@
      },
  };
  
@@ -73,7 +73,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2324,7 +2324,7 @@
+@@ -2327,7 +2327,7 @@
      },
  };
  
@@ -82,7 +82,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2333,7 +2333,7 @@
+@@ -2336,7 +2336,7 @@
      },
  };
  
@@ -91,7 +91,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2342,7 +2342,7 @@
+@@ -2345,7 +2345,7 @@
      },
  };
  
@@ -100,7 +100,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2351,7 +2351,7 @@
+@@ -2354,7 +2354,7 @@
      },
  };
  
@@ -109,7 +109,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2360,7 +2360,7 @@
+@@ -2363,7 +2363,7 @@
      },
  };
  
@@ -118,7 +118,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2369,7 +2369,7 @@
+@@ -2372,7 +2372,7 @@
      },
  };
  
@@ -127,7 +127,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2378,7 +2378,7 @@
+@@ -2381,7 +2381,7 @@
      },
  };
  
@@ -136,7 +136,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2387,7 +2387,7 @@
+@@ -2390,7 +2390,7 @@
      },
  };
  
@@ -145,7 +145,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2396,7 +2396,7 @@
+@@ -2399,7 +2399,7 @@
      },
  };
  
@@ -154,7 +154,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2405,7 +2405,7 @@
+@@ -2408,7 +2408,7 @@
      },
  };
  
@@ -163,7 +163,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2414,7 +2414,7 @@
+@@ -2417,7 +2417,7 @@
      },
  };
  
@@ -172,7 +172,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2423,7 +2423,7 @@
+@@ -2426,7 +2426,7 @@
      },
  };
  
@@ -181,7 +181,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
      64,
      0,
      {
-@@ -2432,7 +2432,7 @@
+@@ -2435,7 +2435,7 @@
      },
  };
  
@@ -193,7 +193,7 @@ diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
 diff -ru a/upb/ruby-upb.h b/upb/ruby-upb.h
 --- a/upb/ruby-upb.h
 +++ b/upb/ruby-upb.h
-@@ -6863,27 +6863,57 @@
+@@ -6866,27 +6866,57 @@
  extern const upb_MiniTable google__protobuf__GeneratedCodeInfo_msg_init;
  extern const upb_MiniTable google__protobuf__GeneratedCodeInfo__Annotation_msg_init;
  
@@ -272,7 +272,7 @@ diff -ru a/upb/ruby-upb.h b/upb/ruby-upb.h
  extern const upb_MiniTableFile google_protobuf_descriptor_proto_upb_file_layout;
  
  #ifdef __cplusplus
-@@ -18838,7 +18868,7 @@
+@@ -18841,7 +18871,7 @@
    d->trace_ptr[1] = '\0';
    d->trace_ptr++;
  #endif
