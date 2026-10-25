@@ -86,6 +86,20 @@ tools/make-test-descriptors                      # after editing fixtures/proto/
 `tools/vendor-upb`, `tools/make-test-descriptors` and the fixtures need
 `protoc` (`brew install protobuf`).
 
+Occasional, for C changes and before a release:
+
+```sh
+tools/run-fuzz 60                                # fuzz targets, ASan + UBSan
+CANARY_ONLY=1 tools/run-fuzz                     # every canary must crash
+CONFORMANCE_RUNNER=<path> tools/conformance/run  # protobuf conformance suite
+R CMD INSTALL . && tools/run-benchmarks          # design section 16
+```
+
+The conformance runner is built from protobuf at the vendored tag with
+CMake (`-Dprotobuf_BUILD_CONFORMANCE=ON`); `.github/workflows/conformance.yaml`
+shows how. After changing fixtures, run `Rscript tools/fuzz/make-fuzz-data.R`
+to refresh the fuzz seeds and `tools/fuzz/data.h`.
+
 ## Architecture
 
 Grows as stages land; `.agents/design.md` §4 has the whole plan.

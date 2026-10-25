@@ -317,12 +317,15 @@ an error for a field without presence in proto2 `required`.
 
 Decided in Stage 4 (2026-10-25), where §7 left it open: a map key given
 twice, a second member of a oneof, `NA` inside a repeated field, and a
-`Timestamp` outside 0001-01-01 to 9999-12-31 (a `Duration` beyond
-±10000 years) are `zuproto_type_mismatch`, each carrying the field's
-`path`; `bytes` fields take raw vectors only; a `Timestamp` before 1970
-keeps nanos non-negative, a `Duration` gives its nanos the seconds'
-sign. Unknown fields go back through upb's internal add-unknown call,
-which the shim spells out by name, since upb has no public one.
+`Timestamp` or `Duration` whose seconds an `int64` cannot hold are
+`zuproto_type_mismatch`, each carrying the field's `path` (revised in
+Stage 7: the 0001–9999 and ±10000-year ranges belong to the JSON
+mapping, which upb enforces, and refusing them on binary encode broke
+decode → encode for values the binary format allows); `bytes` fields
+take raw vectors only; a `Timestamp` before 1970 keeps nanos
+non-negative, a `Duration` gives its nanos the seconds' sign. Unknown
+fields go back through upb's internal add-unknown call, which the shim
+spells out by name, since upb has no public one.
 
 `proto_write_delimited()` takes a data frame whose columns follow §6.2
 and writes one message per row.
@@ -417,7 +420,8 @@ Kept as files in `tools/patches/`, applied in order. Revised 2026-10-25
 after the Stage 1 measurement (pull request #15): the first proposal
 was two patches, and the full CI profile on unpatched v36.2 and the
 runs after it showed four are needed, plus one define; Stage 3's
-sanitizer runs added a fifth. None touches decoder logic.
+sanitizer runs added a fifth and Stage 7's fuzzing a sixth. None touches
+decoder logic.
 
 1. `0001-no-stdio.patch`: `_upb_UnreachableFailure()` (`fprintf` to
    `stderr`, then `abort()`) is compiled only without `NDEBUG`, which
@@ -448,6 +452,11 @@ sanitizer runs added a fifth. None touches decoder logic.
    its reads past index 0 as out of bounds when a schema has a string
    `[default = …]`. It becomes a C99 flexible array member, and its two
    allocations add the byte the NUL terminator needs.
+6. `0006-any-empty-url.patch` (Stage 7, found by `fuzz_decode`): upb's
+   JSON encoder computed `data + size` on an `Any`'s empty `type_url`,
+   whose data is then `NULL`, before checking for the empty URL; `NULL +
+   0` is undefined in C and UBSan reports it. The check moves first. To
+   be reported upstream.
 
 No `assert()` patch: `R CMD INSTALL` defines `NDEBUG`, so `UPB_ASSERT`
 is already empty. `__USE_MINGW_ANSI_STDIO=1` in `src/Makevars` gives
@@ -596,10 +605,45 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
 - Tests are self-sufficient, pass under `shuffle = TRUE`, and the CRAN
   suite runs in under 15 s; the conformance and fuzz jobs are CI only.
 
+**As built in Stage 7 (2026-10-25).** The conformance testee
+(`tools/conformance/`) routes every payload through `proto_decode()` and
+`proto_encode()`, so the suite tests the R mapping, not only upb. At
+v36.2: 5389 tests pass and 160 are expected failures, each line of
+`failure_list.txt` saying why: 96 for `-2^31` as `NA` (§6.1), 44 for
+Timestamp and Duration as microsecond doubles (§6.3), 8 for NUL in
+strings, 12 that upb's JSON decoder fails for protobuf's Ruby and PHP
+too. Text format's 909 tests are skipped (§2). The fuzz targets
+(`tools/fuzz/`) are `fuzz_decode` and `fuzz_json` (upb through the
+shim) and `fuzz_build` (embedded R: the builder and the encoder), each
+with a canary; they found patch 0006, and that an `NA` from an enum
+number the enum lacks cannot be re-encoded inside a repeated field
+(`enums = "factor"`, as documented), and showed the encoder's Timestamp
+range was the JSON mapping's, not the binary format's (§7, revised). The
+conformance run also found that NaN was refused on encode and that `NULL`
+in a `Value` field was read as unset; both are fixed.
+
 ## 16. Performance targets
 
 Measured by `tools/run-benchmarks` against `RProtoBuf` where it
 installs, and recorded in the design.
+
+**Stage 7, 2026-10-25**, the targets below against RProtoBuf 0.4.28 on
+the same machine:
+
+- Batch: `proto_decode_df()` on 10^5 five-field messages, 0.15 s, against
+  3.84 s for RProtoBuf's `read()`, `as.list()` and `rbind` per message:
+  **25x, target met.**
+- Single message, 20,000 times: `proto_encode()` 1.3x RProtoBuf's
+  `serialize()`: **met**. `proto_decode()` 5x its `read()`: **not met**.
+  `read()` returns a C++ message, not R values, and zuproto's cost is a
+  fixed ~29 us a call (argument checks, the arena holder, the result
+  list) whatever the message; moving the choice vectors to constants
+  changed nothing measurable. Many messages should go through
+  `proto_decode_df()`.
+- Pool loading: a 0.9 MB descriptor set (2600 types) loads in 29-32 ms in
+  a fresh session: **met**. (Measured after 10^6 rows were held in R, it
+  took 150 ms, all of it R's garbage collector; the benchmark now
+  measures it first.)
 
 **Stage 5, 2026-10-25** (Intel i5-8500B, macOS, R 4.5.2, upb v36.2;
 10^6 messages of five scalar fields): `proto_read_delimited()` decodes
