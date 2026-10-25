@@ -135,5 +135,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     const void *vmax = vmaxget();
     R_ToplevelExec(run, &in);
     vmaxset(vmax);
+    /* A full collection now and then, so R's heap growing between
+     * collections is not taken for a leak under libFuzzer's RSS cap. */
+    static unsigned long runs = 0;
+    if (++runs % 1000 == 0) R_gc();
     return 0;
 }
