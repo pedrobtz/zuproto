@@ -5885,7 +5885,12 @@ static size_t upb_JsonEncoder_Encode(jsonenc* const e,
                                      const upb_Message* const msg,
                                      const upb_MessageDef* const m,
                                      const size_t size) {
-  if (UPB_SETJMP(e->err) != 0) return -1;
+  if (UPB_SETJMP(e->err) != 0) {
+    // zuproto: free the arena an Any made before the error, which the
+    // success path below frees but this one leaked (LeakSanitizer).
+    if (e->arena) upb_Arena_Free(e->arena);
+    return -1;
+  }
 
   jsonenc_msgfield(e, msg, m);
   if (e->arena) upb_Arena_Free(e->arena);
