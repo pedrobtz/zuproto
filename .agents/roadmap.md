@@ -110,6 +110,21 @@ Stage 2.
   entry beyond the two the design allows.
 - The measurements are recorded in the design, with the go decision.
 
+**Deviations, 2026-10-25.** Decided with the maintainer after the
+unpatched full CI run on #15:
+
+- Three patches plus one define, not two patches (design §9.2, revised).
+  The `UPB_ASSERT` patch is not needed, since `R CMD INSTALL` defines
+  `NDEBUG`.
+- Layout `src/vendor/{upb,utf8_range}/` with `src/vendor/PROVENANCE`, as
+  zuhtml does and r-actions' `vendor.yml` expects, instead of `src/upb/`
+  with `src/upb/VERSION`. The hash check is `tools/verify-vendor`, run by
+  the `vendor` workflow, instead of a testthat test, since the installed
+  package has no `src/`.
+- The `nm -u` guard is `tests/testthat/test-symbols.R`, which runs on
+  every CI leg that has `nm`, instead of a separate CI step.
+- Ruby amalgamation kept (open question 4); the reason is in design §9.1.
+
 **Design.** §9.1, §9.2, §14; §18 question 4.
 
 ## Stage 2 — Shim, pools and well-known types
@@ -393,7 +408,6 @@ No new features.
   reach CRAN (or at least r-universe, with `Additional_repositories`)
   before zuproto can suggest it; otherwise `int64 = "zuint"` waits for
   0.2.0.
-- **Ruby or PHP amalgamation** (question 4): blocks Stage 1.
 - **Extensions** (question 7): blocks Stage 2.
 - **`defaults = TRUE`** (question 2) and **a message class** (question 5):
   block Stage 3.
