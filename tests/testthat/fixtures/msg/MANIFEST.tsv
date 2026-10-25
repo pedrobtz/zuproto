@@ -1,0 +1,14 @@
+name	type	source	sha256
+scalars_set	zpb.decode.Scalars	python-protobuf 7.36.2 json_format.ParseDict	c7df4b2e51282ec5b1354407adffe7cc3f1525981b205db8c1a215bacc2f8070
+scalars_empty	zpb.decode.Scalars	python-protobuf 7.36.2 json_format.ParseDict	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+scalars_big	zpb.decode.Scalars	python-protobuf 7.36.2 json_format.ParseDict	7f09ce2ed341f5c03a73ab202f36924a67c57e085b90967eed1071ba63ad12dc
+repeated	zpb.decode.Repeated	python-protobuf 7.36.2 json_format.ParseDict	d9899e9f8484cba64c071d2697c42655f9f4284708238d4dc17ae7944646014c
+maps	zpb.decode.Maps	python-protobuf 7.36.2 json_format.ParseDict	01daa9dba016e966fd0e4ff1534b67878de3b300f36f0522a6592c6b1eece0a4
+choice_text	zpb.decode.Choice	python-protobuf 7.36.2 json_format.ParseDict	934f97bc6e051a034aa016136ac80ed2fcc678a3500a5a07baee49721306884f
+choice_point	zpb.decode.Choice	python-protobuf 7.36.2 json_format.ParseDict	ba6c5be5969389c839a29c3cb849bc729a543535ac6e926074e6fa806717a35d
+choice_none	zpb.decode.Choice	python-protobuf 7.36.2 json_format.ParseDict	169499cb84d07246a5e56b0f2e2576c9a3c464e8a2434d0f5946fd6099bf5708
+wellknown	zpb.decode.WellKnown	python-protobuf 7.36.2 json_format.ParseDict	5d2f5d763fe1c1c0877ca2326f92f8d567d7c29b47a5c3cf99dc8fed471c5f95
+nested_3	zpb.decode.Nested	python-protobuf 7.36.2 json_format.ParseDict	f7145d9d7691add4fb311d003ffce5edae0a1e7e190c40ead3e66968a0d73ed1
+legacy_min	zpb.decode2.Legacy	python-protobuf 7.36.2 json_format.ParseDict	fb8da7eb5b1b399e7321179dac9e9f65773d7331e1e30554e3911e4325e1ef19
+legacy_ext	zpb.decode2.Legacy	python-protobuf 7.36.2 json_format.ParseDict	1bc9cb6883aaee9a91e3e52f4f8a49055703d85ad878f2dd33750faf2bf220f0
+unknown_field	zpb.decode.Point	python-protobuf 7.36.2 json_format.ParseDict, plus unknown field 99 = 5	770ffe26e1c9c73e4f03aba20547dd94bbfe9f9a728ac099167fdf34f73db19e

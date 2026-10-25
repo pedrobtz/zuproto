@@ -13,7 +13,7 @@ P=tests/testthat/fixtures/proto
 OUT=tests/testthat/fixtures
 command -v protoc >/dev/null || { echo "protoc is needed" >&2; exit 1; }
 
-for f in schema legacy editions dep uses_dep; do
+for f in schema legacy editions dep uses_dep decode decode2; do
   protoc --proto_path="$P" --descriptor_set_out="$OUT/$f.binpb" "$P/$f.proto"
 done
 protoc --proto_path="$P/v2" --descriptor_set_out="$OUT/dep_v2.binpb" "$P/v2/dep.proto"
