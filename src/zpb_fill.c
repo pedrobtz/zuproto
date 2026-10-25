@@ -122,7 +122,9 @@ static int num_elt(fill_ctx *ctx, SEXP x, R_xlen_t i, double *out)
         return 0;
     }
     if (TYPEOF(x) == REALSXP) {
-        if (ISNAN(REAL(x)[i])) return fail(ctx, FILL_TYPE, "must not be NA or NaN");
+        /* NA is refused; NaN is a value of float and double fields, and the
+         * integer kinds refuse it as not a whole number. */
+        if (ISNA(REAL(x)[i])) return fail(ctx, FILL_TYPE, "must not be NA");
         *out = REAL(x)[i];
         return 0;
     }
@@ -314,11 +316,11 @@ static int fill_seconds(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x
         secs += nanos > 0 ? 1 : -1;
         nanos = 0;
     }
-    /* The ranges protobuf's JSON mapping allows. */
-    if (timestamp ? (secs < -62135596800.0 || secs > 253402300799.0)
-                  : fabs(secs) > 315576000000.0)
-        return fail(ctx, FILL_TYPE, timestamp ? "is outside 0001-01-01 to 9999-12-31"
-                                              : "is outside +/- 10000 years");
+    /* Any seconds an int64 holds, as the binary format allows and
+     * proto_decode() accepts; the narrower ranges of protobuf's JSON mapping
+     * are upb's JSON encoder's to enforce. */
+    if (fabs(secs) >= 9223372036854775808.0)
+        return fail(ctx, FILL_TYPE, "has seconds outside the 64-bit signed range");
     zpb_value v;
     memset(&v, 0, sizeof v);
     v.int64_val = (int64_t) secs;
@@ -636,8 +638,12 @@ static int fill_generic(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x
             return fail(ctx, FILL_UNKNOWN_FIELD, "is not a field of the message type");
         }
 
-        /* NULL and NA mean unset; so does an empty value of a singular field. */
-        if (zpb_field_is_repeated(f) ? v == R_NilValue : is_unset(v)) {
+        /* NULL and NA mean unset, except in a Value field, where they are
+         * JSON null, as proto_decode() gives it; such a field is left unset
+         * by leaving it out. */
+        int is_value = zpb_field_ctype(f) == ZPB_CTYPE_MESSAGE && !zpb_field_is_repeated(f) &&
+                       zpb_msgdef_wkt(zpb_field_msgdef(f)) == ZPB_WKT_VALUE;
+        if (!is_value && (zpb_field_is_repeated(f) ? v == R_NilValue : is_unset(v))) {
             path_pop(ctx, at);
             continue;
         }
