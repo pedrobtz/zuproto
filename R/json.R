@@ -51,32 +51,81 @@ proto_to_json <- function(
   max_size = zpb_limits$max_size,
   max_depth = zpb_limits$max_depth
 ) {
-  call <- sys.call()
-  check_pool(pool, call = call)
-  check_type(type, call = call)
-  check_flag(parse, "parse", call)
-  if (parse) {
-    require_zujson("parse", call)
+  # A fast path, as in proto_decode().
+  if (
+    !inherits(pool, "proto_pool") ||
+      !.Call(zpb_pool_is_valid, .subset2(pool, "ptr"))
+  ) {
+    check_pool(pool, call = sys.call())
   }
+  if (
+    !is.character(type) || length(type) != 1L || is.na(type) || !nzchar(type)
+  ) {
+    check_type(type, call = sys.call())
+  }
+  if (!missing(parse)) {
+    check_flag(parse, "parse", sys.call())
+    if (parse) require_zujson("parse", sys.call())
+  }
+  opts <- if (
+    missing(emit_defaults) &&
+      missing(proto_names) &&
+      missing(enums) &&
+      missing(max_size) &&
+      missing(max_depth)
+  ) {
+    zpb_json_defaults
+  } else {
+    json_options(
+      emit_defaults,
+      proto_names,
+      enums,
+      max_size,
+      max_depth,
+      sys.call()
+    )
+  }
+  raw <- if (is.raw(x) && length(x) <= max_size) {
+    x
+  } else {
+    read_message(x, max_size, sys.call())
+  }
+  res <- .Call(zpb_to_json, .subset2(pool, "ptr"), type, raw, opts)
+  if (!is.null(res$error)) {
+    json_error(res, type, max_size, max_depth, sys.call())
+  }
+  if (parse) zujson::json_parse(res$value) else res$value
+}
+
+# The checked options list for zpb_to_json().
+json_options <- function(
+  emit_defaults,
+  proto_names,
+  enums,
+  max_size,
+  max_depth,
+  call
+) {
   check_flag(emit_defaults, "emit_defaults", call)
   check_flag(proto_names, "proto_names", call)
   enums <- zpb_match_arg(enums, c("name", "integer"), "enums", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
   check_limit(max_depth, "max_depth", 1, 1000, call)
-  raw <- read_message(x, max_size, call)
-  opts <- list(
+  list(
     max_depth = as.integer(max_depth),
     arena_limit = max(4 * max_size, 65536),
     json_options = as.integer(emit_defaults) +
       2L * as.integer(proto_names) +
       4L * as.integer(enums == "integer")
   )
-  res <- .Call(zpb_to_json, pool$ptr, type, raw, opts)
-  if (!is.null(res$error)) {
-    json_error(res, type, max_size, max_depth, call)
-  }
-  if (parse) zujson::json_parse(res$value) else res$value
 }
+
+# json_options() with every argument at its default, built once.
+zpb_json_defaults <- list(
+  max_depth = zpb_limits$max_depth,
+  arena_limit = max(4 * zpb_limits$max_size, 65536),
+  json_options = 0L
+)
 
 #' @rdname proto_to_json
 #' @param json Protobuf JSON for one message: a single string of JSON text,

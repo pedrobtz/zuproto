@@ -54,26 +54,64 @@ proto_encode <- function(
   check_required = TRUE,
   extra = c("error", "ignore")
 ) {
-  call <- sys.call()
-  check_pool(pool, call = call)
-  check_type(type, call = call)
+  # A fast path, as in proto_decode(): defaults are not checked, and the
+  # call is only captured when there is an error to raise.
+  if (
+    !inherits(pool, "proto_pool") ||
+      !.Call(zpb_pool_is_valid, .subset2(pool, "ptr"))
+  ) {
+    check_pool(pool, call = sys.call())
+  }
+  if (
+    !is.character(type) || length(type) != 1L || is.na(type) || !nzchar(type)
+  ) {
+    check_type(type, call = sys.call())
+  }
+  opts <- if (
+    missing(deterministic) &&
+      missing(unknown) &&
+      missing(check_required) &&
+      missing(extra)
+  ) {
+    zpb_encode_defaults
+  } else {
+    encode_options(deterministic, unknown, check_required, extra, sys.call())
+  }
+  res <- .Call(zpb_encode, .subset2(pool, "ptr"), type, x, opts)
+  if (!is.null(res$error)) {
+    encode_error(res, type, sys.call())
+  }
+  res$value
+}
+
+# The checked options list for zpb_encode(), positional as the C side reads
+# it: deterministic, check_required, write_unknown, ignore_extra.
+encode_options <- function(
+  deterministic,
+  unknown,
+  check_required,
+  extra,
+  call
+) {
   check_flag(deterministic, "deterministic", call)
   check_flag(unknown, "unknown", call)
   check_flag(check_required, "check_required", call)
   extra <- zpb_match_arg(extra, c("error", "ignore"), "extra", call)
-
-  opts <- list(
+  list(
     deterministic = as.integer(deterministic),
     check_required = as.integer(check_required),
     write_unknown = as.integer(unknown),
     ignore_extra = as.integer(extra == "ignore")
   )
-  res <- .Call(zpb_encode, pool$ptr, type, x, opts)
-  if (!is.null(res$error)) {
-    encode_error(res, type, call)
-  }
-  res$value
 }
+
+# encode_options() with every argument at its default, built once.
+zpb_encode_defaults <- list(
+  deterministic = 1L,
+  check_required = 1L,
+  write_unknown = 1L,
+  ignore_extra = 0L
+)
 
 encode_error <- function(res, type, call) {
   where <- if (is.null(res$path) || !nzchar(res$path)) {

@@ -109,9 +109,70 @@ proto_decode <- function(
   max_size = zpb_limits$max_size,
   max_depth = zpb_limits$max_depth
 ) {
-  call <- sys.call()
-  check_pool(pool, call = call)
-  check_type(type, call = call)
+  # A fast path, since argument handling was most of a small message's
+  # decode time: arguments left at their defaults are not checked, and the
+  # call is only captured when there is an error to raise.
+  if (
+    !inherits(pool, "proto_pool") ||
+      !.Call(zpb_pool_is_valid, .subset2(pool, "ptr"))
+  ) {
+    check_pool(pool, call = sys.call())
+  }
+  if (
+    !is.character(type) || length(type) != 1L || is.na(type) || !nzchar(type)
+  ) {
+    check_type(type, call = sys.call())
+  }
+  opts <- if (
+    missing(int64) &&
+      missing(enums) &&
+      missing(defaults) &&
+      missing(unknown) &&
+      missing(bytes) &&
+      missing(max_size) &&
+      missing(max_depth)
+  ) {
+    zpb_decode_defaults
+  } else {
+    decode_options(
+      int64,
+      enums,
+      defaults,
+      unknown,
+      bytes,
+      max_size,
+      max_depth,
+      sys.call()
+    )
+  }
+  raw <- if (is.raw(x) && length(x) <= max_size) {
+    x
+  } else {
+    read_message(x, max_size, sys.call())
+  }
+
+  res <- .Call(zpb_decode, .subset2(pool, "ptr"), type, raw, opts)
+  if (!is.null(res$error)) {
+    decode_error(res, type, max_size, max_depth, sys.call())
+  }
+  if (res$precision_loss > 0 || res$unknown_enum > 0) {
+    decode_warnings(res, type, sys.call())
+  }
+  res$value
+}
+
+# The checked options list for zpb_decode(), as proto_decode() builds it when
+# any argument is not its default.
+decode_options <- function(
+  int64,
+  enums,
+  defaults,
+  unknown,
+  bytes,
+  max_size,
+  max_depth,
+  call
+) {
   int64 <- zpb_match_arg(int64, zpb_choices$int64, "int64", call)
   check_int64_mode(int64, call)
   enums <- zpb_match_arg(enums, zpb_choices$enums, "enums", call)
@@ -122,9 +183,7 @@ proto_decode <- function(
   # upb's decoder recurses once per level; 1000 stays far below the depth
   # (about 5000) at which the C stack ran out on an 8 MB stack.
   check_limit(max_depth, "max_depth", 1, 1000, call)
-
-  raw <- read_message(x, max_size, call)
-  opts <- list(
+  list(
     int64 = match(int64, zpb_choices$int64) - 1L,
     enums = match(enums, zpb_choices$enums) - 1L,
     defaults = as.integer(defaults),
@@ -135,13 +194,18 @@ proto_decode <- function(
     # overhead on tiny inputs.
     arena_limit = max(4 * max_size, 65536)
   )
-  res <- .Call(zpb_decode, pool$ptr, type, raw, opts)
-  if (!is.null(res$error)) {
-    decode_error(res, type, max_size, max_depth, call)
-  }
-  decode_warnings(res, type, call)
-  res$value
 }
+
+# decode_options() with every argument at its default, built once.
+zpb_decode_defaults <- list(
+  int64 = 0L,
+  enums = 0L,
+  defaults = 1L,
+  keep_unknown = 0L,
+  bytes_base64 = 0L,
+  max_depth = zpb_limits$max_depth,
+  arena_limit = max(4 * zpb_limits$max_size, 65536)
+)
 
 decode_error <- function(res, type, max_size, max_depth, call) {
   switch(
