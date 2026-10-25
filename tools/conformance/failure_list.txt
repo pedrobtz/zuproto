@@ -1,0 +1,177 @@
+# Conformance tests zuproto is expected to fail, with why (design section 15).
+# The list may only shrink: tools/conformance/run fails if a test here passes.
+# Recorded 2026-10-25 against protobuf v36.2: 160 of 5549 tests.
+
+# Design 6.1, decided 2026-10-25: an int32, sint32 or sfixed32 value of -2^31 is R's NA,
+# so it decodes as NA with a warning and re-encodes as unset (or, inside a repeated
+# field, cannot be re-encoded).
+Required.Editions_Proto2.JsonInput.Int32FieldMinFloatValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto2.JsonInput.Int32FieldMinFloatValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto2.JsonInput.Int32FieldMinValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto2.JsonInput.Int32FieldMinValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto2.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto2.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.INT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.INT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.ProtobufInput.ValidDataScalar.INT32[5].JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto2.ProtobufInput.ValidDataScalar.INT32[5].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto2.ProtobufInput.ValidDataScalar.SFIXED32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto2.ProtobufInput.ValidDataScalar.SFIXED32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto2.ProtobufInput.ValidDataScalar.SINT32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+Required.Editions_Proto2.ProtobufInput.ValidDataScalar.SINT32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+Required.Editions_Proto3.JsonInput.Int32FieldMinFloatValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto3.JsonInput.Int32FieldMinFloatValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto3.JsonInput.Int32FieldMinValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto3.JsonInput.Int32FieldMinValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto3.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto3.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.INT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.INT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.ProtobufInput.ValidDataScalar.INT32[5].JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto3.ProtobufInput.ValidDataScalar.INT32[5].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Editions_Proto3.ProtobufInput.ValidDataScalar.SFIXED32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto3.ProtobufInput.ValidDataScalar.SFIXED32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Editions_Proto3.ProtobufInput.ValidDataScalar.SINT32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+Required.Editions_Proto3.ProtobufInput.ValidDataScalar.SINT32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+Required.Proto2.JsonInput.Int32FieldMinFloatValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto2.JsonInput.Int32FieldMinFloatValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto2.JsonInput.Int32FieldMinValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto2.JsonInput.Int32FieldMinValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto2.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto2.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto2.ProtobufInput.ValidDataRepeated.INT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.INT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.ProtobufInput.ValidDataScalar.INT32[5].JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto2.ProtobufInput.ValidDataScalar.INT32[5].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto2.ProtobufInput.ValidDataScalar.SFIXED32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto2.ProtobufInput.ValidDataScalar.SFIXED32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto2.ProtobufInput.ValidDataScalar.SINT32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+Required.Proto2.ProtobufInput.ValidDataScalar.SINT32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+Required.Proto3.JsonInput.Int32FieldMinFloatValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto3.JsonInput.Int32FieldMinFloatValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto3.JsonInput.Int32FieldMinValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto3.JsonInput.Int32FieldMinValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto3.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto3.ProtobufInput.RepeatedScalarSelectsLast.SFIXED32.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto3.ProtobufInput.ValidDataRepeated.INT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.INT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.INT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SFIXED32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SINT32.PackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataRepeated.SINT32.UnpackedInput.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.ProtobufInput.ValidDataScalar.INT32[5].JsonOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto3.ProtobufInput.ValidDataScalar.INT32[5].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_int32: -2147483648
+Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sfixed32: -2147483648
+Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[3].JsonOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[3].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_sint32: -2147483648
+
+# Design 6.3: Timestamp is POSIXct and Duration difftime, doubles rounded to the
+# microsecond, so nanosecond values and the extremes of the ranges do not round-trip
+# through R, and invalid nanos are normalised instead of refused.
+Required.Editions_Proto3.DurationProtoNanosTooLarge.JsonOutput # Should have failed to serialize, but didn't.
+Required.Editions_Proto3.DurationProtoNanosTooSmall.JsonOutput # Should have failed to serialize, but didn't.
+Required.Editions_Proto3.DurationProtoNanosWrongSign.JsonOutput # Should have failed to serialize, but didn't.
+Required.Editions_Proto3.DurationProtoNanosWrongSignNegativeSecs.JsonOutput # Should have failed to serialize, but didn't.
+Required.Editions_Proto3.JsonInput.DurationMaxValue.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.DurationMaxValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.DurationMinValue.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.DurationMinValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.TimestampLittleAfterEpochlValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Editions_Proto3.JsonInput.TimestampLittleAfterEpochlValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Editions_Proto3.JsonInput.TimestampLittleBeforeEpochValue.JsonOutput # Output was not equivalent to reference message: modified: optional_timestamp.seconds: -2 -
+Required.Editions_Proto3.JsonInput.TimestampLittleBeforeEpochValue.ProtobufOutput # Output was not equivalent to reference message: modified: optional_timestamp.seconds: -2 -
+Required.Editions_Proto3.JsonInput.TimestampMaxValue.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.TimestampMaxValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.TimestampNanoAfterEpochlValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Editions_Proto3.JsonInput.TimestampNanoAfterEpochlValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Editions_Proto3.JsonInput.TimestampNanoBeforeEpochValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_timestamp.seconds: -1del
+Required.Editions_Proto3.JsonInput.TimestampNanoBeforeEpochValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_timestamp.seconds: -1del
+Required.Editions_Proto3.JsonInput.TimestampRepeatedValue.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.TimestampRepeatedValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.TimestampProtoNanoTooLarge.JsonOutput # Should have failed to serialize, but didn't.
+Required.Editions_Proto3.TimestampProtoNegativeNanos.JsonOutput # Should have failed to serialize, but didn't.
+Required.Proto3.DurationProtoNanosTooLarge.JsonOutput # Should have failed to serialize, but didn't.
+Required.Proto3.DurationProtoNanosTooSmall.JsonOutput # Should have failed to serialize, but didn't.
+Required.Proto3.DurationProtoNanosWrongSign.JsonOutput # Should have failed to serialize, but didn't.
+Required.Proto3.DurationProtoNanosWrongSignNegativeSecs.JsonOutput # Should have failed to serialize, but didn't.
+Required.Proto3.JsonInput.DurationMaxValue.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.DurationMaxValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.DurationMinValue.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.DurationMinValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.TimestampLittleAfterEpochlValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Proto3.JsonInput.TimestampLittleAfterEpochlValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Proto3.JsonInput.TimestampLittleBeforeEpochValue.JsonOutput # Output was not equivalent to reference message: modified: optional_timestamp.seconds: -2 -
+Required.Proto3.JsonInput.TimestampLittleBeforeEpochValue.ProtobufOutput # Output was not equivalent to reference message: modified: optional_timestamp.seconds: -2 -
+Required.Proto3.JsonInput.TimestampMaxValue.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.TimestampMaxValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.TimestampNanoAfterEpochlValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Proto3.JsonInput.TimestampNanoAfterEpochlValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_timestamp.nanos: 1
+Required.Proto3.JsonInput.TimestampNanoBeforeEpochValue.JsonOutput # Output was not equivalent to reference message: deleted: optional_timestamp.seconds: -1del
+Required.Proto3.JsonInput.TimestampNanoBeforeEpochValue.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_timestamp.seconds: -1del
+Required.Proto3.JsonInput.TimestampRepeatedValue.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.TimestampRepeatedValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.TimestampProtoNanoTooLarge.JsonOutput # Should have failed to serialize, but didn't.
+Required.Proto3.TimestampProtoNegativeNanos.JsonOutput # Should have failed to serialize, but didn't.
+
+# Design 6.1, decided 2026-10-25: a string with a NUL byte cannot be an R string;
+# it is zuproto_unrepresentable.
+Required.Editions_Proto2.JsonInput.StringFieldEmbeddedNull.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.JsonInput.StringFieldEmbeddedNull.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.StringFieldEmbeddedNull.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.StringFieldEmbeddedNull.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.JsonInput.StringFieldEmbeddedNull.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.JsonInput.StringFieldEmbeddedNull.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.StringFieldEmbeddedNull.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.StringFieldEmbeddedNull.ProtobufOutput # Failed to parse input or produce output.
+
+# upb's JSON decoder: protobuf's Ruby and PHP lists, which also use it, record the
+# same failures.
+Required.Editions_Proto2.JsonInput.Int32FieldQuotedExponentialValue.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto2.JsonInput.Int32FieldQuotedExponentialValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.AnyWithNoType.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.AnyWithNoType.ProtobufOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.Int32FieldQuotedExponentialValue.JsonOutput # Failed to parse input or produce output.
+Required.Editions_Proto3.JsonInput.Int32FieldQuotedExponentialValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto2.JsonInput.Int32FieldQuotedExponentialValue.JsonOutput # Failed to parse input or produce output.
+Required.Proto2.JsonInput.Int32FieldQuotedExponentialValue.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.AnyWithNoType.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.AnyWithNoType.ProtobufOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.Int32FieldQuotedExponentialValue.JsonOutput # Failed to parse input or produce output.
+Required.Proto3.JsonInput.Int32FieldQuotedExponentialValue.ProtobufOutput # Failed to parse input or produce output.

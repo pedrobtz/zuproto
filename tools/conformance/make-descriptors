@@ -1,0 +1,18 @@
+#!/bin/sh
+# Compile the protos protobuf's conformance suite uses into
+# tools/conformance/conformance.binpb, which the testee loads. Run from the
+# package root with a protobuf source tree at the vendored tag:
+#
+#   tools/conformance/make-descriptors <protobuf-source-dir>
+set -eu
+SRC=${1:?usage: tools/conformance/make-descriptors <protobuf-source-dir>}
+protoc --include_imports --descriptor_set_out=tools/conformance/conformance.binpb \
+  -I "$SRC/src" -I "$SRC" \
+  "$SRC/conformance/conformance.proto" \
+  "$SRC/src/google/protobuf/test_messages_proto3.proto" \
+  "$SRC/src/google/protobuf/test_messages_proto2.proto" \
+  "$SRC/editions/golden/test_messages_proto2_editions.proto" \
+  "$SRC/editions/golden/test_messages_proto3_editions.proto" \
+  "$SRC/conformance/test_protos/test_messages_edition2023.proto" \
+  "$SRC/conformance/test_protos/test_messages_edition_unstable.proto"
+echo "==> wrote tools/conformance/conformance.binpb ($(wc -c < tools/conformance/conformance.binpb | tr -d ' ') bytes)"
