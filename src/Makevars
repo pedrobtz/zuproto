@@ -15,4 +15,4 @@ UPB_OBJECTS = \
 	vendor/upb/ruby-upb.o \
 	vendor/utf8_range/utf8_range.o
 
-OBJECTS = init.o zpb_info.o zpb_pool.o zpb_decode.o zpb_build.o $(UPB_OBJECTS)
+OBJECTS = init.o zpb_info.o zpb_pool.o zpb_decode.o zpb_build.o zpb_fill.o $(UPB_OBJECTS)

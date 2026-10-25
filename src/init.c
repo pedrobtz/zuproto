@@ -11,6 +11,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"zpb_pool_types", (DL_FUNC) &zpb_pool_types, 2},
     {"zpb_pool_fields", (DL_FUNC) &zpb_pool_fields, 2},
     {"zpb_decode", (DL_FUNC) &zpb_decode, 4},
+    {"zpb_encode", (DL_FUNC) &zpb_encode, 4},
     {NULL, NULL, 0}
 };
 
