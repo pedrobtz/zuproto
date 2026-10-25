@@ -6,6 +6,8 @@ test_that("the shared object links no symbol CRAN's compiled-code check rejects"
     exists(".__DEVTOOLS__", envir = asNamespace("zuproto"), inherits = FALSE),
     "debug build from devtools::load_all()"
   )
+  # covr's gcov instrumentation links abort, exit and stderr itself.
+  skip_if(identical(Sys.getenv("R_COVR"), "true"), "instrumented by covr")
   nm <- Sys.which("nm")
   skip_if(!nzchar(nm), "nm is not available")
   so <- getLoadedDLLs()[["zuproto"]][["path"]]
