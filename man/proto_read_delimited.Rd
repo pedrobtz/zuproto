@@ -11,7 +11,7 @@ proto_read_delimited(
   pool,
   each = NULL,
   chunk_rows = 10000,
-  int64 = c("double", "character"),
+  int64 = c("double", "character", "integer64"),
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
@@ -38,7 +38,10 @@ connection holding a length-delimited stream.}
 
 \item{int64}{How 64-bit integer fields become R values: \code{"double"}
 (values beyond 2^53 lose precision, with a \code{zuproto_precision_loss}
-warning) or \code{"character"} (exact decimal strings).}
+warning), \code{"character"} (exact decimal strings) or \code{"integer64"}
+(\code{\link[bit64:integer64]{bit64::integer64()}} vectors, exact for signed values; needs bit64).
+Under \code{"integer64"}, \code{-2^63} (bit64's \code{NA}) and \code{uint64} values above
+\code{2^63 - 1} become \code{NA} with a \code{zuproto_precision_loss} warning.}
 
 \item{enums}{How enum fields become R values: \code{"factor"}, \code{"integer"}
 (the numbers) or \code{"character"} (the names). A number the enum does not
