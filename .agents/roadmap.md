@@ -19,7 +19,7 @@ documentation and release, and `Full CI` goes in before the release.
 | 1 | [Vendor upb](#stage-1--vendor-upb) | full | [#3](https://github.com/pedrobtz/zuproto/issues/3) | [#15](https://github.com/pedrobtz/zuproto/pull/15) | 2026-10-25 |
 | 2 | [Shim, pools and well-known types](#stage-2--shim-pools-and-well-known-types) | quick | [#4](https://github.com/pedrobtz/zuproto/issues/4) | [#16](https://github.com/pedrobtz/zuproto/pull/16) | 2026-10-25 |
 | 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | [#17](https://github.com/pedrobtz/zuproto/pull/17) | 2026-10-25 |
-| 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | | 2026-10-25 |
+| 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | [#18](https://github.com/pedrobtz/zuproto/pull/18) | 2026-10-25 |
 | 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | | |
 | 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | | |
 | 7 | [Conformance, fuzzing and hostile inputs](#stage-7--conformance-fuzzing-and-hostile-inputs) | quick | [#9](https://github.com/pedrobtz/zuproto/issues/9) | | |
