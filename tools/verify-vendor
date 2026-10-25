@@ -84,6 +84,26 @@ comm -23 "$WORK/local" "$WORK/listed-files" | while read -r extra; do
   echo "FAIL: src/vendor/$extra is not in tools/upb-files.txt" >> "$FAILURES"
 done
 
+# wkt.binpb is checked against its recorded SHA-256 (design section 8).
+want=$(awk '/^  Well-known types:/ {getline; print $1}' "$PROV")
+have=$(shasum -a 256 inst/descriptors/wkt.binpb 2>/dev/null | cut -d' ' -f1)
+[ -n "$want" ] && [ "$want" = "$have" ] ||
+  echo "FAIL: inst/descriptors/wkt.binpb does not match its SHA-256 in $PROV" >> "$FAILURES"
+
+# zuproto_info() reports the pinned tag and commit.
+grep -q "#define ZPB_PROTOBUF_TAG \"$TAG\"" src/zpb_version.h &&
+  grep -q "#define ZPB_PROTOBUF_COMMIT \"$COMMIT\"" src/zpb_version.h ||
+  echo "FAIL: src/zpb_version.h does not name $TAG and $COMMIT" >> "$FAILURES"
+
+# The shim (design section 9.3): only src/zpb_upb.h includes upb or names
+# its symbols, so a re-vendor that changes upb's API is fixed in one file.
+for c in src/*.c src/*.h; do
+  [ "$c" = src/zpb_upb.h ] && continue
+  if grep -nE 'ruby-upb\.h|\b_?upb_[A-Za-z]|\bkUpb_|\bgoogle_protobuf_[A-Za-z]' "$c" > "$WORK/leak"; then
+    sed "s#^#FAIL: upb outside the shim: $c:#" "$WORK/leak" >> "$FAILURES"
+  fi
+done
+
 if [ "$CANARY" -eq 1 ]; then
   if [ -s "$FAILURES" ]; then
     echo "==> canary OK: verification failed with a patch left out"

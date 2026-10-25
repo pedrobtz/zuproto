@@ -20,8 +20,13 @@ Vendored dependency: upb and utf8_range, from Protocol Buffers
                  af1bc2e251d9146a8dddccc98dfd9a74c52aa0c296dc45167bb59e8959e3552d  utf8_range/utf8_range_sse.inc
                  c0b3252ac67eaf8a36fa2daae286243aba8942b78875286c7bcc3f0421cf0312  utf8_range/utf8_range_neon.inc
                  02de69b64fc36d9e938f418e52723e42f0b2b226d58a9cb3c8dcbdf7059f5074  utf8_range/LICENSE
+  Well-known types: inst/descriptors/wkt.binpb, libprotoc 36.2
+                 e46c93c40881faef5d891c9cfbe89d75261784c5f2d83ef9fa4e64d5343deec1  wkt.binpb
 
 src/vendor/ is the files listed in tools/upb-files.txt, fetched at the
 commit above, with exactly the patches above applied. tools/verify-vendor
 re-derives the tree and fails on any other difference. The patches and why
-each exists are in .agents/design.md section 9.2.
+each exists are in .agents/design.md section 9.2. wkt.binpb is protoc's
+output for the well-known types at the commit above; tools/verify-vendor
+checks it against the SHA-256 above rather than regenerating it, since
+another protoc may encode the same files differently.
