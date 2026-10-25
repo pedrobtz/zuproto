@@ -420,8 +420,8 @@ Kept as files in `tools/patches/`, applied in order. Revised 2026-10-25
 after the Stage 1 measurement (pull request #15): the first proposal
 was two patches, and the full CI profile on unpatched v36.2 and the
 runs after it showed four are needed, plus one define; Stage 3's
-sanitizer runs added a fifth and Stage 7's fuzzing a sixth. None touches
-decoder logic.
+sanitizer runs added a fifth and Stage 7's fuzzing a sixth and seventh.
+None touches decoder logic.
 
 1. `0001-no-stdio.patch`: `_upb_UnreachableFailure()` (`fprintf` to
    `stderr`, then `abort()`) is compiled only without `NDEBUG`, which
@@ -457,6 +457,12 @@ decoder logic.
    whose data is then `NULL`, before checking for the empty URL; `NULL +
    0` is undefined in C and UBSan reports it. The check moves first. To
    be reported upstream.
+7. `0007-json-any-arena-leak.patch` (Stage 7, found by `fuzz_decode`
+   under LeakSanitizer in CI): when JSON encoding fails, as it does for an
+   `Any` whose packed type is not in the pool, upb returned from its
+   `setjmp` error branch without freeing the arena the `Any` made, so
+   `proto_to_json()` leaked on every such call. The error branch frees it
+   too. To be reported upstream.
 
 No `assert()` patch: `R CMD INSTALL` defines `NDEBUG`, so `UPB_ASSERT`
 is already empty. `__USE_MINGW_ANSI_STDIO=1` in `src/Makevars` gives
