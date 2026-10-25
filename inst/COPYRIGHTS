@@ -1,0 +1,16 @@
+zuproto bundles third-party code in src/vendor/. src/vendor/PROVENANCE
+records the upstream release, commit, file hashes and local patches.
+
+upb (src/vendor/upb/)
+
+  The upb runtime of Protocol Buffers, as the amalgamation protobuf ships
+  for its Ruby extension (ruby/ext/google/protobuf_c/ruby-upb.{c,h}).
+  Copyright 2008 Google Inc. (now Google LLC). All rights reserved.
+  BSD 3-Clause licence; the full text is in src/vendor/upb/LICENSE.
+  zuproto applies the patches in tools/patches/.
+
+utf8_range (src/vendor/utf8_range/)
+
+  Fast UTF-8 validation, from protobuf's third_party/utf8_range.
+  Copyright (c) 2019 Yibo Cai; Copyright 2022-2023 Google LLC.
+  MIT licence; the full text is in src/vendor/utf8_range/LICENSE.
