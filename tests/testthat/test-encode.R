@@ -153,7 +153,16 @@ test_that("well-known types encode from their R forms", {
   expect_identical(y$i32, 7L)
   expect_identical(y$blob, as.raw(5))
   expect_identical(y$meta, list(l = list(TRUE, NULL), n = 1, s = list(k = "v")))
-  expect_false("value" %in% names(y))
+  # NULL in a Value field is JSON null, which decodes back as a NULL
+  # element; leaving the field out is what leaves it unset.
+  expect_true("value" %in% names(y))
+  expect_null(y$value)
+  z <- proto_decode(
+    proto_encode(wk[setdiff(names(wk), "value")], "zpb.decode.WellKnown", pool),
+    "zpb.decode.WellKnown",
+    pool
+  )
+  expect_false("value" %in% names(z))
   expect_identical(y$list, list(1, 2))
   expect_identical(y$any, wk$any)
   expect_identical(y$mask, wk$mask)
@@ -278,7 +287,7 @@ test_that("values of the wrong form are type mismatches naming the field", {
   mismatch(list(text = "a", number = 1), "zpb.decode.Choice", "number")
   mismatch(list(closed = 5L), "zpb.decode2.Legacy", "closed")
   mismatch(
-    list(when = .POSIXct(253402300800, tz = "UTC")),
+    list(when = .POSIXct(1e19, tz = "UTC")),
     "zpb.decode.WellKnown",
     "when"
   )
@@ -337,5 +346,43 @@ test_that("unusable arguments are invalid arguments, naming the argument", {
   expect_error(
     proto_encode(list(), "no.Such", pool),
     class = "zuproto_unknown_type"
+  )
+})
+
+test_that("NaN encodes in double and float fields, and is refused by integer ones", {
+  pool <- decode_pool()
+  y <- proto_decode(
+    proto_encode(
+      list(f_double = NaN, f_float = -Inf),
+      "zpb.decode.Scalars",
+      pool
+    ),
+    "zpb.decode.Scalars",
+    pool,
+    defaults = FALSE
+  )
+  expect_true(is.nan(y$f_double))
+  expect_identical(y$f_float, -Inf)
+  expect_error(
+    proto_encode(list(f_int32 = NaN), "zpb.decode.Scalars", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_identical(
+    proto_encode(list(f_double = NA_real_), "zpb.decode.Scalars", pool),
+    raw()
+  )
+})
+
+test_that("a Timestamp the binary format allows round-trips, and JSON refuses it", {
+  pool <- proto_pool()
+  far <- .POSIXct(9e15, tz = "UTC") # past 9999-12-31
+  raw <- proto_encode(far, "google.protobuf.Timestamp", pool)
+  expect_identical(
+    unclass(proto_decode(raw, "google.protobuf.Timestamp", pool)),
+    unclass(far)
+  )
+  expect_error(
+    proto_to_json(raw, "google.protobuf.Timestamp", pool),
+    class = "zuproto_json_error"
   )
 })
