@@ -46,3 +46,9 @@
   the binary format allows; the JSON mapping’s narrower ranges are
   enforced by
   [`proto_to_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md).
+- [`proto_decode()`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md),
+  [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
+  and
+  [`proto_to_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
+  skip checking arguments left at their defaults: a small message
+  decodes in about a third of the time.
