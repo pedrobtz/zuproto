@@ -215,11 +215,14 @@ SEXP zpb_decode_df(SEXP ptr, SEXP type, SEXP x, SEXP opts)
         return df_result(R_NilValue, "arena_limit", NULL, 0, 0, 0, 0);
     }
 
+/* `err` is evaluated before the holder is freed: decode_status_name()
+ * reads its allocator. */
 #define FAIL(err, field, index, consumed)                                    \
     do {                                                                     \
+        const char *fail_err = (err);                                        \
         holder_finalize(hptr);                                               \
         UNPROTECT(1);                                                        \
-        return df_result(R_NilValue, err, field, index, consumed, 0, 0);     \
+        return df_result(R_NilValue, fail_err, field, index, consumed, 0, 0); \
     } while (0)
 
     const zpb_msgdef *row_def = m;
