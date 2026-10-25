@@ -19,3 +19,7 @@
   message's repeated field (`field =`), into a data frame built column by
   column. `proto_read_delimited()` and `proto_write_delimited()` read and
   write length-delimited streams, in chunks with `each`.
+* `proto_to_json()` and `proto_from_json()` convert to and from protobuf's
+  canonical JSON mapping through upb, and to and from R values through
+  zujson when it is installed. `proto_unpack_any()` decodes an `Any`.
+  `int64 = "integer64"` decodes 64-bit fields as bit64 vectors.
