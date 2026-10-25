@@ -461,8 +461,8 @@ No new features.
 ## After 0.1.0
 
 - A C path for `proto_write_delimited()` (Stage 7).
-- Reporting `0006-any-empty-url.patch` and
-  `0007-json-any-arena-leak.patch` upstream, with the maintainer's
+- Reporting `0006-any-empty-url.patch`, `0007-json-any-arena-leak.patch`
+  and `0008-json-nanos-range.patch` upstream, with the maintainer's
   agreement.
 
 - `int64 = "zuint"`, once zuint (RFC 0009) is on CRAN (Stage 6).

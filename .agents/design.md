@@ -420,7 +420,8 @@ Kept as files in `tools/patches/`, applied in order. Revised 2026-10-25
 after the Stage 1 measurement (pull request #15): the first proposal
 was two patches, and the full CI profile on unpatched v36.2 and the
 runs after it showed four are needed, plus one define; Stage 3's
-sanitizer runs added a fifth and Stage 7's fuzzing a sixth and seventh.
+sanitizer runs added a fifth and Stage 7's fuzzing a sixth, seventh and
+eighth.
 None touches decoder logic.
 
 1. `0001-no-stdio.patch`: `_upb_UnreachableFailure()` (`fprintf` to
@@ -463,6 +464,11 @@ None touches decoder logic.
    `setjmp` error branch without freeing the arena the `Any` made, so
    `proto_to_json()` leaked on every such call. The error branch frees it
    too. To be reported upstream.
+8. `0008-json-nanos-range.patch` (Stage 7, found by `fuzz_decode` under
+   UBSan in CI): upb's JSON encoder negated a `Duration`'s `nanos`
+   without checking its range, undefined for `-2^31`, and never checked a
+   `Timestamp`'s. Both now refuse `nanos` outside protobuf's range, as the
+   JSON mapping requires. To be reported upstream.
 
 No `assert()` patch: `R CMD INSTALL` defines `NDEBUG`, so `UPB_ASSERT`
 is already empty. `__USE_MINGW_ANSI_STDIO=1` in `src/Makevars` gives
