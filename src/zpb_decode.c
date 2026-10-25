@@ -333,3 +333,120 @@ SEXP zpb_frame_delimited(SEXP msgs)
     UNPROTECT(1);
     return out;
 }
+
+/* ---- Protobuf JSON (design section 5) ---- */
+
+static SEXP json_result(SEXP value, const char *error, const char *detail)
+{
+    const char *names[] = {"value", "error", "detail", ""};
+    PROTECT(value);
+    SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
+    SET_VECTOR_ELT(out, 0, value);
+    SET_VECTOR_ELT(out, 1, error ? Rf_mkString(error) : R_NilValue);
+    SET_VECTOR_ELT(out, 2, detail ? Rf_mkString(detail) : R_NilValue);
+    UNPROTECT(2);
+    return out;
+}
+
+/* A capped arena owned by a finalised external pointer, PROTECTed. */
+static SEXP new_holder(decode_holder **out, double limit)
+{
+    decode_holder *h = (decode_holder *) calloc(1, sizeof *h);
+    if (h == NULL) Rf_error("zuproto: out of memory");
+    SEXP hptr = PROTECT(R_MakeExternalPtr(h, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(hptr, holder_finalize, TRUE);
+    h->arena = zpb_arena_new_limited(&h->alloc, (size_t) limit);
+    *out = h;
+    return hptr;
+}
+
+/* proto_to_json(): binary message raw as protobuf JSON text. opts:
+ * max_depth, arena_limit, json_options. */
+SEXP zpb_to_json(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
+{
+    const zpb_defpool *pool = zpb_pool_get(ptr);
+    const zpb_msgdef *m =
+        zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
+    if (m == NULL) return json_result(R_NilValue, "unknown_type", NULL);
+
+    decode_holder *h;
+    SEXP hptr = new_holder(&h, opt_real(opts, "arena_limit"));
+    if (h->arena == NULL) {
+        holder_finalize(hptr);
+        UNPROTECT(1);
+        return json_result(R_NilValue, "arena_limit", NULL);
+    }
+    int status;
+    const zpb_msg *msg = zpb_decode_message(pool, m, (const char *) RAW(raw),
+                                            (size_t) XLENGTH(raw), h->arena,
+                                            (uint16_t) opt_int(opts, "max_depth"), &status);
+    if (msg == NULL) {
+        const char *err = decode_status_name(status, &h->alloc);
+        holder_finalize(hptr);
+        UNPROTECT(1);
+        return json_result(R_NilValue, err, NULL);
+    }
+    int options = opt_int(opts, "json_options");
+    char err[1024];
+    size_t n = zpb_json_encode(msg, m, pool, options, NULL, 0, err, sizeof err);
+    if (n == (size_t) -1 || n > INT_MAX) {
+        holder_finalize(hptr);
+        UNPROTECT(1);
+        return json_result(R_NilValue, "json", n == (size_t) -1 ? err : "the JSON is longer than an R string may be");
+    }
+    char *buf = R_alloc(n + 1, 1);
+    zpb_json_encode(msg, m, pool, options, buf, n + 1, err, sizeof err);
+    holder_finalize(hptr);
+    SEXP s = PROTECT(Rf_ScalarString(Rf_mkCharLenCE(buf, (int) n, CE_UTF8)));
+    SEXP out = json_result(s, NULL, NULL);
+    UNPROTECT(2);
+    return out;
+}
+
+/* proto_from_json(): JSON text as binary, encoded deterministically. opts:
+ * arena_limit, ignore_unknown, check_required. */
+SEXP zpb_from_json(SEXP ptr, SEXP type, SEXP json, SEXP opts)
+{
+    const zpb_defpool *pool = zpb_pool_get(ptr);
+    const zpb_msgdef *m =
+        zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
+    if (m == NULL) return json_result(R_NilValue, "unknown_type", NULL);
+
+    const char *text = Rf_translateCharUTF8(STRING_ELT(json, 0));
+    size_t len = strlen(text);
+    decode_holder *h;
+    SEXP hptr = new_holder(&h, opt_real(opts, "arena_limit"));
+    zpb_msg *msg = h->arena != NULL ? zpb_msg_new(m, h->arena) : NULL;
+    if (msg == NULL) {
+        holder_finalize(hptr);
+        UNPROTECT(1);
+        return json_result(R_NilValue, "arena_limit", NULL);
+    }
+    char err[1024];
+    if (!zpb_json_decode(text, len, msg, m, pool, opt_int(opts, "ignore_unknown") != 0,
+                         h->arena, err, sizeof err)) {
+        const char *code = h->alloc.exceeded ? "arena_limit" : "json";
+        SEXP out = PROTECT(json_result(R_NilValue, code, err));
+        holder_finalize(hptr);
+        UNPROTECT(2);
+        return out;
+    }
+    int status;
+    size_t n = 0;
+    char *bytes = zpb_encode_message(msg, m, true, opt_int(opts, "check_required") != 0,
+                                     h->arena, &n, &status);
+    if (bytes == NULL) {
+        const char *code = status == ZPB_ENCODE_MISSING_REQUIRED ? "missing_required"
+                           : h->alloc.exceeded                   ? "arena_limit"
+                                                                 : "out_of_memory";
+        holder_finalize(hptr);
+        UNPROTECT(1);
+        return json_result(R_NilValue, code, NULL);
+    }
+    SEXP raw = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t) n));
+    if (n > 0) memcpy(RAW(raw), bytes, n);
+    holder_finalize(hptr);
+    SEXP out = json_result(raw, NULL, NULL);
+    UNPROTECT(2);
+    return out;
+}

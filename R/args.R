@@ -20,6 +20,18 @@ zpb_match_arg <- function(x, choices, arg, call = NULL) {
   x
 }
 
+# `int64 = "integer64"` makes bit64 vectors, so bit64 must be there to use them.
+check_int64_mode <- function(int64, call = NULL) {
+  if (int64 == "integer64" && !requireNamespace("bit64", quietly = TRUE)) {
+    zpb_invalid_argument(
+      "int64",
+      '`int64 = "integer64"` needs the bit64 package. Install it, or use `int64 = "character"` for exact values.',
+      call
+    )
+  }
+  invisible(int64)
+}
+
 check_flag <- function(x, arg, call = NULL) {
   if (!is.logical(x) || length(x) != 1L || is.na(x)) {
     zpb_invalid_argument(arg, sprintf("`%s` must be TRUE or FALSE.", arg), call)

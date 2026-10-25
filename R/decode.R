@@ -55,7 +55,10 @@ zpb_default_limits <- function() {
 #' @param pool A pool from [proto_pool()] holding `type`.
 #' @param int64 How 64-bit integer fields become R values: `"double"`
 #'   (values beyond 2^53 lose precision, with a `zuproto_precision_loss`
-#'   warning) or `"character"` (exact decimal strings).
+#'   warning), `"character"` (exact decimal strings) or `"integer64"`
+#'   ([bit64::integer64()] vectors, exact for signed values; needs bit64).
+#'   Under `"integer64"`, `-2^63` (bit64's `NA`) and `uint64` values above
+#'   `2^63 - 1` become `NA` with a `zuproto_precision_loss` warning.
 #' @param enums How enum fields become R values: `"factor"`, `"integer"`
 #'   (the numbers) or `"character"` (the names). A number the enum does not
 #'   define is `NA` with a `zuproto_unknown_enum` warning, except as an
@@ -89,7 +92,7 @@ proto_decode <- function(
   x,
   type,
   pool,
-  int64 = c("double", "character"),
+  int64 = c("double", "character", "integer64"),
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   unknown = c("drop", "keep"),
@@ -100,7 +103,13 @@ proto_decode <- function(
   call <- sys.call()
   check_pool(pool, call = call)
   check_type(type, call = call)
-  int64 <- zpb_match_arg(int64, c("double", "character"), "int64", call)
+  int64 <- zpb_match_arg(
+    int64,
+    c("double", "character", "integer64"),
+    "int64",
+    call
+  )
+  check_int64_mode(int64, call)
   enums <- zpb_match_arg(
     enums,
     c("factor", "integer", "character"),
@@ -117,7 +126,7 @@ proto_decode <- function(
 
   raw <- read_message(x, max_size, call)
   opts <- list(
-    int64 = match(int64, c("double", "character")) - 1L,
+    int64 = match(int64, c("double", "character", "integer64")) - 1L,
     enums = match(enums, c("factor", "integer", "character")) - 1L,
     defaults = as.integer(defaults),
     keep_unknown = as.integer(unknown == "keep"),

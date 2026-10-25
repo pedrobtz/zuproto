@@ -21,7 +21,7 @@ documentation and release, and `Full CI` goes in before the release.
 | 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | [#17](https://github.com/pedrobtz/zuproto/pull/17) | 2026-10-25 |
 | 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | [#18](https://github.com/pedrobtz/zuproto/pull/18) | 2026-10-25 |
 | 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | [#19](https://github.com/pedrobtz/zuproto/pull/19) | 2026-10-25 |
-| 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | | |
+| 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | [#20](https://github.com/pedrobtz/zuproto/pull/20) | 2026-10-25 |
 | 7 | [Conformance, fuzzing and hostile inputs](#stage-7--conformance-fuzzing-and-hostile-inputs) | quick | [#9](https://github.com/pedrobtz/zuproto/issues/9) | | |
 | 8 | [Documentation](#stage-8--documentation) | quick | [#10](https://github.com/pedrobtz/zuproto/issues/10) | | |
 | 9 | [Full CI](#stage-9--full-ci) | full | [#11](https://github.com/pedrobtz/zuproto/issues/11) | | |
@@ -326,6 +326,17 @@ have their lossless options.
   and warn under `"double"`; tests skip cleanly without zuint or bit64.
 - `R CMD check` passes on the quick r-actions profile.
 
+**Deviations, 2026-10-25.** Decided with the maintainer:
+
+- `int64 = "zuint"` is deferred to after 0.1.0, since zuint is not on
+  CRAN; bit64 joins `Suggests` here.
+- JSON as R values goes through zujson (`Suggests`): upb keeps the
+  protobuf JSON mapping, zujson converts text to and from R values. A C
+  API between the two was considered and left for later (design §3).
+- The exit criterion "64-bit fixtures beyond 2^53 are exact under
+  `"zuint"`" is met under `"character"` and, for signed values,
+  `"integer64"`.
+
 **Design.** §5, §6.1, §6.3 (`Any`), §3 (relationships).
 
 ## Stage 7 — Conformance, fuzzing and hostile inputs
@@ -437,6 +448,11 @@ No new features.
 
 ## After 0.1.0
 
+- `int64 = "zuint"`, once zuint (RFC 0009) is on CRAN (Stage 6).
+- A C API from zujson, so upb's JSON could be parsed into R values without
+  an intermediate string, if profiling shows `parse = TRUE` matters
+  (design §3).
+
 - `proto_compile()` calling `protoc` or `buf` from `PATH`: a system
   requirement for an optional helper; document the `protoc` command instead
   (§18 question 3, recommended for 0.2.0).
@@ -447,7 +463,5 @@ No new features.
 
 ## Open questions
 
-- **zuint not on CRAN**: blocks Stage 6's `"zuint"` option. zuint must
-  reach CRAN (or at least r-universe, with `Additional_repositories`)
-  before zuproto can suggest it; otherwise `int64 = "zuint"` waits for
-  0.2.0.
+None open (2026-10-25). Every question a stage needed has been decided with
+the maintainer; the design records each decision where it applies.

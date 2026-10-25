@@ -104,10 +104,21 @@ every `pedrobtz` repository finds `zpb_` only in this design's RFC.
 
 - **`zuint`** (RFC 0009): `int64`, `uint64`, `sint64`, `fixed64` and
   `sfixed64` fields map to zuint types when `int64 = "zuint"`, which is
-  the lossless choice. `Suggests` only; the default is `"double"` with a
+  the lossless choice. **Deferred to after 0.1.0** (decided 2026-10-25,
+  Stage 6): zuint is not yet on CRAN, and suggesting an unreleased
+  package is a NOTE; `int64 = "character"` is the exact option until
+  then. `Suggests` only; the default is `"double"` with a
   warning on loss, as `zucbor` and `zumsgpack` treat big integers.
 - **`bit64`**: `int64 = "integer64"` for signed 64-bit fields, for users
-  already in that ecosystem.
+  already in that ecosystem. bit64's `NA` is `-2^63`, so that value, and
+  `uint64` values above `2^63 - 1`, decode as `NA` with a
+  `zuproto_precision_loss` warning.
+- **`zujson`** (`Suggests`, decided 2026-10-25): upb does the protobuf JSON
+  mapping; zujson turns the text into R values (`proto_to_json(parse =
+  TRUE)`) and R values into text (`proto_from_json()` given a list). No C
+  API between them: the saving (one copy of the text) does not pay for a
+  hard dependency and a shared interface; revisit if `parse = TRUE` shows
+  up in a profile.
 - **`zucbor` and `zumsgpack`** are the templates for conditions,
   limits, interrupts and the data-frame shape, not for the decoder:
   upb is the decoder.
@@ -531,8 +542,9 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
   vendored amalgamation compiles with no warning silenced at all: the
   §9.2 patches remove what CRAN's flags report, since CRAN rejects
   `-Wno-` overrides and suppressing pragmas.
-- `DESCRIPTION`: no `LinkingTo`, no `Imports`; `Suggests: zuint, bit64,
-  testthat, withr`. `SystemRequirements` empty: no system protobuf.
+- `DESCRIPTION`: no `LinkingTo`, no `Imports`; `Suggests: bit64,
+  testthat, withr, zujson` (zuint joins when it is on CRAN, Stage 6).
+  `SystemRequirements` empty: no system protobuf.
 - `src/Makevars`: `PKG_CFLAGS = $(C_VISIBILITY)`, the amalgamation and
   `utf8_range` built in, `R_init_zuproto` the only export.
 - Measured in Stage 1 (2026-10-25, v36.2):

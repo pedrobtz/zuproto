@@ -71,10 +71,23 @@ static int fail(fill_ctx *ctx, int err, const char *detail)
 
 /* ---- R values ---- */
 
+static int is_integer64(SEXP x)
+{
+    return TYPEOF(x) == REALSXP && Rf_inherits(x, "integer64");
+}
+
+static int64_t integer64_elt(SEXP x, R_xlen_t i)
+{
+    int64_t v;
+    memcpy(&v, &REAL(x)[i], sizeof v);
+    return v;
+}
+
 static int is_unset(SEXP x)
 {
     if (x == R_NilValue) return 1;
     if (XLENGTH(x) != 1) return 0;
+    if (is_integer64(x)) return integer64_elt(x, 0) == INT64_MIN; /* bit64's NA */
     switch (TYPEOF(x)) {
     case LGLSXP: return LOGICAL(x)[0] == NA_LOGICAL;
     case INTSXP: return INTEGER(x)[0] == NA_INTEGER;
@@ -100,6 +113,12 @@ static int num_elt(fill_ctx *ctx, SEXP x, R_xlen_t i, double *out)
     if (TYPEOF(x) == INTSXP && !is_factor(x)) {
         if (INTEGER(x)[i] == NA_INTEGER) return fail(ctx, FILL_TYPE, "must not be NA");
         *out = INTEGER(x)[i];
+        return 0;
+    }
+    if (is_integer64(x)) {
+        int64_t v = integer64_elt(x, i);
+        if (v == INT64_MIN) return fail(ctx, FILL_TYPE, "must not be NA");
+        *out = (double) v;
         return 0;
     }
     if (TYPEOF(x) == REALSXP) {
@@ -176,6 +195,11 @@ static int scalar_elt(fill_ctx *ctx, const zpb_fielddef *f, SEXP x, R_xlen_t i,
         out->uint32_val = (uint32_t) d;
         return 0;
     case ZPB_CTYPE_INT64:
+        if (is_integer64(x)) {
+            out->int64_val = integer64_elt(x, i);
+            if (out->int64_val == INT64_MIN) return fail(ctx, FILL_TYPE, "must not be NA");
+            return 0;
+        }
         if (TYPEOF(x) == STRSXP) {
             if (str_elt(ctx, x, i, &s) < 0) return -1;
             if (parse_int64(s, &out->int64_val) < 0)
@@ -189,6 +213,13 @@ static int scalar_elt(fill_ctx *ctx, const zpb_fielddef *f, SEXP x, R_xlen_t i,
         out->int64_val = (int64_t) d;
         return 0;
     case ZPB_CTYPE_UINT64:
+        if (is_integer64(x)) {
+            int64_t v = integer64_elt(x, i);
+            if (v == INT64_MIN) return fail(ctx, FILL_TYPE, "must not be NA");
+            if (v < 0) return fail(ctx, FILL_TYPE, "must be a whole number from 0 to 2^64 - 1");
+            out->uint64_val = (uint64_t) v;
+            return 0;
+        }
         if (TYPEOF(x) == STRSXP) {
             if (str_elt(ctx, x, i, &s) < 0) return -1;
             if (parse_uint64(s, &out->uint64_val) < 0)
@@ -331,14 +362,14 @@ static int fill_value_wkt(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP
     zpb_value v;
     memset(&v, 0, sizeof v);
     if (is_unset(x)) return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 1), v);
-    if (XLENGTH(x) == 1 && !Rf_isObject(x)) {
+    if (XLENGTH(x) == 1 && (!Rf_isObject(x) || is_integer64(x))) {
         switch (TYPEOF(x)) {
         case LGLSXP:
             v.bool_val = LOGICAL(x)[0] != 0;
             return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 4), v);
         case INTSXP:
         case REALSXP:
-            v.double_val = TYPEOF(x) == INTSXP ? INTEGER(x)[0] : REAL(x)[0];
+            if (num_elt(ctx, x, 0, &v.double_val) < 0) return -1;
             return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 2), v);
         case STRSXP: {
             const char *s = Rf_translateCharUTF8(STRING_ELT(x, 0));

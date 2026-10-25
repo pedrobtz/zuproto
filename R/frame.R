@@ -59,7 +59,7 @@ proto_decode_df <- function(
   type,
   pool,
   field = NULL,
-  int64 = c("double", "character"),
+  int64 = c("double", "character", "integer64"),
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
@@ -161,7 +161,7 @@ proto_read_delimited <- function(
   pool,
   each = NULL,
   chunk_rows = 10000,
-  int64 = c("double", "character"),
+  int64 = c("double", "character", "integer64"),
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
@@ -307,7 +307,13 @@ df_options <- function(
 ) {
   check_pool(pool, call = call)
   check_type(type, call = call)
-  int64 <- zpb_match_arg(int64, c("double", "character"), "int64", call)
+  int64 <- zpb_match_arg(
+    int64,
+    c("double", "character", "integer64"),
+    "int64",
+    call
+  )
+  check_int64_mode(int64, call)
   enums <- zpb_match_arg(
     enums,
     c("factor", "integer", "character"),
@@ -320,7 +326,7 @@ df_options <- function(
   check_limit(max_depth, "max_depth", 1, 1000, call)
   check_limit(max_rows, "max_rows", 1, 2^31 - 1, call)
   list(
-    int64 = match(int64, c("double", "character")) - 1L,
+    int64 = match(int64, c("double", "character", "integer64")) - 1L,
     enums = match(enums, c("factor", "integer", "character")) - 1L,
     defaults = as.integer(defaults),
     bytes_base64 = as.integer(bytes == "base64"),

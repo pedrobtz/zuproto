@@ -42,10 +42,15 @@ given twice. Carries \code{path}, the field at fault, such as
 message type does not define. Carries \code{path}.}
 \item{\code{zuproto_missing_required}}{\code{\link[=proto_encode]{proto_encode()}} with
 \code{check_required = TRUE}: a proto2 \code{required} field is not set.}
+\item{\code{zuproto_json_error}}{\code{\link[=proto_from_json]{proto_from_json()}} was given JSON that is
+not valid, or not the type's, or \code{\link[=proto_to_json]{proto_to_json()}} could not write a
+message (an \code{Any} whose packed type is not in the pool). Carries
+\code{detail}, upb's description.}
 \item{\code{zuproto_limit_error}}{A limit was reached. The subclasses
 \code{zuproto_size_limit} (the input, or the memory decoding it needs,
-is too large for \code{max_size}) and \code{zuproto_depth_limit} (messages
-nest deeper than \code{max_depth}) name which. Carries \code{limit}, the
+is too large for \code{max_size}), \code{zuproto_depth_limit} (messages nest
+deeper than \code{max_depth}) and \code{zuproto_row_limit} (more rows than
+\code{max_rows}) name which. Carries \code{limit}, the
 argument's name, and \code{limit_value}.}
 }
 
