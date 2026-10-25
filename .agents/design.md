@@ -309,7 +309,22 @@ and writes one message per row.
   is skipped; with different bytes it is a `zuproto_pool_conflict`.
 - The well-known types ship as one serialised descriptor set in
   `inst/descriptors/wkt.binpb`, generated at vendoring time by `protoc`
-  from the pinned release and checked by SHA-256 in tests.
+  from the pinned release's `.proto` files: the ten well-known types and
+  `descriptor.proto`, which schemas with custom options import. Its
+  SHA-256 is in `src/vendor/PROVENANCE`, and `tools/verify-vendor` checks
+  it there rather than in a test (base R before 4.5 has no SHA-256) or by
+  regenerating it (another `protoc` may encode the same files
+  differently). A test checks that every well-known type loads.
+- A pool lists the files added to it, with their bytes, so a set is
+  checked whole (conflicts, missing imports) before any of it is added,
+  and files are added in dependency order whatever order the set lists
+  them in.
+- **Extensions** (§18 question 7, decided 2026-10-25): upb registers a
+  file's extensions when the file is added, so pools need nothing more.
+  An extension is named by its bracketed full name, `[pkg.ext]`, as in
+  protobuf's JSON mapping: in `proto_fields()` (Stage 2), as the name of
+  a set extension in a decoded list (Stage 3), as its own data-frame
+  column (Stage 5), and as an accepted name when encoding (Stage 4).
 - upb's README warns its descriptor validation is less exhaustive than
   `protoc`'s. zuproto treats descriptor sets as **trusted input** and
   says so in the documentation; message bytes are untrusted.
@@ -406,8 +421,8 @@ report upstream instead.
 set; add a file; find a message; create, decode and encode a message;
 iterate set fields; get and set by field definition; array and map
 access; JSON encode and decode. It also re-exports only the enums
-zuproto reads. A test lists every upb symbol referenced outside the
-shim (none allowed).
+zuproto reads. `tools/verify-vendor` fails on any upb include or symbol
+outside the shim, since the installed package a test sees has no `src/`.
 
 ### 9.4 Re-vendoring
 
@@ -496,7 +511,9 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
     `-Wall -pedantic`): no compiler warning; `R CMD check` with only the
     "New submission" NOTE; compile time about 5 s; shared object 297 KB;
     tarball 254 KB, well under CRAN's 5 MB guideline.
-  - **Patched, full CI profile** (https://github.com/pedrobtz/zuproto/actions/runs/40165245441): every leg green, including
+  - **Patched, full CI profile**
+    ([run 40165245441](https://github.com/pedrobtz/zuproto/actions/runs/40165245441)):
+    every leg green, including
     both Windows legs, the `-pedantic` containers, ASan, UBSan, valgrind,
     gctorture, rchk and LTO. Each `R CMD check` leg finished in 1.5 to
     2.5 minutes.
@@ -609,8 +626,9 @@ Reasons where they are not in the section cited:
    ranges, and agencies publish extensions there. §2 and §6 say nothing
    about extensions, either in the pool (adding extension files) or in
    decoding (how an extension field appears in the list and in the data
-   frame). Not yet decided. It also needs checking whether the Swiss
-   feed's `original_trip_id` is an extension or a field.
+   frame). **Decided 2026-10-25:** decoded under bracketed full names
+   (§8). It still needs checking whether the Swiss feed's
+   `original_trip_id` is an extension or a field.
 
 ## 19. Roadmap
 
