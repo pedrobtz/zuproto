@@ -495,8 +495,11 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
   - **Patched**, locally on macOS (Apple clang 17, `--as-cran`,
     `-Wall -pedantic`): no compiler warning; `R CMD check` with only the
     "New submission" NOTE; compile time about 5 s; shared object 297 KB;
-    tarball 254 KB, well under CRAN's 5 MB guideline. Per-leg CI figures
-    are on pull request #15.
+    tarball 254 KB, well under CRAN's 5 MB guideline.
+  - **Patched, full CI profile** (https://github.com/pedrobtz/zuproto/actions/runs/40165245441): every leg green, including
+    both Windows legs, the `-pedantic` containers, ASan, UBSan, valgrind,
+    gctorture, rchk and LTO. Each `R CMD check` leg finished in 1.5 to
+    2.5 minutes.
 
 ## 15. Testing
 
