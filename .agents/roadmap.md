@@ -18,7 +18,7 @@ documentation and release, and `Full CI` goes in before the release.
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuproto/issues/2) | [#14](https://github.com/pedrobtz/zuproto/pull/14) | 2026-10-24 |
 | 1 | [Vendor upb](#stage-1--vendor-upb) | full | [#3](https://github.com/pedrobtz/zuproto/issues/3) | [#15](https://github.com/pedrobtz/zuproto/pull/15) | 2026-10-25 |
 | 2 | [Shim, pools and well-known types](#stage-2--shim-pools-and-well-known-types) | quick | [#4](https://github.com/pedrobtz/zuproto/issues/4) | [#16](https://github.com/pedrobtz/zuproto/pull/16) | 2026-10-25 |
-| 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | | |
+| 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | | 2026-10-25 |
 | 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | | |
 | 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | | |
 | 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | | |
@@ -204,6 +204,19 @@ field kind the design maps.
 - Every mapping row of §6.1–§6.3 has a test against a generated fixture.
 - Malformed, oversized and too-deep inputs fail with their
   `zuproto_error` subclasses, and no R object is built for them.
+
+**Deviations, 2026-10-25.**
+
+- Decided with the maintainer before the build code: questions 2 and 5
+  as recommended; `-2^31` as `NA` with a warning; NUL in a string as the
+  new `zuproto_unrepresentable`; maps sorted by key (design §6).
+- Fixtures come from Python `protobuf` 7.36.2 alone, not also
+  `protoc --encode`: one independent encoder is enough for decoding, and
+  `protoc --encode` joins in Stage 4's round trips if needed. Message
+  fixtures are stored as hex text (`fixtures/msg/*.hex`), because
+  `R CMD check` took three short binary ones for executables.
+- Required fields are not checked on decode, as upb does by default.
+- `zuproto_invalid_utf8` is a subclass of `zuproto_parse_error`.
 
 **Design.** §4, §5, §6.1–§6.3, §12, §13; §18 questions 2 and 5.
 
@@ -417,7 +430,5 @@ No new features.
   reach CRAN (or at least r-universe, with `Additional_repositories`)
   before zuproto can suggest it; otherwise `int64 = "zuint"` waits for
   0.2.0.
-- **`defaults = TRUE`** (question 2) and **a message class** (question 5):
-  block Stage 3.
 - **A repeated field as a data frame** (question 6): blocks Stage 5, and
   whether the GTFS-RT example fits the README in Stage 8.

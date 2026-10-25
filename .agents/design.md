@@ -241,6 +241,12 @@ An enum value not in the definition (open enums, proto3) becomes `NA`
 with a `zuproto_unknown_enum` warning under `enums = "factor"`, and
 stays the number under `"integer"`.
 
+Decided 2026-10-25 (Stage 3): an `int32`, `sint32` or `sfixed32` value of
+`-2^31` is `NA_integer_` with a `zuproto_precision_loss` warning, since R
+reserves that bit pattern for `NA`; a `string` holding a NUL byte is a
+`zuproto_unrepresentable` error naming the field. Warnings are raised
+once per call, with the count in `n`.
+
 ### 6.2 Messages, repeated, maps, oneofs
 
 | Protobuf | One message | Data-frame column |
@@ -252,9 +258,12 @@ stays the number under `"integer"`.
 | `oneof` | the set member only | a column per member, plus `<oneof>_case` |
 | unset with presence | `NULL` | `NA` |
 
-Map keys of integer kinds become names through their decimal form; a
-`map<int64, V>` keeps exact keys only under `int64 = "zuint"` or
-`"character"`.
+Map keys of integer kinds become names through their decimal form (always
+exact, whatever `int64` says); `bool` keys become `"false"` and `"true"`.
+Entries are **sorted by key** (decided 2026-10-25): numerically for
+integer keys, false before true, by bytes for strings, since upb keeps no
+wire order. Repeated `Timestamp`, `Duration` and wrapper fields, and map
+values of those types, become vectors rather than lists.
 
 ### 6.3 Well-known types
 
@@ -456,7 +465,8 @@ Every condition inherits `zuproto_error`: `zuproto_invalid_argument`,
 enumerator and `index` the message's position in a batch),
 `zuproto_invalid_utf8`, `zuproto_missing_required`,
 `zuproto_unknown_type`, `zuproto_unknown_field`,
-`zuproto_type_mismatch` (encode), `zuproto_pool_error` and
+`zuproto_type_mismatch` (encode), `zuproto_unrepresentable` (a decoded
+value R cannot hold, added in Stage 3), `zuproto_pool_error` and
 `zuproto_pool_conflict`, `zuproto_json_error`, `zuproto_limit_error`
 with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
 `zuproto_io_error`, and `zuproto_internal_error`. Warnings:
@@ -466,7 +476,9 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
 
 - `max_size` (64 MiB) per message, checked before upb sees the bytes.
 - `max_depth` passed to upb through `upb_DecodeOptions_MaxDepth()`;
-  default 100, upb's own `kUpb_WireFormat_DefaultDepthLimit`.
+  default 100, upb's own `kUpb_WireFormat_DefaultDepthLimit`. upb counts
+  levels below the top-level message, so 100 accepts 101 messages, one
+  inside the next (measured in Stage 3); the documentation says so.
 - `max_rows` (1e7) per data frame, and an arena byte ceiling per call
   (default 4 × `max_size`), enforced by a counting allocator handed to
   `upb_Arena_Init`, so a small input that expands (packed repeated
@@ -604,7 +616,9 @@ Reasons where they are not in the section cited:
 2. **`defaults = TRUE`.** Proto3 cannot tell an unset scalar from its
    zero value without presence; returning defaults matches every other
    runtime, returning `NULL` matches the wire. Recommended: defaults, as
-   proposed, with `NULL` only for fields with presence.
+   proposed, with `NULL` only for fields with presence. **Decided
+   2026-10-25 as recommended.** Proto2 `optional` fields have presence,
+   so their declared defaults do not appear when unset.
 3. **`proto_compile()`.** Worth adding in 0.1.0 as an optional helper
    that shells out to `protoc` or `buf` when found, or leave it to the
    user? Recommended: leave it to 0.2.0; document the one-line `protoc`
@@ -615,6 +629,7 @@ Reasons where they are not in the section cited:
 5. **Unknown fields.** Keeping them as a raw attribute round-trips them,
    but attributes are easy to lose in R. Is a `proto_message` class
    worth it? Recommended: no class in 0.1.0; plain lists stay plain.
+   **Decided 2026-10-25 as recommended.**
 6. **A repeated field as a data frame.** A GTFS-RT feed (§22) is one
    `FeedMessage` whose `entity` field repeats, not a stream of messages.
    `proto_decode_df()` takes many messages; decoding one and then

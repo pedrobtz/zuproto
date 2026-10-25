@@ -9,3 +9,6 @@
   well-known types built in; `proto_types()` and `proto_fields()` list what
   a pool holds, extensions included; `zuproto_info()` reports the bundled
   protobuf release.
+* `proto_decode()` decodes one message to a named list: every scalar type,
+  enums as factors, repeated fields, maps, oneofs, extensions and the
+  well-known types, with limits on size, nesting and memory.
