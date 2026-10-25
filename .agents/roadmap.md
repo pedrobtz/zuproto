@@ -461,9 +461,9 @@ No new features.
 ## After 0.1.0
 
 - A C path for `proto_write_delimited()` (Stage 7).
-- Reporting `0006-any-empty-url.patch`, `0007-json-any-arena-leak.patch`
-  and `0008-json-nanos-range.patch` upstream, with the maintainer's
-  agreement.
+- Drop patches 0006, 0007 and 0008 once a protobuf release fixes them:
+  reported 2026-10-25 as protocolbuffers/protobuf#31030, #31031 and
+  #31032 (none was known or fixed on `main`).
 
 - `int64 = "zuint"`, once zuint (RFC 0009) is on CRAN (Stage 6).
 - A C API from zujson, so upb's JSON could be parsed into R values without
