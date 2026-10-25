@@ -1,0 +1,72 @@
+#!/bin/sh
+# Vendor upb and utf8_range from a protobuf release tag into src/vendor/:
+# fetch the files tools/upb-files.txt lists at the tag's commit, record
+# their SHA-256 in src/vendor/PROVENANCE, then apply tools/patches/ in
+# order. Run from the package root; tools/verify-vendor checks the result.
+#
+#   tools/vendor-upb v36.2
+#
+# Re-vendoring (design section 9.4): run this with the new tag, regenerate
+# 0003-pedantic.patch with tools/make-pedantic-patch if it no longer
+# applies, fix the shim until it compiles, run the full CI profile, and
+# record the tag in NEWS.md.
+set -eu
+
+TAG=${1:?usage: tools/vendor-upb <tag>}
+REPO=https://github.com/protocolbuffers/protobuf
+
+COMMIT=$(git ls-remote "$REPO" "refs/tags/$TAG^{}" | cut -f1)
+[ -n "$COMMIT" ] || COMMIT=$(git ls-remote "$REPO" "refs/tags/$TAG" | cut -f1)
+[ -n "$COMMIT" ] || { echo "no tag $TAG in $REPO" >&2; exit 1; }
+echo "==> $TAG is $COMMIT"
+
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+grep -v '^#' tools/upb-files.txt | grep -v '^[[:space:]]*$' > "$WORK/files"
+
+: > "$WORK/hashes"
+while read -r up local; do
+  mkdir -p "$WORK/tree/$(dirname "$local")"
+  curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused \
+    -o "$WORK/tree/$local" \
+    "https://raw.githubusercontent.com/protocolbuffers/protobuf/$COMMIT/$up"
+  sum=$(shasum -a 256 "$WORK/tree/$local" | cut -d' ' -f1)
+  printf '                 %s  %s\n' "$sum" "$local" >> "$WORK/hashes"
+done < "$WORK/files"
+
+for p in tools/patches/*.patch; do
+  [ -e "$p" ] || continue
+  patch -s -p1 -d "$WORK/tree" < "$p"
+done
+find "$WORK/tree" \( -name '*.orig' -o -name '*.rej' \) -delete
+
+rm -rf src/vendor/upb src/vendor/utf8_range
+cp -R "$WORK/tree/." src/vendor/
+
+{
+  cat <<EOF
+Vendored dependency: upb and utf8_range, from Protocol Buffers
+
+  Upstream:      $REPO
+  Tag:           $TAG
+  Commit:        $COMMIT
+  Imported:      $(date +%Y-%m-%d)
+  License:       BSD-3-Clause (src/vendor/upb/LICENSE, Google LLC);
+                 utf8_range MIT (src/vendor/utf8_range/LICENSE)
+  Local patches: applied in this order, from tools/patches/
+EOF
+  for p in tools/patches/*.patch; do
+    [ -e "$p" ] && printf '                 %s\n' "$(basename "$p")"
+  done
+  echo "  Upstream SHA-256, before patching:"
+  cat "$WORK/hashes"
+  cat <<'EOF'
+
+src/vendor/ is the files listed in tools/upb-files.txt, fetched at the
+commit above, with exactly the patches above applied. tools/verify-vendor
+re-derives the tree and fails on any other difference. The patches and why
+each exists are in .agents/design.md section 9.2.
+EOF
+} > src/vendor/PROVENANCE
+
+echo "==> vendored $TAG; now run tools/verify-vendor"

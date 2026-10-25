@@ -1,0 +1,102 @@
+#!/bin/sh
+# Verify that src/vendor/ is the pinned upstream files plus exactly the
+# patch series in tools/patches/, byte for byte. Exits non-zero on any
+# difference. Run from the package root.
+#
+#   tools/verify-vendor                 the gate
+#   tools/verify-vendor --canary        the gate's canary: re-derive the tree
+#                                       with the first patch left out and
+#                                       require verification to FAIL
+set -eu
+
+CANARY=0
+[ "${1:-}" = "--canary" ] && CANARY=1
+
+PROV="src/vendor/PROVENANCE"
+[ -f "$PROV" ] || { echo "missing $PROV" >&2; exit 1; }
+
+TAG=$(awk '/^  Tag:/ {print $2}' "$PROV")
+COMMIT=$(awk '/^  Commit:/ {print $2}' "$PROV")
+echo "==> pinned protobuf $TAG ($COMMIT)"
+
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+FAILURES="$WORK/failures"
+: > "$FAILURES"
+
+grep -v '^#' tools/upb-files.txt | grep -v '^[[:space:]]*$' > "$WORK/files"
+awk '/^  Upstream SHA-256/ {on = 1; next} on && /^ +[0-9a-f]{64}  / {print $1, $2; next} on {exit}' \
+  "$PROV" > "$WORK/expected"
+
+# --retry, because this runs on every push in CI. Integrity does not rest on
+# the transport: the SHA-256 comparison is what decides.
+while read -r up local; do
+  mkdir -p "$WORK/tree/$(dirname "$local")"
+  curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused \
+    -o "$WORK/tree/$local" \
+    "https://raw.githubusercontent.com/protocolbuffers/protobuf/$COMMIT/$up"
+  want=$(awk -v f="$local" '$2 == f {print $1}' "$WORK/expected")
+  have=$(shasum -a 256 "$WORK/tree/$local" | cut -d' ' -f1)
+  if [ -z "$want" ]; then
+    echo "FAIL: $local has no SHA-256 in $PROV" >> "$FAILURES"
+  elif [ "$want" != "$have" ]; then
+    echo "FAIL: upstream $up sha256 is $have, $PROV records $want" >> "$FAILURES"
+  fi
+done < "$WORK/files"
+
+# The patch series must be exactly what PROVENANCE lists, in order.
+awk '/^  Local patches:/ {on = 1; next} on && /^ +[^ ]+\.patch$/ {print $1; next} on {exit}' \
+  "$PROV" > "$WORK/listed"
+ls tools/patches/*.patch 2>/dev/null | xargs -n1 basename > "$WORK/present" || true
+if ! cmp -s "$WORK/listed" "$WORK/present"; then
+  echo "FAIL: tools/patches/ does not match the patch list in $PROV" >> "$FAILURES"
+fi
+
+first=1
+while read -r p; do
+  if [ "$CANARY" -eq 1 ] && [ "$first" -eq 1 ]; then
+    echo "==> canary: leaving out $p"
+    first=0
+    continue
+  fi
+  first=0
+  patch -s -p1 -d "$WORK/tree" < "tools/patches/$p" ||
+    echo "FAIL: tools/patches/$p does not apply cleanly" >> "$FAILURES"
+done < "$WORK/present"
+find "$WORK/tree" \( -name '*.orig' -o -name '*.rej' \) -delete
+
+# Every file must match, and nothing may be present that the derivation did
+# not produce. Build artefacts are ignored: R builds in place.
+count=0
+while read -r up local; do
+  if [ ! -f "src/vendor/$local" ]; then
+    echo "FAIL: src/vendor/$local is missing" >> "$FAILURES"
+  elif ! cmp -s "$WORK/tree/$local" "src/vendor/$local"; then
+    echo "FAIL: src/vendor/$local differs from upstream plus patches" >> "$FAILURES"
+  fi
+  count=$((count + 1))
+done < "$WORK/files"
+find src/vendor -type f ! -name PROVENANCE \
+  ! -name '*.o' ! -name '*.so' ! -name '*.dll' ! -name '*.dylib' ! -name '*.a' |
+  sed 's#^src/vendor/##' | sort > "$WORK/local"
+awk '{print $2}' "$WORK/files" | sort > "$WORK/listed-files"
+comm -23 "$WORK/local" "$WORK/listed-files" | while read -r extra; do
+  echo "FAIL: src/vendor/$extra is not in tools/upb-files.txt" >> "$FAILURES"
+done
+
+if [ "$CANARY" -eq 1 ]; then
+  if [ -s "$FAILURES" ]; then
+    echo "==> canary OK: verification failed with a patch left out"
+    exit 0
+  fi
+  echo "CANARY FAILED: verification passed with a patch left out" >&2
+  exit 1
+fi
+
+if [ -s "$FAILURES" ]; then
+  cat "$FAILURES" >&2
+  echo "==> vendor tree FAILED verification" >&2
+  exit 1
+fi
+
+echo "==> vendor tree verified ($count files, protobuf $TAG plus $(wc -l < "$WORK/present" | tr -d ' ') patches)"

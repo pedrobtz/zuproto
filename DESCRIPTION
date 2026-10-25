@@ -1,9 +1,13 @@
 Package: zuproto
 Title: Protocol Buffers Decoding and Encoding with 'upb'
 Version: 0.0.0.9000
-Authors@R: 
+Authors@R: c(
     person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
-           role = c("aut", "cre", "cph"))
+           role = c("aut", "cre", "cph")),
+    person("Google LLC", role = "cph",
+           comment = "upb and utf8_range, bundled in src/vendor"),
+    person("Yibo", "Cai", role = "cph",
+           comment = "utf8_range, bundled in src/vendor/utf8_range"))
 Description: Decodes and encodes Protocol Buffers messages from
     descriptor sets rather than generated code. One message becomes a
     named list; many messages become a data frame built column by
@@ -11,6 +15,7 @@ Description: Decodes and encodes Protocol Buffers messages from
     (<https://github.com/protocolbuffers/protobuf>), so no system
     'protobuf' library or 'protoc' compiler is required.
 License: MIT + file LICENSE
+Copyright: See inst/COPYRIGHTS and src/vendor/PROVENANCE.
 URL: https://github.com/pedrobtz/zuproto,
     https://pedrobtz.github.io/zuproto/
 BugReports: https://github.com/pedrobtz/zuproto/issues

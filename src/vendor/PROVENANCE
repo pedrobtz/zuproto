@@ -1,0 +1,27 @@
+Vendored dependency: upb and utf8_range, from Protocol Buffers
+
+  Upstream:      https://github.com/protocolbuffers/protobuf
+  Tag:           v36.2
+  Commit:        2c74169b34066ceb8ddb6b882fcb3fb32d737a55
+  Imported:      2026-10-25
+  License:       BSD-3-Clause (src/vendor/upb/LICENSE, Google LLC);
+                 utf8_range MIT (src/vendor/utf8_range/LICENSE)
+  Local patches: applied in this order, from tools/patches/
+                 0001-no-stdio.patch
+                 0002-no-pragmas.patch
+                 0003-pedantic.patch
+                 0004-mingw-printf-format.patch
+  Upstream SHA-256, before patching:
+                 4954a9cc98c822fa6eae14df779cc806434800a7283f2be4f02942bf65f51a13  upb/ruby-upb.c
+                 c05d895292cb6929a12a892eea2c759f442f6ad0b693448f7cf5e17c59b411a6  upb/ruby-upb.h
+                 6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d  upb/LICENSE
+                 f564d1f3bb9e1a477a30e683c4d994a113fb6efcd98b51b6ae95cbe9ee4c936b  utf8_range/utf8_range.c
+                 83350888877da6442cfa62448c360860285499db2aab57bfa4aa170b8eed539d  utf8_range/utf8_range.h
+                 af1bc2e251d9146a8dddccc98dfd9a74c52aa0c296dc45167bb59e8959e3552d  utf8_range/utf8_range_sse.inc
+                 c0b3252ac67eaf8a36fa2daae286243aba8942b78875286c7bcc3f0421cf0312  utf8_range/utf8_range_neon.inc
+                 02de69b64fc36d9e938f418e52723e42f0b2b226d58a9cb3c8dcbdf7059f5074  utf8_range/LICENSE
+
+src/vendor/ is the files listed in tools/upb-files.txt, fetched at the
+commit above, with exactly the patches above applied. tools/verify-vendor
+re-derives the tree and fails on any other difference. The patches and why
+each exists are in .agents/design.md section 9.2.

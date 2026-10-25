@@ -1,0 +1,18 @@
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+name: vendor-upstream
+
+# Opens (or updates) an issue when protobuf releases a newer tag than the
+# one vendored. Re-vendoring follows design section 9.4.
+jobs:
+  upstream:
+    uses: pedrobtz/r-actions/.github/workflows/vendor-upstream.yml@v1
+    permissions:
+      contents: read
+      issues: write
+    with:
+      upstream-repo: protocolbuffers/protobuf
+      current-version: awk '/^  Tag:/ {print $2}' src/vendor/PROVENANCE

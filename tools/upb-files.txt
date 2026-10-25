@@ -1,0 +1,12 @@
+# The vendored file set: <upstream path in protocolbuffers/protobuf>
+# <path under src/vendor/>. The amalgamation is the Ruby extension's,
+# whose extconf.rb shows it needs utf8_range and nothing else
+# (design section 9.1, D2).
+ruby/ext/google/protobuf_c/ruby-upb.c       upb/ruby-upb.c
+ruby/ext/google/protobuf_c/ruby-upb.h       upb/ruby-upb.h
+LICENSE                                     upb/LICENSE
+third_party/utf8_range/utf8_range.c         utf8_range/utf8_range.c
+third_party/utf8_range/utf8_range.h         utf8_range/utf8_range.h
+third_party/utf8_range/utf8_range_sse.inc   utf8_range/utf8_range_sse.inc
+third_party/utf8_range/utf8_range_neon.inc  utf8_range/utf8_range_neon.inc
+third_party/utf8_range/LICENSE              utf8_range/LICENSE

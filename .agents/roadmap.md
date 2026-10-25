@@ -16,7 +16,7 @@ documentation and release, and `Full CI` goes in before the release.
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuproto/issues/2) | [#14](https://github.com/pedrobtz/zuproto/pull/14) | 2026-10-24 |
-| 1 | [Vendor upb](#stage-1--vendor-upb) | full | [#3](https://github.com/pedrobtz/zuproto/issues/3) | | |
+| 1 | [Vendor upb](#stage-1--vendor-upb) | full | [#3](https://github.com/pedrobtz/zuproto/issues/3) | [#15](https://github.com/pedrobtz/zuproto/pull/15) | 2026-10-25 |
 | 2 | [Shim, pools and well-known types](#stage-2--shim-pools-and-well-known-types) | quick | [#4](https://github.com/pedrobtz/zuproto/issues/4) | | |
 | 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | | |
 | 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | | |
@@ -109,6 +109,21 @@ Stage 2.
 - The vendored files match `src/upb/VERSION`, and the patch list has no
   entry beyond the two the design allows.
 - The measurements are recorded in the design, with the go decision.
+
+**Deviations, 2026-10-25.** Decided with the maintainer after the
+unpatched full CI run on #15:
+
+- Four patches plus one define, not two patches (design §9.2, revised).
+  The `UPB_ASSERT` patch is not needed, since `R CMD INSTALL` defines
+  `NDEBUG`.
+- Layout `src/vendor/{upb,utf8_range}/` with `src/vendor/PROVENANCE`, as
+  zuhtml does and r-actions' `vendor.yml` expects, instead of `src/upb/`
+  with `src/upb/VERSION`. The hash check is `tools/verify-vendor`, run by
+  the `vendor` workflow, instead of a testthat test, since the installed
+  package has no `src/`.
+- The `nm -u` guard is `tests/testthat/test-symbols.R`, which runs on
+  every CI leg that has `nm`, instead of a separate CI step.
+- Ruby amalgamation kept (open question 4); the reason is in design §9.1.
 
 **Design.** §9.1, §9.2, §14; §18 question 4.
 
@@ -393,7 +408,6 @@ No new features.
   reach CRAN (or at least r-universe, with `Additional_repositories`)
   before zuproto can suggest it; otherwise `int64 = "zuint"` waits for
   0.2.0.
-- **Ruby or PHP amalgamation** (question 4): blocks Stage 1.
 - **Extensions** (question 7): blocks Stage 2.
 - **`defaults = TRUE`** (question 2) and **a message class** (question 5):
   block Stage 3.

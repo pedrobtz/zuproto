@@ -1,3 +1,18 @@
 # Hide every symbol but R_init_zuproto (design section 3, R3). There is no
 # Makevars.win: R on Windows uses this file when that one is absent.
+#
+# Portable make: objects are listed by hand, since R compiles only src/*.c
+# on its own. src/vendor/ is upstream's files plus tools/patches/, checked by
+# tools/verify-vendor (design section 9).
+#
+# __USE_MINGW_ANSI_STDIO=1 gives Rtools the C99 printf family, so upb's
+# "%zu" in error messages works on Windows; tools/patches/0004 checks the
+# formats against it. Inert elsewhere.
+PKG_CPPFLAGS = -Ivendor -Ivendor/utf8_range -D__USE_MINGW_ANSI_STDIO=1
 PKG_CFLAGS = $(C_VISIBILITY)
+
+UPB_OBJECTS = \
+	vendor/upb/ruby-upb.o \
+	vendor/utf8_range/utf8_range.o
+
+OBJECTS = init.o zpb_probe.o $(UPB_OBJECTS)

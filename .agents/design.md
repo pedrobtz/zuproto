@@ -330,30 +330,74 @@ contains the wire decoder and encoder, reflection, mini tables, the
 descriptor messages and JSON, which is everything §2 needs. It does
 not contain text format.
 
-zuproto vendors, at a **pinned release tag** (`v36.2` or later, decided
-in Stage 0):
+zuproto vendors, at a **pinned release tag** (`v36.2`, commit
+`2c74169`, since Stage 1 on 2026-10-25), into `src/vendor/` (the
+family's layout and r-actions' default, not the `src/upb/` first
+proposed):
 
-- `ruby/ext/google/protobuf_c/ruby-upb.{c,h}`, renamed
-  `src/upb/upb.{c,h}`;
-- `third_party/utf8_range/` (`utf8_range.{c,h}` and its licence), which
-  the amalgamation needs and does not include;
-- the licences, into `inst/COPYRIGHTS`.
+- `ruby/ext/google/protobuf_c/ruby-upb.{c,h}` as `src/vendor/upb/`,
+  under their upstream names, so the `.c` file's own `#include` needs
+  no patch;
+- `third_party/utf8_range/` (`utf8_range.{c,h}`, the two `.inc` files it
+  includes, and its licence) as `src/vendor/utf8_range/`;
+- protobuf's licence as `src/vendor/upb/LICENSE`; both licences are
+  summarised in `inst/COPYRIGHTS`.
 
-`tools/vendor-upb` fetches a named tag, copies the files, applies the
-patches of §9.2, regenerates `wkt.binpb`, and writes
-`src/upb/VERSION` with the tag, commit and SHA-256 of each file.
+`tools/upb-files.txt` lists the file set. `tools/vendor-upb <tag>`
+fetches those files at the tag's commit, applies `tools/patches/` and
+writes `src/vendor/PROVENANCE` with the tag, the commit and each
+upstream file's SHA-256. `tools/verify-vendor` re-derives the tree and
+fails on any difference; `--canary` leaves the first patch out and
+requires that to fail. The `vendor` workflow runs it on every push.
+`wkt.binpb` (§8) is generated in Stage 2.
+
+**Ruby or PHP (§18 question 4), measured 2026-10-25 at v36.2:** the PHP
+amalgamation compiles to an 8% smaller object (1.19 MB against 1.30 MB
+unstripped, macOS clang) and lacks 8 `-Wextra` field-initialiser
+warnings, which CRAN does not use. Both need the same patches. Ruby is
+kept: D2's reason (its `extconf.rb` shows the exact file set) stands,
+and it is the one every CI leg measured.
 
 ### 9.2 Patches
 
-Kept as files in `tools/patches/`, applied in order, each with a reason:
+Kept as files in `tools/patches/`, applied in order. Revised 2026-10-25
+after the Stage 1 measurement (pull request #15): the first proposal
+was two patches, and the full CI profile on unpatched v36.2 and the
+runs after it showed four are needed, plus one define. None touches
+decoder logic.
 
-1. `UPB_ASSERT` to a no-op in package builds, so no `assert()` reaches
-   the shared object (CRAN's compiled-code checks).
-2. The two `fprintf(stderr, …)` and `abort()` sites on unreachable
-   paths, routed to a flag the shim turns into a
-   `zuproto_internal_error`.
-3. Nothing else. A patch that touches decoder logic is a reason to stop
-   and report upstream instead.
+1. `0001-no-stdio.patch`: `_upb_UnreachableFailure()` (`fprintf` to
+   `stderr`, then `abort()`) is compiled only without `NDEBUG`, which
+   `R CMD INSTALL` always defines, so nothing calls it; and the `fprintf`
+   on `_upb_DefPool_LoadDefInitEx()`'s error path, which loads
+   compiled-in descriptors zuproto never uses, is removed. CRAN's
+   compiled-code check otherwise reports `stderr` and `abort`.
+2. `0002-no-pragmas.patch`: every `#pragma` goes: a `GCC diagnostic`
+   block silencing false `-Warray-bounds` and `-Wstringop-*` warnings
+   (`R CMD check`: "pragma(s) suppressing important diagnostics"), and
+   MSVC-only `section` and `intrinsic` lines ("non-portable pragma(s)").
+   Without them Rtools' gcc reported the false warnings, as significant
+   ones, when it inlined `_upb_MiniTableField_DataCopy` into callers;
+   the patch therefore also makes upstream's `UPB_INLINE_IF_NOT_GCC`
+   (already non-inline on gcc) `noinline`, so gcc never sees them.
+3. `0003-pedantic.patch`, made by `tools/make-pedantic-patch`: the 21
+   generated enum tables of `descriptor.proto` initialise
+   `upb_MiniTableEnum`'s flexible array member, which gcc and clang
+   report under CRAN's `-pedantic`. Each table is stored in a fixed-size
+   struct with the same layout, and a macro keeps its name as a
+   `upb_MiniTableEnum`; no code that reads the tables changes. The same
+   patch drops one extra `;` after a function in the header.
+4. `0004-mingw-printf-format.patch`: on MinGW, `UPB_PRINTF` checks
+   formats as `gnu_printf`. Rtools' gcc reads plain `printf` as
+   Microsoft's, which has no `%zu`, and warned on two error messages.
+
+No `assert()` patch: `R CMD INSTALL` defines `NDEBUG`, so `UPB_ASSERT`
+is already empty. `__USE_MINGW_ANSI_STDIO=1` in `src/Makevars` gives
+Rtools the C99 `printf` family, so the `%zu` that patch 4 lets through
+is also what runs.
+
+A patch that touches decoder logic is still a reason to stop and
+report upstream instead.
 
 ### 9.3 The shim
 
@@ -369,12 +413,15 @@ shim (none allowed).
 
 - Cadence: when a protobuf release fixes a security issue in upb, or
   twice a year otherwise; never mid-stage.
-- Procedure: run `tools/vendor-upb <tag>`, fix the shim until it
-  compiles, run the full conformance job (§15), record the tag in
-  `NEWS.md`.
+- Procedure: run `tools/vendor-upb <tag>`; if `0003-pedantic.patch` no
+  longer applies, regenerate it with `tools/make-pedantic-patch`; run
+  `tools/verify-vendor`; fix the shim until it compiles; run the full CI
+  profile and the conformance job (§15); record the tag in `NEWS.md`.
+  The `vendor-upstream` workflow opens an issue when protobuf releases a
+  newer tag.
 - Budget: the API churn the review warned about is real, so the shim
-  stays small and the patches stay few; both are measured in Stage 0
-  and re-measured on every re-vendor.
+  stays small and the patches stay few; both were measured in Stage 1
+  and are re-measured on every re-vendor.
 
 ## 10. Input sources and delimited streams
 
@@ -428,21 +475,31 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
 
 ## 14. Build, portability and CRAN
 
-- C99 for zuproto's own code under the family's lint flags; the
-  vendored amalgamation compiles with its own warnings silenced only
-  where Stage 0 measures a specific one, never with a blanket `-w`.
+- C99 for zuproto's own code under the family's lint flags. The
+  vendored amalgamation compiles with no warning silenced at all: the
+  §9.2 patches remove what CRAN's flags report, since CRAN rejects
+  `-Wno-` overrides and suppressing pragmas.
 - `DESCRIPTION`: no `LinkingTo`, no `Imports`; `Suggests: zuint, bit64,
   testthat, withr`. `SystemRequirements` empty: no system protobuf.
 - `src/Makevars`: `PKG_CFLAGS = $(C_VISIBILITY)`, the amalgamation and
   `utf8_range` built in, `R_init_zuproto` the only export.
-- Things Stage 0 measures before anything else is written: compile time
-  and shared-object size of the amalgamation on every CI leg; warnings
-  under CRAN's gcc and clang flags; `R CMD check`'s compiled-code NOTE
-  (stdio, `abort`, `exit` symbols) after the §9.2 patches; whether the
-  amalgamation needs C11 (`_Thread_local` appears) and builds under R's
-  default C standard on Windows.
-- Tarball size: the amalgamation compresses to well under CRAN's 5 MB
-  guideline; measured in Stage 0.
+- Measured in Stage 1 (2026-10-25, v36.2):
+  - **Unpatched**, the full CI profile (#15) failed every `R CMD check`
+    leg on three WARNINGs (§9.2) and nothing else. ASan, UBSan (no
+    runtime errors), valgrind (no errors or leaks), gctorture, rchk,
+    `-fanalyzer`, LTO (no type mismatches) and rcnst were clean.
+    Windows built and linked: upb's linker arrays need no patch on
+    MinGW.
+  - **C standard:** no `_Thread_local`; the amalgamation builds under
+    R's default standard on every leg, including Windows R-devel.
+  - **Patched**, locally on macOS (Apple clang 17, `--as-cran`,
+    `-Wall -pedantic`): no compiler warning; `R CMD check` with only the
+    "New submission" NOTE; compile time about 5 s; shared object 297 KB;
+    tarball 254 KB, well under CRAN's 5 MB guideline.
+  - **Patched, full CI profile** (https://github.com/pedrobtz/zuproto/actions/runs/40165245441): every leg green, including
+    both Windows legs, the `-pedantic` containers, ASan, UBSan, valgrind,
+    gctorture, rchk and LTO. Each `R CMD check` leg finished in 1.5 to
+    2.5 minutes.
 
 ## 15. Testing
 
@@ -588,8 +645,9 @@ Stage 1.
 6. `proto_decode_df()` agrees with `proto_decode()` on every fixture and
    meets §16's batch target.
 7. Every mapping row of §6 has a test.
-8. `src/upb/VERSION` matches the vendored files' hashes, and no upb
-   symbol is used outside the shim.
+8. `tools/verify-vendor` passes (the vendored files are upstream's at
+   the pinned commit plus exactly `tools/patches/`), and no upb symbol
+   is used outside the shim.
 
 ## 21. What this RFC does not decide
 

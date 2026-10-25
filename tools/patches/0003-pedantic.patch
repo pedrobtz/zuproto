@@ -1,0 +1,283 @@
+diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
+--- a/upb/ruby-upb.c
++++ b/upb/ruby-upb.c
+@@ -2244,7 +2244,7 @@
+   })
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__Edition_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__Edition_enum_init_zpb = {
+     64,
+     11,
+     {
+@@ -2264,7 +2264,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2273,7 +2273,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2282,7 +2282,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2291,7 +2291,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2300,7 +2300,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2309,7 +2309,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2318,7 +2318,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2327,7 +2327,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2336,7 +2336,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2345,7 +2345,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2354,7 +2354,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2363,7 +2363,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2372,7 +2372,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FieldOptions__CType_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__CType_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2381,7 +2381,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FieldOptions__JSType_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__JSType_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2390,7 +2390,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2399,7 +2399,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2408,7 +2408,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2417,7 +2417,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2426,7 +2426,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init_zpb = {
+     64,
+     0,
+     {
+@@ -2435,7 +2435,7 @@
+     },
+ };
+ 
+-const upb_MiniTableEnum google__protobuf__SymbolVisibility_enum_init = {
++const struct zpb_StaticMiniTableEnum google__protobuf__SymbolVisibility_enum_init_zpb = {
+     64,
+     0,
+     {
+diff -ru a/upb/ruby-upb.h b/upb/ruby-upb.h
+--- a/upb/ruby-upb.h
++++ b/upb/ruby-upb.h
+@@ -6866,27 +6866,57 @@
+ extern const upb_MiniTable google__protobuf__GeneratedCodeInfo_msg_init;
+ extern const upb_MiniTable google__protobuf__GeneratedCodeInfo__Annotation_msg_init;
+ 
+-extern const upb_MiniTableEnum google__protobuf__Edition_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FieldOptions__CType_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FieldOptions__JSType_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init;
+-extern const upb_MiniTableEnum google__protobuf__SymbolVisibility_enum_init;
++// zuproto: the static enum tables below are stored in a fixed-size
++// struct with upb_MiniTableEnum's layout, because initialising its
++// flexible array member is a GNU extension (-pedantic). See
++// tools/make-pedantic-patch.
++struct zpb_StaticMiniTableEnum {
++  uint32_t mask_limit;
++  uint32_t value_count;
++  uint32_t data[13];
++};
++extern const struct zpb_StaticMiniTableEnum google__protobuf__Edition_enum_init_zpb;
++#define google__protobuf__Edition_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__Edition_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init_zpb;
++#define google__protobuf__ExtensionRangeOptions__VerificationState_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__ExtensionRangeOptions__VerificationState_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init_zpb;
++#define google__protobuf__FeatureSet__EnforceNamingStyle_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__EnforceNamingStyle_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init_zpb;
++#define google__protobuf__FeatureSet__EnumType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__EnumType_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init_zpb;
++#define google__protobuf__FeatureSet__FieldPresence_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__FieldPresence_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init_zpb;
++#define google__protobuf__FeatureSet__JsonFormat_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__JsonFormat_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init_zpb;
++#define google__protobuf__FeatureSet__MessageEncoding_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__MessageEncoding_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init_zpb;
++#define google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init_zpb;
++#define google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init_zpb;
++#define google__protobuf__FeatureSet__Utf8Validation_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__Utf8Validation_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init_zpb;
++#define google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init_zpb;
++#define google__protobuf__FieldDescriptorProto__Label_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldDescriptorProto__Label_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init_zpb;
++#define google__protobuf__FieldDescriptorProto__Type_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldDescriptorProto__Type_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__CType_enum_init_zpb;
++#define google__protobuf__FieldOptions__CType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__CType_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__JSType_enum_init_zpb;
++#define google__protobuf__FieldOptions__JSType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__JSType_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init_zpb;
++#define google__protobuf__FieldOptions__OptionRetention_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__OptionRetention_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init_zpb;
++#define google__protobuf__FieldOptions__OptionTargetType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__OptionTargetType_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init_zpb;
++#define google__protobuf__FileOptions__OptimizeMode_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FileOptions__OptimizeMode_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init_zpb;
++#define google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init_zpb;
++#define google__protobuf__MethodOptions__IdempotencyLevel_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__MethodOptions__IdempotencyLevel_enum_init_zpb)
++extern const struct zpb_StaticMiniTableEnum google__protobuf__SymbolVisibility_enum_init_zpb;
++#define google__protobuf__SymbolVisibility_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__SymbolVisibility_enum_init_zpb)
+ extern const upb_MiniTableFile google_protobuf_descriptor_proto_upb_file_layout;
+ 
+ #ifdef __cplusplus
+@@ -18841,7 +18871,7 @@
+   d->trace_ptr[1] = '\0';
+   d->trace_ptr++;
+ #endif
+-};
++}
+ 
+ UPB_INLINE
+ bool _upb_Decoder_VerifyUtf8Inline(const char* ptr, int len) {
