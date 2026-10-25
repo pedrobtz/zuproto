@@ -35,7 +35,7 @@ build() { # build <target> <out> [extra flags]
   case $t in
     fuzz_build)
       RFLAGS="$(R CMD config --cppflags) -I$(R RHOME)/include"
-      RLIBS="-L$(R RHOME)/lib -lR"
+      RLIBS="-L$(R RHOME)/lib -Wl,-rpath,$(R RHOME)/lib -lR"
       $CC $CFLAGS $SAN $RFLAGS "$@" tools/fuzz/$t.c tools/fuzz/data_only.c $ZPB $UPB $DRIVER $RLIBS -o "$out"
       ;;
     *)
