@@ -30,6 +30,10 @@ jobs:
         id: tag
         run: echo "tag=$(awk '/^  Tag:/ {print $2}' src/vendor/PROVENANCE)" >> "$GITHUB_OUTPUT"
 
+      # The runner links the system jsoncpp, cached binary or not.
+      - name: Install jsoncpp
+        run: sudo apt-get update -q && sudo apt-get install -y -q libjsoncpp-dev
+
       - name: Cache conformance_test_runner
         id: cache
         uses: actions/cache@v4
