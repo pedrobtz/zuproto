@@ -1,0 +1,24 @@
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+name: vendor
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+# src/vendor/ must be protobuf's files at the commit in src/vendor/PROVENANCE
+# plus exactly tools/patches/. A change under src/vendor/ must update
+# PROVENANCE too.
+jobs:
+  vendor:
+    uses: pedrobtz/r-actions/.github/workflows/vendor.yml@v1
+    with:
+      vendor-dir: src/vendor
+      verify: tools/verify-vendor
+      must-update: |
+        src/vendor/PROVENANCE
