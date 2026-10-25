@@ -11,7 +11,7 @@
  * context, and every function then returns NULL with its PROTECTs undone,
  * so the entry point can return the error to R to raise. */
 
-#define TWO_53 9007199254740992.0
+#define TWO_53_INT ((uint64_t) 1 << 53)
 
 static SEXP build_message(zpb_build_ctx *ctx, const zpb_msgdef *m,
                           const zpb_msg *msg);
@@ -164,9 +164,15 @@ static int set_value(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out,
                 snprintf(buf, sizeof buf, "%llu", (unsigned long long) v.uint64_val);
             SET_STRING_ELT(out, i, Rf_mkChar(buf));
         } else {
-            double d = is_signed ? (double) v.int64_val : (double) v.uint64_val;
-            if (fabs(d) > TWO_53) ctx->precision_loss++;
-            REAL(out)[i] = d;
+            /* Judge exactness on the integer: past 2^53 a double cannot
+             * tell a rounded value from an exact one. */
+            int exact = is_signed ? (v.int64_val >= -(int64_t) TWO_53_INT &&
+                                     v.int64_val <= (int64_t) TWO_53_INT) ||
+                                        (int64_t) (double) v.int64_val == v.int64_val
+                                  : v.uint64_val <= TWO_53_INT ||
+                                        (uint64_t) (double) v.uint64_val == v.uint64_val;
+            if (!exact) ctx->precision_loss++;
+            REAL(out)[i] = is_signed ? (double) v.int64_val : (double) v.uint64_val;
         }
         return 0;
     }
@@ -354,12 +360,18 @@ static SEXP build_map(zpb_build_ctx *ctx, const zpb_fielddef *f, const zpb_map *
     SEXP out = PROTECT(alloc_values(ctx, vf, (R_xlen_t) n));
     SEXP names = PROTECT(Rf_allocVector(STRSXP, (R_xlen_t) n));
     for (size_t i = 0; i < n; i++) {
+        /* Store the key's name before building the value: the name is
+         * unprotected until it is in `names`, and the value allocates. */
         SEXP nm = map_key_name(ctx, kf, entries[i].key);
-        if (nm == NULL || set_value(ctx, vf, out, (R_xlen_t) i, entries[i].val) < 0) {
+        if (nm == NULL) {
             UNPROTECT(2);
             return NULL;
         }
         SET_STRING_ELT(names, (R_xlen_t) i, nm);
+        if (set_value(ctx, vf, out, (R_xlen_t) i, entries[i].val) < 0) {
+            UNPROTECT(2);
+            return NULL;
+        }
     }
     finish_values(ctx, vf, out);
     Rf_setAttrib(out, R_NamesSymbol, names);
@@ -439,6 +451,9 @@ static SEXP build_list_value(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_
  * protobuf JSON would have it. An unset kind is NULL too. */
 static SEXP build_value_msg(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg *msg)
 {
+    /* Struct, Value and ListValue recurse through here, not through
+     * build_message(). */
+    R_CheckStack();
     for (uint32_t n = 1; n <= 6; n++) {
         const zpb_fielddef *f = zpb_msgdef_field_by_number(m, n);
         if (f == NULL || !zpb_msg_has(msg, f)) continue;

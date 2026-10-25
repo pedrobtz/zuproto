@@ -49,7 +49,10 @@ the decode is capped at four times this.}
 
 \item{max_depth}{The deepest nesting accepted: how many levels of
 messages within messages, the top-level message being level 0. A
-message holding a message holding a message is depth 2.}
+message holding a message holding a message is depth 2. A map entry
+counts as a level too, as upb counts it, so a message reached through
+a map is two levels down. At most 1000, so that hostile input cannot
+exhaust the C stack.}
 }
 \value{
 A named list. An \code{int32}-family value of \code{-2^31} is \code{NA}, with

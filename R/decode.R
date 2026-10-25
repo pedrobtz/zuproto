@@ -71,7 +71,10 @@ zpb_default_limits <- function() {
 #'   the decode is capped at four times this.
 #' @param max_depth The deepest nesting accepted: how many levels of
 #'   messages within messages, the top-level message being level 0. A
-#'   message holding a message holding a message is depth 2.
+#'   message holding a message holding a message is depth 2. A map entry
+#'   counts as a level too, as upb counts it, so a message reached through
+#'   a map is two levels down. At most 1000, so that hostile input cannot
+#'   exhaust the C stack.
 #' @return A named list. An `int32`-family value of `-2^31` is `NA`, with
 #'   a `zuproto_precision_loss` warning, since R reserves it for `NA`.
 #' @seealso [zuproto-conditions] for the errors it raises.
@@ -108,7 +111,9 @@ proto_decode <- function(
   bytes <- zpb_match_arg(bytes, c("raw", "base64"), "bytes", call)
   check_flag(defaults, "defaults", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
-  check_limit(max_depth, "max_depth", 1, 65535, call)
+  # upb's decoder recurses once per level; 1000 stays far below the depth
+  # (about 5000) at which the C stack ran out on an 8 MB stack.
+  check_limit(max_depth, "max_depth", 1, 1000, call)
 
   raw <- read_message(x, max_size, call)
   opts <- list(
