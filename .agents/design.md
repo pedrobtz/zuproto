@@ -387,8 +387,8 @@ and it is the one every CI leg measured.
 Kept as files in `tools/patches/`, applied in order. Revised 2026-10-25
 after the Stage 1 measurement (pull request #15): the first proposal
 was two patches, and the full CI profile on unpatched v36.2 and the
-runs after it showed four are needed, plus one define. None touches
-decoder logic.
+runs after it showed four are needed, plus one define; Stage 3's
+sanitizer runs added a fifth. None touches decoder logic.
 
 1. `0001-no-stdio.patch`: `_upb_UnreachableFailure()` (`fprintf` to
    `stderr`, then `abort()`) is compiled only without `NDEBUG`, which
@@ -414,6 +414,11 @@ decoder logic.
 4. `0004-mingw-printf-format.patch`: on MinGW, `UPB_PRINTF` checks
    formats as `gnu_printf`. Rtools' gcc reads plain `printf` as
    Microsoft's, which has no `%zu`, and warned on two error messages.
+5. `0005-flexible-str.patch` (Stage 3): the string type holding proto2
+   default values used the `char str[1]` struct hack, and UBSan reported
+   its reads past index 0 as out of bounds when a schema has a string
+   `[default = …]`. It becomes a C99 flexible array member, and its two
+   allocations add the byte the NUL terminator needs.
 
 No `assert()` patch: `R CMD INSTALL` defines `NDEBUG`, so `UPB_ASSERT`
 is already empty. `__USE_MINGW_ANSI_STDIO=1` in `src/Makevars` gives

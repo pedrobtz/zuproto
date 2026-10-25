@@ -113,7 +113,8 @@ Stage 2.
 **Deviations, 2026-10-25.** Decided with the maintainer after the
 unpatched full CI run on #15:
 
-- Four patches plus one define, not two patches (design §9.2, revised).
+- Four patches plus one define, not two patches (design §9.2, revised;
+  Stage 3 added a fifth).
   The `UPB_ASSERT` patch is not needed, since `R CMD INSTALL` defines
   `NDEBUG`.
 - Layout `src/vendor/{upb,utf8_range}/` with `src/vendor/PROVENANCE`, as
@@ -217,6 +218,9 @@ field kind the design maps.
   `R CMD check` took three short binary ones for executables.
 - Required fields are not checked on decode, as upb does by default.
 - `zuproto_invalid_utf8` is a subclass of `zuproto_parse_error`.
+- A fifth vendoring patch, `0005-flexible-str.patch` (design §9.2), for
+  UBSan's report on upb's `char str[1]` struct hack, found by this
+  stage's full run.
 - `max_depth` is at most 1000 (design §12): the fresh review found that
   upb's recursive decoder exhausts the C stack at about 5000 levels.
 - Left for Stage 7's conformance suite, from the review: enum aliases,
