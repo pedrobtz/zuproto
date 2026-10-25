@@ -1,3 +1,10 @@
 # Hide every symbol but R_init_zuproto (design section 3, R3). There is no
 # Makevars.win: R on Windows uses this file when that one is absent.
+#
+# Portable make: objects are listed by hand, since R compiles only src/*.c
+# on its own. The vendored trees are upstream's files as tools/vendor-upb
+# copies them (design section 9).
+PKG_CPPFLAGS = -Iutf8_range
 PKG_CFLAGS = $(C_VISIBILITY)
+
+OBJECTS = init.o zpb_probe.o upb/ruby-upb.o utf8_range/utf8_range.o
