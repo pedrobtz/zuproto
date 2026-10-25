@@ -456,19 +456,21 @@ None touches decoder logic.
 6. `0006-any-empty-url.patch` (Stage 7, found by `fuzz_decode`): upb's
    JSON encoder computed `data + size` on an `Any`'s empty `type_url`,
    whose data is then `NULL`, before checking for the empty URL; `NULL +
-   0` is undefined in C and UBSan reports it. The check moves first. To
-   be reported upstream.
+   0` is undefined in C and UBSan reports it. The check moves first.
+   Reported upstream as protocolbuffers/protobuf#31030.
 7. `0007-json-any-arena-leak.patch` (Stage 7, found by `fuzz_decode`
-   under LeakSanitizer in CI): when JSON encoding fails, as it does for an
-   `Any` whose packed type is not in the pool, upb returned from its
-   `setjmp` error branch without freeing the arena the `Any` made, so
-   `proto_to_json()` leaked on every such call. The error branch frees it
-   too. To be reported upstream.
+   under LeakSanitizer in CI): when JSON encoding fails after an `Any` has
+   made upb's arena (its packed bytes do not decode, or a later error in
+   the message), upb returned from its `setjmp` error branch without
+   freeing that arena, so `proto_to_json()` leaked on every such call. The
+   error branch frees it too. Reported upstream as
+   protocolbuffers/protobuf#31031.
 8. `0008-json-nanos-range.patch` (Stage 7, found by `fuzz_decode` under
    UBSan in CI): upb's JSON encoder negated a `Duration`'s `nanos`
    without checking its range, undefined for `-2^31`, and never checked a
    `Timestamp`'s. Both now refuse `nanos` outside protobuf's range, as the
-   JSON mapping requires. To be reported upstream.
+   JSON mapping requires. Reported upstream as
+   protocolbuffers/protobuf#31032.
 
 No `assert()` patch: `R CMD INSTALL` defines `NDEBUG`, so `UPB_ASSERT`
 is already empty. `__USE_MINGW_ANSI_STDIO=1` in `src/Makevars` gives
