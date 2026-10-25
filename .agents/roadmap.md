@@ -20,7 +20,7 @@ documentation and release, and `Full CI` goes in before the release.
 | 2 | [Shim, pools and well-known types](#stage-2--shim-pools-and-well-known-types) | quick | [#4](https://github.com/pedrobtz/zuproto/issues/4) | [#16](https://github.com/pedrobtz/zuproto/pull/16) | 2026-10-25 |
 | 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | [#17](https://github.com/pedrobtz/zuproto/pull/17) | 2026-10-25 |
 | 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | [#18](https://github.com/pedrobtz/zuproto/pull/18) | 2026-10-25 |
-| 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | | |
+| 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | | 2026-10-25 |
 | 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | | |
 | 7 | [Conformance, fuzzing and hostile inputs](#stage-7--conformance-fuzzing-and-hostile-inputs) | quick | [#9](https://github.com/pedrobtz/zuproto/issues/9) | | |
 | 8 | [Documentation](#stage-8--documentation) | quick | [#10](https://github.com/pedrobtz/zuproto/issues/10) | | |
@@ -291,6 +291,12 @@ and delimited streams read and write.
 - A delimited stream ending inside a varint fails with a classed error.
 - `R CMD check` passes on the quick r-actions profile.
 
+**Deviations, 2026-10-25.** Question 6 decided with the maintainer:
+`field =` on `proto_decode_df()`; the column decisions it led to are in
+design §6.4. `proto_write_delimited()` converts rows to messages in R,
+which is slow (51 s for 10^6 rows, design §16); a C path for it is left
+for Stage 7, which owns the benchmarks.
+
 **Design.** §6.2, §6.4, §10, §12; §18 question 6.
 
 ## Stage 6 — JSON, Any and 64-bit integers
@@ -445,5 +451,3 @@ No new features.
   reach CRAN (or at least r-universe, with `Additional_repositories`)
   before zuproto can suggest it; otherwise `int64 = "zuint"` waits for
   0.2.0.
-- **A repeated field as a data frame** (question 6): blocks Stage 5, and
-  whether the GTFS-RT example fits the README in Stage 8.
