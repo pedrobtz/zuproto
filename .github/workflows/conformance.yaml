@@ -34,11 +34,11 @@ jobs:
         id: cache
         uses: actions/cache@v4
         with:
-          path: ~/conformance_test_runner
-          # -static: jsoncpp is built in, so the binary needs nothing from
-          # the image (a cached one linked against the image's libjsoncpp
-          # broke when the image changed).
-          key: conformance-runner-static-${{ runner.os }}-${{ steps.tag.outputs.tag }}
+          path: ~/conformance
+          # The runner and the jsoncpp protobuf fetched for it, together: a
+          # cached runner linked against the image's libjsoncpp broke when
+          # the image changed.
+          key: conformance-runner-bundled-${{ runner.os }}-${{ steps.tag.outputs.tag }}
 
       - name: Build conformance_test_runner
         if: steps.cache.outputs.cache-hit != 'true'
@@ -49,14 +49,17 @@ jobs:
           cmake -S "$RUNNER_TEMP/protobuf" -B "$RUNNER_TEMP/build" \
             -DCMAKE_BUILD_TYPE=Release -Dprotobuf_BUILD_CONFORMANCE=ON \
             -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_ABSL_PROVIDER=module \
-            -Dprotobuf_FORCE_FETCH_DEPENDENCIES=ON -DBUILD_SHARED_LIBS=OFF
+            -Dprotobuf_FORCE_FETCH_DEPENDENCIES=ON
           cmake --build "$RUNNER_TEMP/build" --target conformance_test_runner -j 4
-          cp "$RUNNER_TEMP/build/conformance_test_runner" ~/conformance_test_runner
+          mkdir -p ~/conformance
+          cp "$RUNNER_TEMP/build/conformance_test_runner" ~/conformance/
+          find "$RUNNER_TEMP/build" -name 'libjsoncpp.so*' -exec cp -P {} ~/conformance/ \;
 
       - name: The runner needs no library the image lacks
         run: |
-          ldd ~/conformance_test_runner
-          ! ldd ~/conformance_test_runner | grep -q 'not found'
+          export LD_LIBRARY_PATH=~/conformance
+          ldd ~/conformance/conformance_test_runner
+          ! ldd ~/conformance/conformance_test_runner | grep -q 'not found'
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -66,4 +69,4 @@ jobs:
         run: R CMD INSTALL .
 
       - name: Run the suite
-        run: CONFORMANCE_RUNNER=~/conformance_test_runner tools/conformance/run
+        run: LD_LIBRARY_PATH=~/conformance CONFORMANCE_RUNNER=~/conformance/conformance_test_runner tools/conformance/run
