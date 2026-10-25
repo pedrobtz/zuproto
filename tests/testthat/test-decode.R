@@ -537,3 +537,54 @@ test_that("a Struct key with a NUL byte is unrepresentable", {
     class = "zuproto_unrepresentable"
   )
 })
+
+test_that("arguments given at their defaults decode as when left out", {
+  # proto_decode() skips checking arguments it was not given; both paths
+  # must agree.
+  pool <- decode_pool()
+  for (name in c("scalars_set", "wellknown", "maps")) {
+    raw <- msg_fixture(name)
+    type <- fixture_types()[[name]]
+    expect_identical(
+      proto_decode(raw, type, pool),
+      proto_decode(
+        raw,
+        type,
+        pool,
+        int64 = "double",
+        enums = "factor",
+        defaults = TRUE,
+        unknown = "drop",
+        bytes = "raw",
+        max_size = 64 * 1024^2,
+        max_depth = 100L
+      )
+    )
+    x <- proto_decode(raw, type, pool, int64 = "character")
+    expect_identical(
+      proto_encode(x, type, pool),
+      proto_encode(
+        x,
+        type,
+        pool,
+        deterministic = TRUE,
+        unknown = TRUE,
+        check_required = TRUE,
+        extra = "error"
+      )
+    )
+    expect_identical(
+      proto_to_json(raw, type, pool),
+      proto_to_json(
+        raw,
+        type,
+        pool,
+        emit_defaults = FALSE,
+        proto_names = FALSE,
+        enums = "name",
+        max_size = 64 * 1024^2,
+        max_depth = 100L
+      )
+    )
+  }
+})

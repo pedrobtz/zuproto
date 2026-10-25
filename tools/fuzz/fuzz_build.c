@@ -99,10 +99,12 @@ static void run(void *p)
 
     SEXP res = PROTECT(zpb_decode(pool_ptr, type, raw, dopts));
     SEXP value = get(res, "value");
-    /* Under enums = "integer" every decoded value re-encodes; as factors or
-     * names, an enum number the enum lacks is NA, which a repeated field
-     * cannot hold, so the invariant is checked in integer mode only. */
-    if (get(res, "error") == R_NilValue && (sel >> 5) % 3 == 1) {
+    /* A decoded value re-encodes unless decoding made an NA: an enum number
+     * the enum lacks (as a factor or a name), or an int32 of -2^31 (design
+     * section 6.1), neither of which a repeated field can hold. The decode
+     * counts both, so the invariant is checked when it counted neither. */
+    if (get(res, "error") == R_NilValue && REAL(get(res, "precision_loss"))[0] == 0 &&
+        REAL(get(res, "unknown_enum"))[0] == 0) {
         /* deterministic, check_required, write_unknown, ignore_extra */
         const int ev[] = {1, 0, 1, 0};
         SEXP eopts = PROTECT(Rf_allocVector(VECSXP, 4));
