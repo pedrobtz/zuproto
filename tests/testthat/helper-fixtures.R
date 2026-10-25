@@ -44,3 +44,9 @@ varint <- function(n) {
     out <- c(out, as.raw(byte + 128))
   }
 }
+
+# The message type of each message fixture, by name, from MANIFEST.tsv.
+fixture_types <- function() {
+  manifest <- utils::read.delim(test_path("fixtures", "msg", "MANIFEST.tsv"))
+  stats::setNames(manifest$type, manifest$name)
+}
