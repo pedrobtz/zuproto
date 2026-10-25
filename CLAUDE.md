@@ -109,6 +109,16 @@ Grows as stages land; `.agents/design.md` §4 has the whole plan.
   name to bytes. R checks a whole set (conflicts, missing imports,
   dependency order) before C adds any file. Every pool starts from
   `inst/descriptors/wkt.binpb`.
+- **Decoding** (`R/decode.R`, `src/zpb_decode.c`, `src/zpb_build.c`):
+  upb decodes into an arena on a counting allocator (the `4 * max_size`
+  ceiling), held with that allocator by one finalised external pointer.
+  Building R values starts only after a successful decode and walks the
+  message by reflection. A value R cannot hold sets `ctx->err`, and
+  every builder then returns `NULL` with its PROTECTs undone; warnings
+  are counted in `ctx` and raised once by R.
+- **Message fixtures** come from Python `protobuf` 7.36.2 through
+  `tools/make-fixtures.py` (it says how to set up the venv), stored as
+  hex in `tests/testthat/fixtures/msg/` with a `MANIFEST.tsv`.
 - **Test fixtures** are `protoc` output: edit
   `tests/testthat/fixtures/proto/*.proto`, run
   `tools/make-test-descriptors`, commit the `.binpb` files.
@@ -135,6 +145,12 @@ a stage establishes it.
   UTF-8 validation applies to message bytes.
 - **Vendored patches are only the two in the design (§9.2).** A patch
   that touches decoder logic is a reason to stop and report upstream.
+- **A builder that fails returns `NULL` with its PROTECTs undone**,
+  never `Rf_error()`: the entry point must hand the error back to R to
+  raise with its class. Only out-of-memory and broken internal
+  invariants call `Rf_error()` directly.
+- **Iterators start at `ZPB_*_ITER_BEGIN`, not 0.** upb’s begin values
+  are `(size_t) -1`; 0 is a valid position.
 - **Internal native symbols use `zpb_` / `ZPB_`**, not `zuproto_`, and
   `R_init_zuproto` is the only exported symbol (hidden visibility from
   Stage 0).

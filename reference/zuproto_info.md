@@ -20,6 +20,9 @@ A list of class `zuproto_info` with elements:
 
 - `protobuf_commit`: that tag's commit.
 
+- `limits`: the default `max_size` (bytes) and `max_depth` of
+  [`proto_decode()`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md).
+
 ## Examples
 
 ``` r
@@ -27,4 +30,6 @@ zuproto_info()
 #> <zuproto_info>
 #> zuproto:  0.0.0.9000
 #> upb:      protobuf v36.2 (2c74169)
+#> max_size: 67108864 bytes
+#> max_depth: 100
 ```

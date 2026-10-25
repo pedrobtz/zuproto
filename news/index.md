@@ -17,3 +17,7 @@
   list what a pool holds, extensions included;
   [`zuproto_info()`](https://pedrobtz.github.io/zuproto/reference/zuproto_info.md)
   reports the bundled protobuf release.
+- [`proto_decode()`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md)
+  decodes one message to a named list: every scalar type, enums as
+  factors, repeated fields, maps, oneofs, extensions and the well-known
+  types, with limits on size, nesting and memory.

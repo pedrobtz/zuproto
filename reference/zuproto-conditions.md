@@ -34,6 +34,42 @@ Every class below inherits from `zuproto_error`.
 
   A message type is not in the pool. Carries `type`.
 
+- `zuproto_parse_error`:
+
+  The input is not a valid message of the type: it ends early, has a bad
+  tag, a length beyond the input, or the wrong wire type. Carries
+  `status`.
+
+- `zuproto_invalid_utf8`:
+
+  A subclass of `zuproto_parse_error`: a `string` field is not valid
+  UTF-8, in proto2 as in proto3.
+
+- `zuproto_unrepresentable`:
+
+  The input is valid but holds a value R cannot: a string containing a
+  NUL byte, or longer than an R string may be. Carries `field`, the
+  field's full name.
+
+- `zuproto_limit_error`:
+
+  A limit was reached. The subclasses `zuproto_size_limit` (the input,
+  or the memory decoding it needs, is too large for `max_size`) and
+  `zuproto_depth_limit` (messages nest deeper than `max_depth`) name
+  which. Carries `limit`, the argument's name, and `limit_value`.
+
+Warnings inherit `zuproto_warning`:
+
+- `zuproto_precision_loss`:
+
+  Values could not be represented exactly: 64-bit integers beyond 2^53
+  decoded as doubles, or a 32-bit `-2^31`, which R reserves for `NA`.
+  Carries `n`, how many.
+
+- `zuproto_unknown_enum`:
+
+  Enum numbers the enum does not define became `NA`. Carries `n`.
+
 ## Examples
 
 ``` r

@@ -91,6 +91,10 @@
 <li>
 <strong>Pools</strong> (<code>R/pool.R</code>, <code>src/zpb_pool.c</code>): a list of the external pointer to upb’s <code>upb_DefPool</code> and an environment of the files added, name to bytes. R checks a whole set (conflicts, missing imports, dependency order) before C adds any file. Every pool starts from <code>inst/descriptors/wkt.binpb</code>.</li>
 <li>
+<strong>Decoding</strong> (<code>R/decode.R</code>, <code>src/zpb_decode.c</code>, <code>src/zpb_build.c</code>): upb decodes into an arena on a counting allocator (the <code>4 * max_size</code> ceiling), held with that allocator by one finalised external pointer. Building R values starts only after a successful decode and walks the message by reflection. A value R cannot hold sets <code>ctx-&gt;err</code>, and every builder then returns <code>NULL</code> with its PROTECTs undone; warnings are counted in <code>ctx</code> and raised once by R.</li>
+<li>
+<strong>Message fixtures</strong> come from Python <code>protobuf</code> 7.36.2 through <code>tools/make-fixtures.py</code> (it says how to set up the venv), stored as hex in <code>tests/testthat/fixtures/msg/</code> with a <code>MANIFEST.tsv</code>.</li>
+<li>
 <strong>Test fixtures</strong> are <code>protoc</code> output: edit <code>tests/testthat/fixtures/proto/*.proto</code>, run <code>tools/make-test-descriptors</code>, commit the <code>.binpb</code> files.</li>
 </ul></div>
 <div class="section level2">
@@ -106,6 +110,10 @@
 <strong>Descriptor sets are trusted, message bytes are not.</strong> Every limit (<code>max_size</code>, <code>max_depth</code>, <code>max_rows</code>, the arena byte ceiling) and UTF-8 validation applies to message bytes.</li>
 <li>
 <strong>Vendored patches are only the two in the design (§9.2).</strong> A patch that touches decoder logic is a reason to stop and report upstream.</li>
+<li>
+<strong>A builder that fails returns <code>NULL</code> with its PROTECTs undone</strong>, never <code>Rf_error()</code>: the entry point must hand the error back to R to raise with its class. Only out-of-memory and broken internal invariants call <code>Rf_error()</code> directly.</li>
+<li>
+<strong>Iterators start at <code>ZPB_*_ITER_BEGIN</code>, not 0.</strong> upb’s begin values are <code>(size_t) -1</code>; 0 is a valid position.</li>
 <li>
 <strong>Internal native symbols use <code>zpb_</code> / <code>ZPB_</code></strong>, not <code>zuproto_</code>, and <code>R_init_zuproto</code> is the only exported symbol (hidden visibility from Stage 0).</li>
 </ul></div>

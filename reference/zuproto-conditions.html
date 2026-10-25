@@ -71,6 +71,38 @@ with different contents. Carries <code>file</code>.</p></dd>
 <dd><p>A message type is not in the pool.
 Carries <code>type</code>.</p></dd>
 
+<dt><code>zuproto_parse_error</code></dt>
+<dd><p>The input is not a valid message of the
+type: it ends early, has a bad tag, a length beyond the input, or the
+wrong wire type. Carries <code>status</code>.</p></dd>
+
+<dt><code>zuproto_invalid_utf8</code></dt>
+<dd><p>A subclass of <code>zuproto_parse_error</code>: a
+<code>string</code> field is not valid UTF-8, in proto2 as in proto3.</p></dd>
+
+<dt><code>zuproto_unrepresentable</code></dt>
+<dd><p>The input is valid but holds a value
+R cannot: a string containing a NUL byte, or longer than an R string
+may be. Carries <code>field</code>, the field's full name.</p></dd>
+
+<dt><code>zuproto_limit_error</code></dt>
+<dd><p>A limit was reached. The subclasses
+<code>zuproto_size_limit</code> (the input, or the memory decoding it needs,
+is too large for <code>max_size</code>) and <code>zuproto_depth_limit</code> (messages
+nest deeper than <code>max_depth</code>) name which. Carries <code>limit</code>, the
+argument's name, and <code>limit_value</code>.</p></dd>
+
+
+</dl><p>Warnings inherit <code>zuproto_warning</code>:</p>
+<dl><dt><code>zuproto_precision_loss</code></dt>
+<dd><p>Values could not be represented
+exactly: 64-bit integers beyond 2^53 decoded as doubles, or a 32-bit
+<code>-2^31</code>, which R reserves for <code>NA</code>. Carries <code>n</code>, how many.</p></dd>
+
+<dt><code>zuproto_unknown_enum</code></dt>
+<dd><p>Enum numbers the enum does not define
+became <code>NA</code>. Carries <code>n</code>.</p></dd>
+
 
 </dl></div>
 
