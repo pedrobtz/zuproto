@@ -738,7 +738,6 @@ Error, UINTPTR_MAX is undefined
  * to prevent optimizers from removing the constructor. Our solution is to
  * create a dummy exported weak symbol that prevent this stripping.
  */
-#pragma section(".CRT$XCT", read)
 #define UPB_CONSTRUCTOR(name, unique_name, ...)                              \
   static void __cdecl UPB_PRIVATE(name)(void);                               \
   __declspec(allocate(".CRT$XCT"), selectany) void(                          \
@@ -4432,11 +4431,7 @@ UPB_INLINE bool UPB_PRIVATE(_upb_Message_NextExtensionReverse)(
 //
 // Unfortunately this also indicates that GCC is not optimizing away the
 // switch() in cases where it should be, compromising the performance.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
 #if __GNUC__ >= 11
-#pragma GCC diagnostic ignored "-Wstringop-overread"
 #endif
 #endif
 
@@ -5457,7 +5452,6 @@ UPB_API_INLINE upb_Array* upb_Message_GetExtensionMutableArray(
 #endif
 
 #if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
 #endif
 
 
@@ -6869,27 +6863,57 @@ extern const upb_MiniTable google__protobuf__SourceCodeInfo__Location_msg_init;
 extern const upb_MiniTable google__protobuf__GeneratedCodeInfo_msg_init;
 extern const upb_MiniTable google__protobuf__GeneratedCodeInfo__Annotation_msg_init;
 
-extern const upb_MiniTableEnum google__protobuf__Edition_enum_init;
-extern const upb_MiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FieldOptions__CType_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FieldOptions__JSType_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init;
-extern const upb_MiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init;
-extern const upb_MiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init;
-extern const upb_MiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init;
-extern const upb_MiniTableEnum google__protobuf__SymbolVisibility_enum_init;
+// zuproto: the static enum tables below are stored in a fixed-size
+// struct with upb_MiniTableEnum's layout, because initialising its
+// flexible array member is a GNU extension (-pedantic). See
+// tools/make-pedantic-patch.
+struct zpb_StaticMiniTableEnum {
+  uint32_t mask_limit;
+  uint32_t value_count;
+  uint32_t data[13];
+};
+extern const struct zpb_StaticMiniTableEnum google__protobuf__Edition_enum_init_zpb;
+#define google__protobuf__Edition_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__Edition_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init_zpb;
+#define google__protobuf__ExtensionRangeOptions__VerificationState_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__ExtensionRangeOptions__VerificationState_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init_zpb;
+#define google__protobuf__FeatureSet__EnforceNamingStyle_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__EnforceNamingStyle_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init_zpb;
+#define google__protobuf__FeatureSet__EnumType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__EnumType_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init_zpb;
+#define google__protobuf__FeatureSet__FieldPresence_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__FieldPresence_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init_zpb;
+#define google__protobuf__FeatureSet__JsonFormat_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__JsonFormat_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init_zpb;
+#define google__protobuf__FeatureSet__MessageEncoding_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__MessageEncoding_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init_zpb;
+#define google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init_zpb;
+#define google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init_zpb;
+#define google__protobuf__FeatureSet__Utf8Validation_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__Utf8Validation_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init_zpb;
+#define google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init_zpb;
+#define google__protobuf__FieldDescriptorProto__Label_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldDescriptorProto__Label_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init_zpb;
+#define google__protobuf__FieldDescriptorProto__Type_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldDescriptorProto__Type_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__CType_enum_init_zpb;
+#define google__protobuf__FieldOptions__CType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__CType_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__JSType_enum_init_zpb;
+#define google__protobuf__FieldOptions__JSType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__JSType_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init_zpb;
+#define google__protobuf__FieldOptions__OptionRetention_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__OptionRetention_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init_zpb;
+#define google__protobuf__FieldOptions__OptionTargetType_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FieldOptions__OptionTargetType_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init_zpb;
+#define google__protobuf__FileOptions__OptimizeMode_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__FileOptions__OptimizeMode_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init_zpb;
+#define google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init_zpb;
+#define google__protobuf__MethodOptions__IdempotencyLevel_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__MethodOptions__IdempotencyLevel_enum_init_zpb)
+extern const struct zpb_StaticMiniTableEnum google__protobuf__SymbolVisibility_enum_init_zpb;
+#define google__protobuf__SymbolVisibility_enum_init (*(const upb_MiniTableEnum*)&google__protobuf__SymbolVisibility_enum_init_zpb)
 extern const upb_MiniTableFile google_protobuf_descriptor_proto_upb_file_layout;
 
 #ifdef __cplusplus
@@ -15929,14 +15953,12 @@ UPB_INLINE int _upb_vsnprintf(char* buf, size_t size, const char* fmt,
 
 #define upb_Atomic_Init(addr, val) (*(addr) = val)
 
-#pragma intrinsic(_InterlockedExchange)
 static int32_t upb_Atomic_LoadMsc32(int32_t volatile* addr) {
   // Compare exchange with an unlikely value reduces the risk of a spurious
   // (but harmless) store
   return _InterlockedCompareExchange(addr, 0xDEADC0DE, 0xDEADC0DE);
 }
 
-#pragma intrinsic(_InterlockedCompareExchange)
 static bool upb_Atomic_CompareExchangeMscP32(int32_t volatile* addr,
                                              int32_t* expected,
                                              int32_t desired) {
@@ -15952,7 +15974,6 @@ static bool upb_Atomic_CompareExchangeMscP32(int32_t volatile* addr,
 #if defined(_WIN64)
 // MSVC, without C11 atomics, does not have any way in pure C to force
 // load-acquire store-release behavior, so we hack it with exchanges.
-#pragma intrinsic(_InterlockedCompareExchange64)
 static uintptr_t upb_Atomic_LoadMsc64(uint64_t volatile* addr) {
   // Compare exchange with an unlikely value reduces the risk of a spurious
   // (but harmless) store
@@ -15960,7 +15981,6 @@ static uintptr_t upb_Atomic_LoadMsc64(uint64_t volatile* addr) {
                                        0xDEADC0DEBAADF00D);
 }
 
-#pragma intrinsic(_InterlockedCompareExchange64)
 static bool upb_Atomic_CompareExchangeMscP64(uint64_t volatile* addr,
                                              uint64_t* expected,
                                              uint64_t desired) {
@@ -15974,7 +15994,6 @@ static bool upb_Atomic_CompareExchangeMscP64(uint64_t volatile* addr,
   return true;
 }
 
-#pragma intrinsic(_InterlockedExchange64)
 // If _Generic is available, use it to avoid emitting a "'uintptr_t' differs in
 // levels of indirection from 'void *'" or -Wint-conversion compiler warning.
 #if __STDC_VERSION__ >= 201112L
@@ -16086,7 +16105,6 @@ UPB_INLINE bool _upb_Atomic_CompareExchangeMscP(void volatile* addr,
 #endif
 
 #else  // 32 bit pointers
-#pragma intrinsic(_InterlockedExchange)
 #define upb_Atomic_Store(addr, val, order) \
   (void)_InterlockedExchange((uint32_t volatile*)addr, (uint32_t)val)
 
@@ -16125,8 +16143,6 @@ UPB_INLINE bool _upb_Atomic_CompareExchangeMscP(void volatile* addr,
                                    (uint32_t*)expected, (uint32_t)desired)
 #endif
 
-#pragma intrinsic(_InterlockedExchangeAdd)
-#pragma intrinsic(_InterlockedExchangeAdd64)
 
 // If _Generic is available, use it to switch between 32 and 64 bit types.
 #if __STDC_VERSION__ >= 201112L
@@ -18852,7 +18868,7 @@ UPB_INLINE void _upb_Decoder_Trace(upb_Decoder* d, char event) {
   d->trace_ptr[1] = '\0';
   d->trace_ptr++;
 #endif
-};
+}
 
 UPB_INLINE
 bool _upb_Decoder_VerifyUtf8Inline(const char* ptr, int len) {

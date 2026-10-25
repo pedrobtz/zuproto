@@ -1,0 +1,98 @@
+diff -ru a/upb/ruby-upb.c b/upb/ruby-upb.c
+--- a/upb/ruby-upb.c
++++ b/upb/ruby-upb.c
+@@ -739,7 +739,6 @@
+  * to prevent optimizers from removing the constructor. Our solution is to
+  * create a dummy exported weak symbol that prevent this stripping.
+  */
+-#pragma section(".CRT$XCT", read)
+ #define UPB_CONSTRUCTOR(name, unique_name, ...)                              \
+   static void __cdecl UPB_PRIVATE(name)(void);                               \
+   __declspec(allocate(".CRT$XCT"), selectany) void(                          \
+diff -ru a/upb/ruby-upb.h b/upb/ruby-upb.h
+--- a/upb/ruby-upb.h
++++ b/upb/ruby-upb.h
+@@ -738,7 +738,6 @@
+  * to prevent optimizers from removing the constructor. Our solution is to
+  * create a dummy exported weak symbol that prevent this stripping.
+  */
+-#pragma section(".CRT$XCT", read)
+ #define UPB_CONSTRUCTOR(name, unique_name, ...)                              \
+   static void __cdecl UPB_PRIVATE(name)(void);                               \
+   __declspec(allocate(".CRT$XCT"), selectany) void(                          \
+@@ -4432,11 +4431,7 @@
+ //
+ // Unfortunately this also indicates that GCC is not optimizing away the
+ // switch() in cases where it should be, compromising the performance.
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Warray-bounds"
+-#pragma GCC diagnostic ignored "-Wstringop-overflow"
+ #if __GNUC__ >= 11
+-#pragma GCC diagnostic ignored "-Wstringop-overread"
+ #endif
+ #endif
+ 
+@@ -5457,7 +5452,6 @@
+ #endif
+ 
+ #if defined(__GNUC__) && !defined(__clang__)
+-#pragma GCC diagnostic pop
+ #endif
+ 
+ 
+@@ -15929,14 +15923,12 @@
+ 
+ #define upb_Atomic_Init(addr, val) (*(addr) = val)
+ 
+-#pragma intrinsic(_InterlockedExchange)
+ static int32_t upb_Atomic_LoadMsc32(int32_t volatile* addr) {
+   // Compare exchange with an unlikely value reduces the risk of a spurious
+   // (but harmless) store
+   return _InterlockedCompareExchange(addr, 0xDEADC0DE, 0xDEADC0DE);
+ }
+ 
+-#pragma intrinsic(_InterlockedCompareExchange)
+ static bool upb_Atomic_CompareExchangeMscP32(int32_t volatile* addr,
+                                              int32_t* expected,
+                                              int32_t desired) {
+@@ -15952,7 +15944,6 @@
+ #if defined(_WIN64)
+ // MSVC, without C11 atomics, does not have any way in pure C to force
+ // load-acquire store-release behavior, so we hack it with exchanges.
+-#pragma intrinsic(_InterlockedCompareExchange64)
+ static uintptr_t upb_Atomic_LoadMsc64(uint64_t volatile* addr) {
+   // Compare exchange with an unlikely value reduces the risk of a spurious
+   // (but harmless) store
+@@ -15960,7 +15951,6 @@
+                                        0xDEADC0DEBAADF00D);
+ }
+ 
+-#pragma intrinsic(_InterlockedCompareExchange64)
+ static bool upb_Atomic_CompareExchangeMscP64(uint64_t volatile* addr,
+                                              uint64_t* expected,
+                                              uint64_t desired) {
+@@ -15974,7 +15964,6 @@
+   return true;
+ }
+ 
+-#pragma intrinsic(_InterlockedExchange64)
+ // If _Generic is available, use it to avoid emitting a "'uintptr_t' differs in
+ // levels of indirection from 'void *'" or -Wint-conversion compiler warning.
+ #if __STDC_VERSION__ >= 201112L
+@@ -16086,7 +16075,6 @@
+ #endif
+ 
+ #else  // 32 bit pointers
+-#pragma intrinsic(_InterlockedExchange)
+ #define upb_Atomic_Store(addr, val, order) \
+   (void)_InterlockedExchange((uint32_t volatile*)addr, (uint32_t)val)
+ 
+@@ -16125,8 +16113,6 @@
+                                    (uint32_t*)expected, (uint32_t)desired)
+ #endif
+ 
+-#pragma intrinsic(_InterlockedExchangeAdd)
+-#pragma intrinsic(_InterlockedExchangeAdd64)
+ 
+ // If _Generic is available, use it to switch between 32 and 64 bit types.
+ #if __STDC_VERSION__ >= 201112L

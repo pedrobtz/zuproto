@@ -739,7 +739,6 @@ Error, UINTPTR_MAX is undefined
  * to prevent optimizers from removing the constructor. Our solution is to
  * create a dummy exported weak symbol that prevent this stripping.
  */
-#pragma section(".CRT$XCT", read)
 #define UPB_CONSTRUCTOR(name, unique_name, ...)                              \
   static void __cdecl UPB_PRIVATE(name)(void);                               \
   __declspec(allocate(".CRT$XCT"), selectany) void(                          \
@@ -2242,7 +2241,7 @@ const upb_MiniTable google__protobuf__GeneratedCodeInfo__Annotation_msg_init = {
   })
 };
 
-const upb_MiniTableEnum google__protobuf__Edition_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__Edition_enum_init_zpb = {
     64,
     11,
     {
@@ -2262,7 +2261,7 @@ const upb_MiniTableEnum google__protobuf__Edition_enum_init = {
     },
 };
 
-const upb_MiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationState_enum_init_zpb = {
     64,
     0,
     {
@@ -2271,7 +2270,7 @@ const upb_MiniTableEnum google__protobuf__ExtensionRangeOptions__VerificationSta
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_init_zpb = {
     64,
     0,
     {
@@ -2280,7 +2279,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__EnforceNamingStyle_enum_in
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init_zpb = {
     64,
     0,
     {
@@ -2289,7 +2288,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__EnumType_enum_init = {
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init_zpb = {
     64,
     0,
     {
@@ -2298,7 +2297,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__FieldPresence_enum_init = 
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init_zpb = {
     64,
     0,
     {
@@ -2307,7 +2306,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__JsonFormat_enum_init = {
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init_zpb = {
     64,
     0,
     {
@@ -2316,7 +2315,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__MessageEncoding_enum_init 
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__EnforceProtoLimits_enum_init_zpb = {
     64,
     0,
     {
@@ -2325,7 +2324,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__ProtoLimitsFeature__Enforc
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum_init_zpb = {
     64,
     0,
     {
@@ -2334,7 +2333,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__RepeatedFieldEncoding_enum
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init_zpb = {
     64,
     0,
     {
@@ -2343,7 +2342,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__Utf8Validation_enum_init =
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__DefaultSymbolVisibility_enum_init_zpb = {
     64,
     0,
     {
@@ -2352,7 +2351,7 @@ const upb_MiniTableEnum google__protobuf__FeatureSet__VisibilityFeature__Default
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init_zpb = {
     64,
     0,
     {
@@ -2361,7 +2360,7 @@ const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Label_enum_init 
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init_zpb = {
     64,
     0,
     {
@@ -2370,7 +2369,7 @@ const upb_MiniTableEnum google__protobuf__FieldDescriptorProto__Type_enum_init =
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FieldOptions__CType_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__CType_enum_init_zpb = {
     64,
     0,
     {
@@ -2379,7 +2378,7 @@ const upb_MiniTableEnum google__protobuf__FieldOptions__CType_enum_init = {
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FieldOptions__JSType_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__JSType_enum_init_zpb = {
     64,
     0,
     {
@@ -2388,7 +2387,7 @@ const upb_MiniTableEnum google__protobuf__FieldOptions__JSType_enum_init = {
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_init_zpb = {
     64,
     0,
     {
@@ -2397,7 +2396,7 @@ const upb_MiniTableEnum google__protobuf__FieldOptions__OptionRetention_enum_ini
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_init_zpb = {
     64,
     0,
     {
@@ -2406,7 +2405,7 @@ const upb_MiniTableEnum google__protobuf__FieldOptions__OptionTargetType_enum_in
     },
 };
 
-const upb_MiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init_zpb = {
     64,
     0,
     {
@@ -2415,7 +2414,7 @@ const upb_MiniTableEnum google__protobuf__FileOptions__OptimizeMode_enum_init = 
     },
 };
 
-const upb_MiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semantic_enum_init_zpb = {
     64,
     0,
     {
@@ -2424,7 +2423,7 @@ const upb_MiniTableEnum google__protobuf__GeneratedCodeInfo__Annotation__Semanti
     },
 };
 
-const upb_MiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_init_zpb = {
     64,
     0,
     {
@@ -2433,7 +2432,7 @@ const upb_MiniTableEnum google__protobuf__MethodOptions__IdempotencyLevel_enum_i
     },
 };
 
-const upb_MiniTableEnum google__protobuf__SymbolVisibility_enum_init = {
+const struct zpb_StaticMiniTableEnum google__protobuf__SymbolVisibility_enum_init_zpb = {
     64,
     0,
     {
@@ -11009,12 +11008,17 @@ const struct upb_MiniTable UPB_PRIVATE(_kUpb_MiniTable_StaticallyTreeShaken) = {
 
 // Must be last.
 
+// zuproto: R CMD INSTALL defines NDEBUG, so UPB_UNREACHABLE_FAILURE() is
+// empty and nothing calls this. Compiling it only without NDEBUG keeps
+// stderr and abort() out of the shared object (CRAN's compiled-code check).
+#ifndef NDEBUG
 UPB_NORETURN void _upb_UnreachableFailure(const char* file, int line,
                                           const char* function_name) {
   fprintf(stderr, "%s:%d: Reached unreachable statement in function `%s`.\n",
           file, line, function_name ? function_name : "(unknown)");
   abort();
 }
+#endif
 
 
 #include <assert.h>
@@ -11501,10 +11505,8 @@ bool _upb_DefPool_LoadDefInitEx(upb_DefPool* s, const _upb_DefPool_Init* init,
   return true;
 
 err:
-  fprintf(stderr,
-          "Error loading compiled-in descriptor for file '%s' (this should "
-          "never happen): %s\n",
-          init->filename, upb_Status_ErrorMessage(&status));
+  // zuproto: no stderr in the shared object (CRAN's compiled-code check).
+  // zuproto loads no compiled-in descriptors, so this path is not taken.
   upb_Arena_Free(arena);
   return false;
 }

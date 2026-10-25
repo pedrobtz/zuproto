@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Make upb's amalgamation compile without -pedantic warnings.
+
+Rewrites, in place, a tree laid out like src/vendor/ (patches 0001 and 0002
+already applied), then prints how many sites it changed. Run it when
+re-vendoring and 0003-pedantic.patch no longer applies:
+
+    cp -R tree tree.new && tools/make-pedantic-patch tree.new
+    (cd parent && diff -ru tree tree.new) > tools/patches/0003-pedantic.patch
+
+Two kinds of site (design section 9.2):
+
+1. The generated enum tables of descriptor.proto initialise a flexible
+   array member (upb_MiniTableEnum.data[]), a GNU extension that gcc and
+   clang report under -pedantic. Each table becomes an object of a
+   fixed-size struct with the same layout, under a new name, and a macro
+   keeps the old name as an lvalue of type upb_MiniTableEnum. Only the
+   storage changes; no code that reads the tables does.
+2. An extra ';' after a function body in the header.
+"""
+
+import re
+import sys
+
+root = sys.argv[1]
+c_path = f"{root}/upb/ruby-upb.c"
+h_path = f"{root}/upb/ruby-upb.h"
+c = open(c_path).read()
+h = open(h_path).read()
+
+# 1. Enum tables.
+defn = re.compile(
+    r"^const upb_MiniTableEnum (\w+_enum_init) = \{\n"
+    r"    (\d+),\n    (\d+),\n    \{\n((?:        0x[0-9a-f]+,\n)*)    \},\n\};$",
+    re.M,
+)
+tables = [(m.group(1), m.group(4).count("0x")) for m in defn.finditer(c)]
+if not tables:
+    sys.exit("no enum tables found: has upstream changed their form?")
+size = max(n for _, n in tables)
+
+c, n_defs = defn.subn(
+    lambda m: (
+        f"const struct zpb_StaticMiniTableEnum {m.group(1)}_zpb = {{\n"
+        f"    {m.group(2)},\n    {m.group(3)},\n    {{\n{m.group(4)}    }},\n}};"
+    ),
+    c,
+)
+
+names = {name for name, _ in tables}
+decl = re.compile(r"^extern const upb_MiniTableEnum (\w+_enum_init);$", re.M)
+declared = set(decl.findall(h))
+if declared != names:
+    sys.exit(f"declarations and definitions differ: {sorted(declared ^ names)}")
+
+struct = (
+    "// zuproto: the static enum tables below are stored in a fixed-size\n"
+    "// struct with upb_MiniTableEnum's layout, because initialising its\n"
+    "// flexible array member is a GNU extension (-pedantic). See\n"
+    "// tools/make-pedantic-patch.\n"
+    "struct zpb_StaticMiniTableEnum {\n"
+    "  uint32_t mask_limit;\n"
+    "  uint32_t value_count;\n"
+    f"  uint32_t data[{size}];\n"
+    "};\n"
+)
+first = decl.search(h)
+h = h[: first.start()] + struct + h[first.start():]
+h, n_decls = decl.subn(
+    lambda m: (
+        f"extern const struct zpb_StaticMiniTableEnum {m.group(1)}_zpb;\n"
+        f"#define {m.group(1)} "
+        f"(*(const upb_MiniTableEnum*)&{m.group(1)}_zpb)"
+    ),
+    h,
+)
+
+# 2. The extra ';'.
+semi = "  d->trace_ptr++;\n#endif\n};\n"
+if h.count(semi) != 1:
+    sys.exit("the extra ';' after _upb_Decoder_Trace is not where expected")
+h = h.replace(semi, "  d->trace_ptr++;\n#endif\n}\n")
+
+open(c_path, "w").write(c)
+open(h_path, "w").write(h)
+print(f"{n_defs} enum tables (data[{size}]), {n_decls} declarations, 1 ';'")
