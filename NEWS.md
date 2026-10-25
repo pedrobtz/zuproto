@@ -27,3 +27,6 @@
   `Value` field as JSON null, and takes any `Timestamp` or `Duration` the
   binary format allows; the JSON mapping's narrower ranges are enforced by
   `proto_to_json()`.
+* `proto_decode()`, `proto_encode()` and `proto_to_json()` skip checking
+  arguments left at their defaults: a small message decodes in about a
+  third of the time.

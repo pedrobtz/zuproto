@@ -370,9 +370,10 @@ every hostile input the design names.
 
 **Deviations, 2026-10-25.**
 
-- `proto_decode()` misses §16's single-message target (5x RProtoBuf's
-  `read()`, which builds no R values); recorded with the analysis in
-  design §16. The batch and pool targets are met.
+- `proto_decode()` missed §16's single-message target when Stage 7
+  measured it (5x RProtoBuf's `read()`). The cost was zuproto's R
+  wrapper, not its C; the fast path added after Stage 7 meets the target
+  (design §16). The batch and pool targets were met.
 - The C path for `proto_write_delimited()` (51 s for 10^6 rows, Stage 5)
   is left for after 0.1.0: no target covers encoding speed.
 - The fresh review's test gaps (Stage 3): enum aliases and

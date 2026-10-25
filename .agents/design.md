@@ -648,13 +648,16 @@ the same machine:
 - Batch: `proto_decode_df()` on 10^5 five-field messages, 0.15 s, against
   3.84 s for RProtoBuf's `read()`, `as.list()` and `rbind` per message:
   **25x, target met.**
-- Single message, 20,000 times: `proto_encode()` 1.3x RProtoBuf's
-  `serialize()`: **met**. `proto_decode()` 5x its `read()`: **not met**.
-  `read()` returns a C++ message, not R values, and zuproto's cost is a
-  fixed ~29 us a call (argument checks, the arena holder, the result
-  list) whatever the message; moving the choice vectors to constants
-  changed nothing measurable. Many messages should go through
-  `proto_decode_df()`.
+- Single message: **met, after a fix**. First measured, `proto_decode()`
+  took 33 us against 9.3 us for RProtoBuf's `read()`. Split, zuproto's C
+  side (decode and build the R list) took 6.2 us, less than `read()`,
+  which builds no R values (`read()` plus `as.list()`: 17.9 us); the rest
+  was the R wrapper, a dozen small argument-checking calls at 1-3 us each.
+  The wrappers now skip arguments left at their defaults, check the rest
+  inline, and capture the call only on errors: `proto_decode()` 12.9 us,
+  `proto_encode()` 10.3 us against 15.9 us for `serialize()`,
+  `proto_to_json()` 14.3 us against 10.7 us for `toJSON()` (5-field
+  message, 2026-10-25; this machine's timings vary by about 20%).
 - Pool loading: a 0.9 MB descriptor set (2600 types) loads in 29-32 ms in
   a fresh session: **met**. (Measured after 10^6 rows were held in R, it
   took 150 ms, all of it R's garbage collector; the benchmark now
