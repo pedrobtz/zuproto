@@ -5,6 +5,7 @@ test_that("zuproto_info() names the bundled protobuf release", {
   expect_match(info$protobuf, "^v[0-9]+\\.[0-9]+$")
   expect_match(info$protobuf_commit, "^[0-9a-f]{40}$")
   expect_match(format(info)[3], info$protobuf, fixed = TRUE)
+  expect_identical(info$limits, list(max_size = 64 * 1024^2, max_depth = 100L))
 })
 
 test_that("conditions carry their classes and fields", {

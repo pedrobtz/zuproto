@@ -15,3 +15,32 @@ fixture_pool <- function(...) {
   }
   pool
 }
+
+# The bytes of message fixture fixtures/msg/<name>.hex
+# (tools/make-fixtures.py), stored as hex text.
+msg_fixture <- function(name) {
+  hex <- readLines(test_path("fixtures", "msg", paste0(name, ".hex")))
+  if (!nzchar(hex)) {
+    return(raw())
+  }
+  as.raw(strtoi(
+    substring(hex, seq(1, nchar(hex), 2), seq(2, nchar(hex), 2)),
+    16L
+  ))
+}
+
+# A pool holding the decode fixture schemas.
+decode_pool <- function() fixture_pool("decode", "decode2")
+
+# A varint, as raw bytes.
+varint <- function(n) {
+  out <- raw()
+  repeat {
+    byte <- n %% 128
+    n <- n %/% 128
+    if (n == 0) {
+      return(c(out, as.raw(byte)))
+    }
+    out <- c(out, as.raw(byte + 128))
+  }
+}
