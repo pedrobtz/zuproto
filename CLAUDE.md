@@ -121,6 +121,12 @@ Grows as stages land; `.agents/design.md` §4 has the whole plan.
   encodes. A wrong value stops the walk with an error code, a detail and
   the field’s path (`ctx->path`), which R raises. Strings handed to upb
   point into R memory, valid until the `.Call` returns.
+- **Data frames** (`R/frame.R`, `build_frame()` in `src/zpb_build.c`,
+  `zpb_decode_df()` in `src/zpb_decode.c`): all messages are decoded
+  into one arena, then each column is filled across all rows. `rows[i]`
+  may be `NULL` (a nested message the parent row lacks), which makes
+  that row `NA`. Delimited framing is in C; R reads connections in
+  chunks for `each`.
 - **Message fixtures** come from Python `protobuf` 7.36.2 through
   `tools/make-fixtures.py` (it says how to set up the venv), stored as
   hex in `tests/testthat/fixtures/msg/` with a `MANIFEST.tsv`.

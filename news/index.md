@@ -26,3 +26,10 @@
   [`proto_decode()`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md);
   a value of the wrong form fails with a `zuproto_type_mismatch` naming
   the field.
+- [`proto_decode_df()`](https://pedrobtz.github.io/zuproto/reference/proto_decode_df.md)
+  decodes many messages, or the elements of one message’s repeated field
+  (`field =`), into a data frame built column by column.
+  [`proto_read_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
+  and
+  [`proto_write_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
+  read and write length-delimited streams, in chunks with `each`.

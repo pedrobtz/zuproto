@@ -95,6 +95,8 @@
 <li>
 <strong>Encoding</strong> (<code>R/encode.R</code>, <code>src/zpb_fill.c</code>): the R value is walked against the message definition and set on a upb message, then upb encodes. A wrong value stops the walk with an error code, a detail and the field’s path (<code>ctx-&gt;path</code>), which R raises. Strings handed to upb point into R memory, valid until the <code>.Call</code> returns.</li>
 <li>
+<strong>Data frames</strong> (<code>R/frame.R</code>, <code>build_frame()</code> in <code>src/zpb_build.c</code>, <code>zpb_decode_df()</code> in <code>src/zpb_decode.c</code>): all messages are decoded into one arena, then each column is filled across all rows. <code>rows[i]</code> may be <code>NULL</code> (a nested message the parent row lacks), which makes that row <code>NA</code>. Delimited framing is in C; R reads connections in chunks for <code>each</code>.</li>
+<li>
 <strong>Message fixtures</strong> come from Python <code>protobuf</code> 7.36.2 through <code>tools/make-fixtures.py</code> (it says how to set up the venv), stored as hex in <code>tests/testthat/fixtures/msg/</code> with a <code>MANIFEST.tsv</code>.</li>
 <li>
 <strong>Test fixtures</strong> are <code>protoc</code> output: edit <code>tests/testthat/fixtures/proto/*.proto</code>, run <code>tools/make-test-descriptors</code>, commit the <code>.binpb</code> files.</li>

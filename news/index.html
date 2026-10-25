@@ -43,6 +43,8 @@
 <code><a href="../reference/proto_decode.html">proto_decode()</a></code> decodes one message to a named list: every scalar type, enums as factors, repeated fields, maps, oneofs, extensions and the well-known types, with limits on size, nesting and memory.</li>
 <li>
 <code><a href="../reference/proto_encode.html">proto_encode()</a></code> encodes a named list as one message, deterministically, the inverse of <code><a href="../reference/proto_decode.html">proto_decode()</a></code>; a value of the wrong form fails with a <code>zuproto_type_mismatch</code> naming the field.</li>
+<li>
+<code><a href="../reference/proto_decode_df.html">proto_decode_df()</a></code> decodes many messages, or the elements of one message’s repeated field (<code>field =</code>), into a data frame built column by column. <code><a href="../reference/proto_read_delimited.html">proto_read_delimited()</a></code> and <code><a href="../reference/proto_read_delimited.html">proto_write_delimited()</a></code> read and write length-delimited streams, in chunks with <code>each</code>.</li>
 </ul></div>
   </main></div>
 
