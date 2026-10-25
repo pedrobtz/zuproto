@@ -23,3 +23,11 @@ Useful links:
 Authors:
 
 - Pedro Baltazar <pedrobtz@gmail.com> \[copyright holder\]
+
+Other contributors:
+
+- Google LLC (upb and utf8_range, bundled in src/vendor) \[copyright
+  holder\]
+
+- Yibo Cai (utf8_range, bundled in src/vendor/utf8_range) \[copyright
+  holder\]

@@ -84,14 +84,34 @@ Rscript -e 'devtools::test(filter = "<name>")'   # one test file
 Rscript -e 'devtools::test(shuffle = TRUE)'      # order independence
 Rscript -e 'devtools::check()'                   # R CMD check
 air format .                                     # format R sources
+tools/verify-vendor                              # vendor, wkt.binpb, shim
+tools/make-test-descriptors                      # after editing fixtures/proto/
 ```
+
+`tools/vendor-upb`, `tools/make-test-descriptors` and the fixtures need
+`protoc` (`brew install protobuf`).
 
 ## Architecture
 
-To be written as stages land; see `.agents/design.md` (§4 has the
-planned layout). The scaffold set up C through `usethis::use_c()`:
-`src/zuproto.c` is a stub and `R/zuproto-package.R` carries
-`@useDynLib`.
+Grows as stages land; `.agents/design.md` §4 has the whole plan.
+
+- **`src/zpb_upb.h` is the shim**: the only file that includes
+  `src/vendor/upb/ruby-upb.h` or names a upb symbol. Everything else
+  uses its `zpb_` types and `static inline` wrappers.
+  `tools/verify-vendor` fails on a leak.
+- **C returns, R raises.** `.Call` entry points (`src/zpb.h`, registered
+  in `src/init.c`) return a value or an error string; `R/` turns that
+  into a classed condition with `zpb_abort()` (`R/conditions.R`). C
+  calls `Rf_error()` only for out-of-memory and broken internal
+  invariants.
+- **Pools** (`R/pool.R`, `src/zpb_pool.c`): a list of the external
+  pointer to upb’s `upb_DefPool` and an environment of the files added,
+  name to bytes. R checks a whole set (conflicts, missing imports,
+  dependency order) before C adds any file. Every pool starts from
+  `inst/descriptors/wkt.binpb`.
+- **Test fixtures** are `protoc` output: edit
+  `tests/testthat/fixtures/proto/*.proto`, run
+  `tools/make-test-descriptors`, commit the `.binpb` files.
 
 ## Invariants that are easy to break
 

@@ -76,12 +76,23 @@
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test(filter = "&lt;name&gt;")'</span>   <span class="co"># one test file</span></span>
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test(shuffle = TRUE)'</span>      <span class="co"># order independence</span></span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::check()'</span>                   <span class="co"># R CMD check</span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="ex">air</span> format .                                     <span class="co"># format R sources</span></span></code></pre></div>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="ex">air</span> format .                                     <span class="co"># format R sources</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="ex">tools/verify-vendor</span>                              <span class="co"># vendor, wkt.binpb, shim</span></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="ex">tools/make-test-descriptors</span>                      <span class="co"># after editing fixtures/proto/</span></span></code></pre></div>
+<p><code>tools/vendor-upb</code>, <code>tools/make-test-descriptors</code> and the fixtures need <code>protoc</code> (<code>brew install protobuf</code>).</p>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
-<p>To be written as stages land; see <code>.agents/design.md</code> (§4 has the planned layout). The scaffold set up C through <code>usethis::use_c()</code>: <code>src/zuproto.c</code> is a stub and <code>R/zuproto-package.R</code> carries <code>@useDynLib</code>.</p>
-</div>
+<p>Grows as stages land; <code>.agents/design.md</code> §4 has the whole plan.</p>
+<ul><li>
+<strong><code>src/zpb_upb.h</code> is the shim</strong>: the only file that includes <code>src/vendor/upb/ruby-upb.h</code> or names a upb symbol. Everything else uses its <code>zpb_</code> types and <code>static inline</code> wrappers. <code>tools/verify-vendor</code> fails on a leak.</li>
+<li>
+<strong>C returns, R raises.</strong> <code>.Call</code> entry points (<code>src/zpb.h</code>, registered in <code>src/init.c</code>) return a value or an error string; <code>R/</code> turns that into a classed condition with <code>zpb_abort()</code> (<code>R/conditions.R</code>). C calls <code>Rf_error()</code> only for out-of-memory and broken internal invariants.</li>
+<li>
+<strong>Pools</strong> (<code>R/pool.R</code>, <code>src/zpb_pool.c</code>): a list of the external pointer to upb’s <code>upb_DefPool</code> and an environment of the files added, name to bytes. R checks a whole set (conflicts, missing imports, dependency order) before C adds any file. Every pool starts from <code>inst/descriptors/wkt.binpb</code>.</li>
+<li>
+<strong>Test fixtures</strong> are <code>protoc</code> output: edit <code>tests/testthat/fixtures/proto/*.proto</code>, run <code>tools/make-test-descriptors</code>, commit the <code>.binpb</code> files.</li>
+</ul></div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
 <p>The design fixes these before any code exists. Add each further one when a stage establishes it.</p>
