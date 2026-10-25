@@ -295,6 +295,15 @@ names in `x` that the message does not define are a
 integer kinds must be whole and in range. `NA` encodes as unset, and is
 an error for a field without presence in proto2 `required`.
 
+Decided in Stage 4 (2026-10-25), where §7 left it open: a map key given
+twice, a second member of a oneof, `NA` inside a repeated field, and a
+`Timestamp` outside 0001-01-01 to 9999-12-31 (a `Duration` beyond
+±10000 years) are `zuproto_type_mismatch`, each carrying the field's
+`path`; `bytes` fields take raw vectors only; a `Timestamp` before 1970
+keeps nanos non-negative, a `Duration` gives its nanos the seconds'
+sign. Unknown fields go back through upb's internal add-unknown call,
+which the shim spells out by name, since upb has no public one.
+
 `proto_write_delimited()` takes a data frame whose columns follow §6.2
 and writes one message per row.
 

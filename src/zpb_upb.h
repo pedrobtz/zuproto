@@ -529,4 +529,138 @@ static inline int zpb_msgdef_wkt(const zpb_msgdef *m)
     }
 }
 
+/* ---- Encoding (design section 7) ---- */
+
+static inline zpb_msg *zpb_msg_new(const zpb_msgdef *m, zpb_arena *a)
+{
+    return upb_Message_New(upb_MessageDef_MiniTable(m), a);
+}
+
+static inline zpb_value zpb_value_str(const char *data, size_t len)
+{
+    zpb_value v;
+    memset(&v, 0, sizeof v);
+    v.str_val.data = data;
+    v.str_val.size = len;
+    return v;
+}
+
+static inline bool zpb_msg_set(zpb_msg *msg, const zpb_fielddef *f,
+                               zpb_value v, zpb_arena *a)
+{
+    return upb_Message_SetFieldByDef(msg, f, v, a);
+}
+
+/* The repeated field, map or submessage f of msg, created if absent. */
+static inline zpb_array *zpb_msg_mutable_array(zpb_msg *msg,
+                                               const zpb_fielddef *f,
+                                               zpb_arena *a)
+{
+    return upb_Message_Mutable(msg, f, a).array;
+}
+
+static inline zpb_map *zpb_msg_mutable_map(zpb_msg *msg, const zpb_fielddef *f,
+                                           zpb_arena *a)
+{
+    return upb_Message_Mutable(msg, f, a).map;
+}
+
+static inline zpb_msg *zpb_msg_mutable_msg(zpb_msg *msg, const zpb_fielddef *f,
+                                           zpb_arena *a)
+{
+    return upb_Message_Mutable(msg, f, a).msg;
+}
+
+static inline bool zpb_array_append(zpb_array *arr, zpb_value v, zpb_arena *a)
+{
+    return upb_Array_Append(arr, v, a);
+}
+
+/* 1 if k was new, 2 if it replaced a value, 0 out of memory. */
+static inline int zpb_map_insert(zpb_map *map, zpb_value k, zpb_value v,
+                                 zpb_arena *a)
+{
+    switch (upb_Map_Insert(map, k, v, a)) {
+    case kUpb_MapInsertStatus_Inserted: return 1;
+    case kUpb_MapInsertStatus_Replaced: return 2;
+    default: return 0;
+    }
+}
+
+/* Unknown-field bytes, copied into the arena. upb has no public call for
+ * this; its header undefines UPB_PRIVATE(), so the name is spelled out. A
+ * re-vendor that renames it fails to compile here, and only here. */
+static inline bool zpb_msg_add_unknown(zpb_msg *msg, const char *data,
+                                       size_t len, zpb_arena *a)
+{
+    return _upb_Message_AddUnknown_dont_copy_me__upb_internal_use_only(
+        msg, data, len, a, kUpb_AddUnknown_Copy);
+}
+
+static inline const zpb_fielddef *zpb_msgdef_find_field(const zpb_msgdef *m,
+                                                        const char *name,
+                                                        size_t len)
+{
+    return upb_MessageDef_FindFieldByNameWithSize(m, name, len);
+}
+
+/* The extension named `name` (without brackets) if it extends m. */
+static inline const zpb_fielddef *zpb_find_extension(const zpb_defpool *p,
+                                                     const zpb_msgdef *m,
+                                                     const char *name)
+{
+    const upb_FieldDef *f = upb_DefPool_FindExtensionByName(p, name);
+    return f != NULL && upb_FieldDef_ContainingType(f) == m ? f : NULL;
+}
+
+/* The oneof f belongs to (proto3 optional excluded), for checking that one
+ * member at most is given; NULL if none. */
+static inline const void *zpb_field_oneof_def(const zpb_fielddef *f)
+{
+    return upb_FieldDef_RealContainingOneof(f);
+}
+
+static inline bool zpb_enum_number_of(const zpb_enumdef *e, const char *name,
+                                      size_t len, int32_t *num)
+{
+    const upb_EnumValueDef *v = upb_EnumDef_FindValueByNameWithSize(e, name, len);
+    if (v == NULL) return false;
+    *num = upb_EnumValueDef_Number(v);
+    return true;
+}
+
+/* Whether a closed enum accepts num; an open enum accepts any int32. */
+static inline bool zpb_enum_accepts(const zpb_enumdef *e, int32_t num)
+{
+    return !upb_EnumDef_IsClosed(e) || upb_EnumDef_CheckNumber(e, num);
+}
+
+enum {
+    ZPB_ENCODE_OK = 0,
+    ZPB_ENCODE_MISSING_REQUIRED,
+    ZPB_ENCODE_DEPTH,
+    ZPB_ENCODE_MEMORY,
+    ZPB_ENCODE_OTHER
+};
+
+/* Encode msg (type m) into arena a; *status says why if NULL. */
+static inline char *zpb_encode_message(const zpb_msg *msg, const zpb_msgdef *m,
+                                       bool deterministic, bool check_required,
+                                       zpb_arena *a, size_t *len, int *status)
+{
+    int options = (deterministic ? kUpb_EncodeOption_Deterministic : 0) |
+                  (check_required ? kUpb_EncodeOption_CheckRequired : 0);
+    char *buf = NULL;
+    upb_EncodeStatus st =
+        upb_Encode(msg, upb_MessageDef_MiniTable(m), options, a, &buf, len);
+    switch (st) {
+    case kUpb_EncodeStatus_Ok: *status = ZPB_ENCODE_OK; return buf;
+    case kUpb_EncodeStatus_MissingRequired: *status = ZPB_ENCODE_MISSING_REQUIRED; break;
+    case kUpb_EncodeStatus_MaxDepthExceeded: *status = ZPB_ENCODE_DEPTH; break;
+    case kUpb_EncodeStatus_OutOfMemory: *status = ZPB_ENCODE_MEMORY; break;
+    default: *status = ZPB_ENCODE_OTHER; break;
+    }
+    return NULL;
+}
+
 #endif
