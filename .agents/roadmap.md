@@ -217,6 +217,11 @@ field kind the design maps.
   `R CMD check` took three short binary ones for executables.
 - Required fields are not checked on decode, as upb does by default.
 - `zuproto_invalid_utf8` is a subclass of `zuproto_parse_error`.
+- `max_depth` is at most 1000 (design §12): the fresh review found that
+  upb's recursive decoder exhausts the C stack at about 5000 levels.
+- Left for Stage 7's conformance suite, from the review: enum aliases,
+  message-typed and repeated-message extensions, and Timestamp
+  rounding ties.
 
 **Design.** §4, §5, §6.1–§6.3, §12, §13; §18 questions 2 and 5.
 

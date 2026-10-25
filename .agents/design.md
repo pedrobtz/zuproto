@@ -271,7 +271,7 @@ values of those types, become vectors rather than lists.
 | --- | --- |
 | `Timestamp` | `POSIXct`, UTC; sub-microsecond digits rounded |
 | `Duration` | `difftime` in seconds |
-| wrappers (`Int32Value` …) | the scalar, `NA` when unset |
+| wrappers (`Int32Value` …) | the scalar; unset: left out, `NA` in data frames |
 | `Struct`, `Value`, `ListValue` | named list, scalar, list, as JSON |
 | `Any` | list(`type_url`, `value` raw); `proto_unpack_any()` decodes it |
 | `FieldMask` | character vector of paths |
@@ -478,7 +478,9 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
 - `max_depth` passed to upb through `upb_DecodeOptions_MaxDepth()`;
   default 100, upb's own `kUpb_WireFormat_DefaultDepthLimit`. upb counts
   levels below the top-level message, so 100 accepts 101 messages, one
-  inside the next (measured in Stage 3); the documentation says so.
+  inside the next (measured in Stage 3); a map entry is a level too.
+  `max_depth` is at most 1000: upb's decoder recurses once per level,
+  and the C stack ran out at about 5000 on an 8 MB stack.
 - `max_rows` (1e7) per data frame, and an arena byte ceiling per call
   (default 4 × `max_size`), enforced by a counting allocator handed to
   `upb_Arena_Init`, so a small input that expands (packed repeated
