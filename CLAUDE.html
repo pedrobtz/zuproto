@@ -93,6 +93,8 @@
 <li>
 <strong>Decoding</strong> (<code>R/decode.R</code>, <code>src/zpb_decode.c</code>, <code>src/zpb_build.c</code>): upb decodes into an arena on a counting allocator (the <code>4 * max_size</code> ceiling), held with that allocator by one finalised external pointer. Building R values starts only after a successful decode and walks the message by reflection. A value R cannot hold sets <code>ctx-&gt;err</code>, and every builder then returns <code>NULL</code> with its PROTECTs undone; warnings are counted in <code>ctx</code> and raised once by R.</li>
 <li>
+<strong>Encoding</strong> (<code>R/encode.R</code>, <code>src/zpb_fill.c</code>): the R value is walked against the message definition and set on a upb message, then upb encodes. A wrong value stops the walk with an error code, a detail and the field’s path (<code>ctx-&gt;path</code>), which R raises. Strings handed to upb point into R memory, valid until the <code>.Call</code> returns.</li>
+<li>
 <strong>Message fixtures</strong> come from Python <code>protobuf</code> 7.36.2 through <code>tools/make-fixtures.py</code> (it says how to set up the venv), stored as hex in <code>tests/testthat/fixtures/msg/</code> with a <code>MANIFEST.tsv</code>.</li>
 <li>
 <strong>Test fixtures</strong> are <code>protoc</code> output: edit <code>tests/testthat/fixtures/proto/*.proto</code>, run <code>tools/make-test-descriptors</code>, commit the <code>.binpb</code> files.</li>

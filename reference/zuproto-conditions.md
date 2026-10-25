@@ -51,6 +51,25 @@ Every class below inherits from `zuproto_error`.
   NUL byte, or longer than an R string may be. Carries `field`, the
   field's full name.
 
+- `zuproto_type_mismatch`:
+
+  [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
+  was given a value of the wrong form for its field: the wrong R type, a
+  number out of range or not whole, a name that is not a value of the
+  enum, `NA` inside a repeated field, a second member of a oneof, or a
+  map key given twice. Carries `path`, the field at fault, such as
+  `"points[2].x"`.
+
+- `zuproto_unknown_field`:
+
+  [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
+  was given a name the message type does not define. Carries `path`.
+
+- `zuproto_missing_required`:
+
+  [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
+  with `check_required = TRUE`: a proto2 `required` field is not set.
+
 - `zuproto_limit_error`:
 
   A limit was reached. The subclasses `zuproto_size_limit` (the input,

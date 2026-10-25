@@ -85,6 +85,22 @@ wrong wire type. Carries <code>status</code>.</p></dd>
 R cannot: a string containing a NUL byte, or longer than an R string
 may be. Carries <code>field</code>, the field's full name.</p></dd>
 
+<dt><code>zuproto_type_mismatch</code></dt>
+<dd><p><code><a href="proto_encode.html">proto_encode()</a></code> was given a value of
+the wrong form for its field: the wrong R type, a number out of
+range or not whole, a name that is not a value of the enum, <code>NA</code>
+inside a repeated field, a second member of a oneof, or a map key
+given twice. Carries <code>path</code>, the field at fault, such as
+<code>"points[2].x"</code>.</p></dd>
+
+<dt><code>zuproto_unknown_field</code></dt>
+<dd><p><code><a href="proto_encode.html">proto_encode()</a></code> was given a name the
+message type does not define. Carries <code>path</code>.</p></dd>
+
+<dt><code>zuproto_missing_required</code></dt>
+<dd><p><code><a href="proto_encode.html">proto_encode()</a></code> with
+<code>check_required = TRUE</code>: a proto2 <code>required</code> field is not set.</p></dd>
+
 <dt><code>zuproto_limit_error</code></dt>
 <dd><p>A limit was reached. The subclasses
 <code>zuproto_size_limit</code> (the input, or the memory decoding it needs,

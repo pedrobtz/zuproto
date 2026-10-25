@@ -41,6 +41,8 @@
 <code><a href="../reference/proto_pool.html">proto_pool()</a></code> and <code><a href="../reference/proto_pool.html">proto_pool_add()</a></code> load descriptor sets, with the well-known types built in; <code><a href="../reference/proto_types.html">proto_types()</a></code> and <code><a href="../reference/proto_types.html">proto_fields()</a></code> list what a pool holds, extensions included; <code><a href="../reference/zuproto_info.html">zuproto_info()</a></code> reports the bundled protobuf release.</li>
 <li>
 <code><a href="../reference/proto_decode.html">proto_decode()</a></code> decodes one message to a named list: every scalar type, enums as factors, repeated fields, maps, oneofs, extensions and the well-known types, with limits on size, nesting and memory.</li>
+<li>
+<code><a href="../reference/proto_encode.html">proto_encode()</a></code> encodes a named list as one message, deterministically, the inverse of <code><a href="../reference/proto_decode.html">proto_decode()</a></code>; a value of the wrong form fails with a <code>zuproto_type_mismatch</code> naming the field.</li>
 </ul></div>
   </main></div>
 

@@ -4,6 +4,8 @@
 
 - [`proto_decode()`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md)
   : Decode one Protocol Buffers message
+- [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
+  : Encode one Protocol Buffers message
 - [`proto_pool()`](https://pedrobtz.github.io/zuproto/reference/proto_pool.md)
   [`proto_pool_add()`](https://pedrobtz.github.io/zuproto/reference/proto_pool.md)
   : Descriptor pools
