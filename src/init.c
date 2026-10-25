@@ -1,13 +1,15 @@
-#define R_NO_REMAP
-#include <R.h>
-#include <Rinternals.h>
+#include "zpb.h"
 #include <R_ext/Rdynload.h>
 #include <R_ext/Visibility.h>
 
-SEXP zpb_probe(void);
-
 static const R_CallMethodDef CallEntries[] = {
-    {"zpb_probe", (DL_FUNC) &zpb_probe, 0},
+    {"zpb_build_info", (DL_FUNC) &zpb_build_info, 0},
+    {"zpb_pool_new", (DL_FUNC) &zpb_pool_new, 0},
+    {"zpb_pool_is_valid", (DL_FUNC) &zpb_pool_is_valid, 1},
+    {"zpb_set_files", (DL_FUNC) &zpb_set_files, 1},
+    {"zpb_pool_add_file", (DL_FUNC) &zpb_pool_add_file, 2},
+    {"zpb_pool_types", (DL_FUNC) &zpb_pool_types, 2},
+    {"zpb_pool_fields", (DL_FUNC) &zpb_pool_fields, 2},
     {NULL, NULL, 0}
 };
 
