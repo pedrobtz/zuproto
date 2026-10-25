@@ -1,0 +1,60 @@
+# Protobuf's conformance suite (design section 15): conformance_test_runner,
+# built from the protobuf release zuproto vendors, drives the R testee in
+# tools/conformance over stdin and stdout through the binary and JSON
+# suites. The run fails on a test that fails outside
+# tools/conformance/failure_list.txt, or on one listed there that passes.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+name: conformance
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Pinned protobuf tag
+        id: tag
+        run: echo "tag=$(awk '/^  Tag:/ {print $2}' src/vendor/PROVENANCE)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache conformance_test_runner
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/conformance_test_runner
+          key: conformance-runner-${{ runner.os }}-${{ steps.tag.outputs.tag }}
+
+      - name: Build conformance_test_runner
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          git clone -q --depth 1 --branch "${{ steps.tag.outputs.tag }}" \
+            --recurse-submodules --shallow-submodules \
+            https://github.com/protocolbuffers/protobuf.git "$RUNNER_TEMP/protobuf"
+          cmake -S "$RUNNER_TEMP/protobuf" -B "$RUNNER_TEMP/build" \
+            -DCMAKE_BUILD_TYPE=Release -Dprotobuf_BUILD_CONFORMANCE=ON \
+            -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_ABSL_PROVIDER=module
+          cmake --build "$RUNNER_TEMP/build" --target conformance_test_runner -j 4
+          cp "$RUNNER_TEMP/build/conformance_test_runner" ~/conformance_test_runner
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install zuproto
+        run: R CMD INSTALL .
+
+      - name: Run the suite
+        run: CONFORMANCE_RUNNER=~/conformance_test_runner tools/conformance/run
