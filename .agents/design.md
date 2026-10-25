@@ -626,7 +626,10 @@ number the enum lacks cannot be re-encoded inside a repeated field
 (`enums = "factor"`, as documented), and showed the encoder's Timestamp
 range was the JSON mapping's, not the binary format's (§7, revised). The
 conformance run also found that NaN was refused on encode and that `NULL`
-in a `Value` field was read as unset; both are fixed.
+in a `Value` field was read as unset; both are fixed. In CI, `fuzz_build`
+found a heap use-after-free in zuproto's own batch decoder: the error
+path for a message past the memory ceiling read the allocator after
+freeing it. Fixed, with a test that takes that path.
 
 ## 16. Performance targets
 
