@@ -1,0 +1,4 @@
+#!/bin/sh
+# The program conformance_test_runner runs: the R testee, with the
+# installed zuproto.
+exec Rscript --vanilla "$(dirname "$0")/testee.R"

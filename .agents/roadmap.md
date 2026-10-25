@@ -22,7 +22,7 @@ documentation and release, and `Full CI` goes in before the release.
 | 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | [#18](https://github.com/pedrobtz/zuproto/pull/18) | 2026-10-25 |
 | 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | [#19](https://github.com/pedrobtz/zuproto/pull/19) | 2026-10-25 |
 | 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | [#20](https://github.com/pedrobtz/zuproto/pull/20) | 2026-10-25 |
-| 7 | [Conformance, fuzzing and hostile inputs](#stage-7--conformance-fuzzing-and-hostile-inputs) | quick | [#9](https://github.com/pedrobtz/zuproto/issues/9) | | |
+| 7 | [Conformance, fuzzing and hostile inputs](#stage-7--conformance-fuzzing-and-hostile-inputs) | quick | [#9](https://github.com/pedrobtz/zuproto/issues/9) | [#21](https://github.com/pedrobtz/zuproto/pull/21) | 2026-10-25 |
 | 8 | [Documentation](#stage-8--documentation) | quick | [#10](https://github.com/pedrobtz/zuproto/issues/10) | | |
 | 9 | [Full CI](#stage-9--full-ci) | full | [#11](https://github.com/pedrobtz/zuproto/issues/11) | | |
 | 10 | [v0.1.0 readiness](#stage-10--v010-readiness) | full | [#12](https://github.com/pedrobtz/zuproto/issues/12) | | |
@@ -368,6 +368,18 @@ every hostile input the design names.
 - Every hostile input of §15 has a test that passes.
 - §16's targets are measured and recorded, met or not.
 
+**Deviations, 2026-10-25.**
+
+- `proto_decode()` misses §16's single-message target (5x RProtoBuf's
+  `read()`, which builds no R values); recorded with the analysis in
+  design §16. The batch and pool targets are met.
+- The C path for `proto_write_delimited()` (51 s for 10^6 rows, Stage 5)
+  is left for after 0.1.0: no target covers encoding speed.
+- The fresh review's test gaps (Stage 3): enum aliases and
+  message-typed extensions are covered by the conformance suite's
+  `TestAllTypes` messages; Timestamp rounding ties are by design.
+- The hostile inputs of §15 were already tests from Stages 2, 3 and 5.
+
 **Design.** §15, §16.
 
 ## Stage 8 — Documentation
@@ -447,6 +459,11 @@ No new features.
 **Design.** §20.
 
 ## After 0.1.0
+
+- A C path for `proto_write_delimited()` (Stage 7).
+- Reporting `0006-any-empty-url.patch`, `0007-json-any-arena-leak.patch`
+  and `0008-json-nanos-range.patch` upstream, with the maintainer's
+  agreement.
 
 - `int64 = "zuint"`, once zuint (RFC 0009) is on CRAN (Stage 6).
 - A C API from zujson, so upb's JSON could be parsed into R values without

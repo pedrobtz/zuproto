@@ -5248,6 +5248,9 @@ static void jsonenc_timestamp(jsonenc* e, const upb_Message* msg,
     jsonenc_err(e,
                 "error formatting timestamp as JSON: maximum acceptable value "
                 "is 9999-12-31T23:59:59Z");
+  } else if (nanos < 0 || nanos > 999999999) {
+    // zuproto: nanos must be in [0, 999999999], as for Duration above.
+    jsonenc_err(e, "error formatting timestamp as JSON: nanos out of range");
   }
 
   /* Julian Day -> Y/M/D, Algorithm from:
@@ -5283,7 +5286,10 @@ static void jsonenc_duration(jsonenc* e, const upb_Message* msg,
   int32_t nanos = upb_Message_GetFieldByDef(msg, nanos_f).int32_val;
   bool negative = false;
 
+  // zuproto: nanos out of range is a bad duration too; negating -2^31
+  // below is undefined (UBSan, fuzz_decode).
   if (seconds > 315576000000 || seconds < -315576000000 ||
+      nanos > 999999999 || nanos < -999999999 ||
       (seconds != 0 && nanos != 0 && (seconds < 0) != (nanos < 0))) {
     jsonenc_err(e, "bad duration");
   }
@@ -5448,16 +5454,21 @@ static void jsonenc_wrapper(jsonenc* e, const upb_Message* msg,
 
 static const upb_MessageDef* jsonenc_getanymsg(jsonenc* e,
                                                upb_StringView type_url) {
-  /* Find last '/', if any. */
-  const char* end = type_url.data + type_url.size;
-  const char* ptr = end;
+  const char* end;
+  const char* ptr;
   const upb_MessageDef* ret;
 
   if (!e->ext_pool) {
     jsonenc_err(e, "Tried to encode Any, but no symtab was provided");
   }
 
+  // zuproto: check for the empty URL before the pointer arithmetic, whose
+  // data is then NULL; NULL + 0 is undefined in C, and UBSan reports it.
   if (type_url.size == 0) goto badurl;
+
+  /* Find last '/', if any. */
+  end = type_url.data + type_url.size;
+  ptr = end;
 
   while (true) {
     if (--ptr == type_url.data) {
@@ -5880,7 +5891,12 @@ static size_t upb_JsonEncoder_Encode(jsonenc* const e,
                                      const upb_Message* const msg,
                                      const upb_MessageDef* const m,
                                      const size_t size) {
-  if (UPB_SETJMP(e->err) != 0) return -1;
+  if (UPB_SETJMP(e->err) != 0) {
+    // zuproto: free the arena an Any made before the error, which the
+    // success path below frees but this one leaked (LeakSanitizer).
+    if (e->arena) upb_Arena_Free(e->arena);
+    return -1;
+  }
 
   jsonenc_msgfield(e, msg, m);
   if (e->arena) upb_Arena_Free(e->arena);

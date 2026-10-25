@@ -3,9 +3,18 @@
 # codes and warning counts into classed conditions.
 
 # Default limits, design section 5. zuproto_info() reports these.
-zpb_default_limits <- function() {
-  list(max_size = 64 * 1024^2, max_depth = 100L)
-}
+zpb_default_limits <- function() zpb_limits
+
+zpb_limits <- list(max_size = 64 * 1024^2, max_depth = 100L)
+
+# The choices of the decode arguments, built once rather than per call:
+# argument handling is most of a small message's decode time.
+zpb_choices <- list(
+  int64 = c("double", "character", "integer64"),
+  enums = c("factor", "integer", "character"),
+  unknown = c("drop", "keep"),
+  bytes = c("raw", "base64")
+)
 
 #' Decode one Protocol Buffers message
 #'
@@ -97,27 +106,17 @@ proto_decode <- function(
   defaults = TRUE,
   unknown = c("drop", "keep"),
   bytes = c("raw", "base64"),
-  max_size = zpb_default_limits()$max_size,
-  max_depth = zpb_default_limits()$max_depth
+  max_size = zpb_limits$max_size,
+  max_depth = zpb_limits$max_depth
 ) {
   call <- sys.call()
   check_pool(pool, call = call)
   check_type(type, call = call)
-  int64 <- zpb_match_arg(
-    int64,
-    c("double", "character", "integer64"),
-    "int64",
-    call
-  )
+  int64 <- zpb_match_arg(int64, zpb_choices$int64, "int64", call)
   check_int64_mode(int64, call)
-  enums <- zpb_match_arg(
-    enums,
-    c("factor", "integer", "character"),
-    "enums",
-    call
-  )
-  unknown <- zpb_match_arg(unknown, c("drop", "keep"), "unknown", call)
-  bytes <- zpb_match_arg(bytes, c("raw", "base64"), "bytes", call)
+  enums <- zpb_match_arg(enums, zpb_choices$enums, "enums", call)
+  unknown <- zpb_match_arg(unknown, zpb_choices$unknown, "unknown", call)
+  bytes <- zpb_match_arg(bytes, zpb_choices$bytes, "bytes", call)
   check_flag(defaults, "defaults", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
   # upb's decoder recurses once per level; 1000 stays far below the depth
@@ -126,8 +125,8 @@ proto_decode <- function(
 
   raw <- read_message(x, max_size, call)
   opts <- list(
-    int64 = match(int64, c("double", "character", "integer64")) - 1L,
-    enums = match(enums, c("factor", "integer", "character")) - 1L,
+    int64 = match(int64, zpb_choices$int64) - 1L,
+    enums = match(enums, zpb_choices$enums) - 1L,
     defaults = as.integer(defaults),
     keep_unknown = as.integer(unknown == "keep"),
     bytes_base64 = as.integer(bytes == "base64"),

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Run protobuf's conformance suite (binary and JSON) against zuproto, with
+# the expected failures in tools/conformance/failure_list.txt. Run from the
+# package root, with zuproto installed and a conformance_test_runner built
+# from the vendored tag (protobuf's CMake: -Dprotobuf_BUILD_CONFORMANCE=ON):
+#
+#   CONFORMANCE_RUNNER=/path/to/conformance_test_runner tools/conformance/run
+#
+# The run fails if a test fails that the list does not name, or a test the
+# list names now passes: the list may only shrink, and each line says why.
+set -eu
+RUNNER=${CONFORMANCE_RUNNER:?set CONFORMANCE_RUNNER to the conformance_test_runner binary}
+exec "$RUNNER" \
+  --failure_list tools/conformance/failure_list.txt \
+  --text_format_failure_list tools/conformance/text_format_failure_list.txt \
+  --maximum_edition 2023 \
+  tools/conformance/testee

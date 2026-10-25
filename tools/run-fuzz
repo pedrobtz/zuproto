@@ -1,0 +1,87 @@
+#!/bin/sh
+# Build and run the fuzz targets under ASan and UBSan. Run from the package
+# root:
+#
+#   tools/run-fuzz [seconds-per-target]      default 30
+#   CANARY_ONLY=1 tools/run-fuzz             only check every canary crashes
+#
+# Uses libFuzzer where clang has it (Linux); Apple clang has no libFuzzer
+# runtime, so there the targets link tools/fuzz/standalone.c instead. Each
+# target's canary build runs first and must crash on "ZPB-CANARY": a green
+# run then means a crash would have been seen. fuzz_build embeds R, so R
+# must be on PATH. CI's campaign is .github/workflows/hardening.yaml.
+set -eu
+SECS=${1:-30}
+CC=${CC:-clang}
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+
+UPB="src/vendor/upb/ruby-upb.c src/vendor/utf8_range/utf8_range.c"
+ZPB="src/zpb_pool.c src/zpb_decode.c src/zpb_build.c src/zpb_fill.c src/zpb_info.c"
+CFLAGS="-g -O1 -fno-omit-frame-pointer -fno-sanitize-recover=undefined -Isrc -Isrc/vendor -Isrc/vendor/utf8_range -Itools/fuzz"
+
+if printf 'int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) { return 0; }\n' |
+  $CC -fsanitize=fuzzer -x c - -o "$WORK/probe" 2>/dev/null; then
+  SAN="-fsanitize=fuzzer,address,undefined"
+  DRIVER=""
+else
+  SAN="-fsanitize=address,undefined"
+  DRIVER="tools/fuzz/standalone.c"
+fi
+
+build() { # build <target> <out> [extra flags]
+  t=$1 out=$2
+  shift 2
+  case $t in
+    fuzz_build)
+      RFLAGS="$(R CMD config --cppflags) -I$(R RHOME)/include"
+      RLIBS="-L$(R RHOME)/lib -Wl,-rpath,$(R RHOME)/lib -lR"
+      $CC $CFLAGS $SAN $RFLAGS "$@" tools/fuzz/$t.c tools/fuzz/data_only.c $ZPB $UPB $DRIVER $RLIBS -o "$out"
+      ;;
+    *)
+      $CC $CFLAGS $SAN "$@" tools/fuzz/$t.c tools/fuzz/support.c $UPB $DRIVER -o "$out"
+      ;;
+  esac
+}
+
+seeds_of() {
+  case $1 in
+    fuzz_decode) echo tools/fuzz/seeds/decode ;;
+    fuzz_json) echo tools/fuzz/seeds/json ;;
+    fuzz_build) echo tools/fuzz/seeds/build ;;
+  esac
+}
+
+status=0
+for t in fuzz_decode fuzz_json fuzz_build; do
+  echo "==> $t: canary"
+  build "$t" "$WORK/$t-canary" -DZPB_FUZZ_CANARY
+  printf 'ZPB-CANARY' > "$WORK/canary"
+  # fuzz_build embeds R, whose heap outlives each input by design; the
+  # other targets keep ASan's default (leak checks where supported).
+  if [ "$t" = fuzz_build ]; then export ASAN_OPTIONS=detect_leaks=0; else unset ASAN_OPTIONS; fi
+  if R_HOME=$(R RHOME) "$WORK/$t-canary" "$WORK/canary" > "$WORK/$t-canary.log" 2>&1; then
+    echo "CANARY FAILED: $t did not crash on its canary" >&2
+    status=1
+    continue
+  fi
+  if ! grep -q 'stack-buffer-overflow' "$WORK/$t-canary.log"; then
+    echo "CANARY FAILED: $t crashed, but not as ASan's overflow:" >&2
+    tail -20 "$WORK/$t-canary.log" >&2
+    status=1
+    continue
+  fi
+  echo "    crashed as it must"
+  [ "${CANARY_ONLY:-0}" = 1 ] && continue
+
+  echo "==> $t: ${SECS}s"
+  build "$t" "$WORK/$t"
+  if [ -n "$DRIVER" ]; then
+    ZPB_FUZZ_SECONDS=$SECS R_HOME=$(R RHOME) "$WORK/$t" "$(seeds_of $t)"/* || status=1
+  else
+    mkdir -p "$WORK/corpus-$t"
+    R_HOME=$(R RHOME) "$WORK/$t" -max_total_time="$SECS" -detect_leaks=0 \
+      "$WORK/corpus-$t" "$(seeds_of $t)" || status=1
+  fi
+done
+exit $status

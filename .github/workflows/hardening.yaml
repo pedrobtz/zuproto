@@ -1,0 +1,58 @@
+# Fuzzing (design section 15): every target's canary must crash, then
+# r-actions' fuzz.yml runs each target under libFuzzer, ASan and UBSan from
+# its seeds and a corpus cached between runs: five minutes a target on pull
+# requests and pushes, an hour nightly. fuzz_decode and fuzz_json reach upb
+# through the shim alone; fuzz_build embeds R to reach the code that builds
+# R values and the encoder that walks them.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+name: hardening
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  canaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install clang with libFuzzer
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q clang
+          v=$(clang -dumpversion | cut -d. -f1)
+          sudo apt-get install -y -q "libclang-rt-$v-dev" || true
+      # fuzz_build embeds R
+      - uses: r-lib/actions/setup-r@v2
+      - name: Every canary crashes
+        run: CANARY_ONLY=1 tools/run-fuzz
+
+  fuzz:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [decode, json, build]
+    uses: pedrobtz/r-actions/.github/workflows/fuzz.yml@v1
+    with:
+      harness: tools/fuzz/fuzz_${{ matrix.target }}.c
+      sources: >-
+        src/vendor/upb/ruby-upb.c src/vendor/utf8_range/utf8_range.c
+        ${{ matrix.target == 'build'
+            && 'src/zpb_pool.c src/zpb_decode.c src/zpb_build.c src/zpb_fill.c src/zpb_info.c tools/fuzz/data_only.c'
+            || 'tools/fuzz/support.c' }}
+      embed-r: ${{ matrix.target == 'build' }}
+      # UBSan must stop the run, not print and carry on
+      cflags: -g -O1 -fno-omit-frame-pointer -fno-sanitize-recover=undefined -Isrc -Isrc/vendor -Isrc/vendor/utf8_range -Itools/fuzz
+      seed-corpus: tools/fuzz/seeds/${{ matrix.target }}
+      libfuzzer-args: -max_len=65536
+      max-total-time: ${{ github.event_name == 'schedule' && 3600 || 300 }}
+      timeout-minutes: ${{ github.event_name == 'schedule' && 75 || 30 }}

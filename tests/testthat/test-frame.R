@@ -276,3 +276,31 @@ test_that("proto_write_delimited() names the message that fails to encode", {
     class = "zuproto_invalid_argument"
   )
 })
+
+test_that("a message past the memory ceiling in a batch is a size limit error", {
+  # 10^6 packed zeros expand past four times their size; the error path
+  # must name the limit without touching the freed arena.
+  n <- 1e6
+  raw <- c(as.raw(0x0a), varint(n), raw(n))
+  pool <- decode_pool()
+  err <- expect_error(
+    proto_decode_df(
+      list(raw),
+      "zpb.decode.Repeated",
+      pool,
+      max_size = length(raw)
+    ),
+    class = "zuproto_size_limit"
+  )
+  expect_identical(err$index, 1)
+  stream <- c(varint(length(raw)), raw)
+  expect_error(
+    proto_read_delimited(
+      stream,
+      "zpb.decode.Repeated",
+      pool,
+      max_size = length(raw)
+    ),
+    class = "zuproto_size_limit"
+  )
+})

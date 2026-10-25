@@ -40,6 +40,21 @@ time <- function(label, expr) {
   invisible(t)
 }
 
+# Pool loading first (design section 16: a 1 MB descriptor set in under
+# 50 ms), before the large allocations below slow R's garbage collector: a
+# synthetic set of one file with enough message types to reach 1 MB.
+types <- lapply(seq_len(2600), function(i) {
+  list(name = sprintf("M%04d", i), field = lapply(seq_len(12), function(j) {
+    field(sprintf("field_%02d", j), j, if (j %% 2) "TYPE_INT64" else "TYPE_STRING")
+  }))
+})
+big <- proto_encode(
+  list(file = list(list(name = "big.proto", package = "big", syntax = "proto3", message_type = types))),
+  "google.protobuf.FileDescriptorSet", pool
+)
+t_pool <- min(vapply(1:5, function(i) system.time(proto_pool(big))[["elapsed"]], numeric(1)))
+cat(sprintf("%-46s %8.3f s  (%.2f MB)\n", "proto_pool(), a descriptor set of", t_pool, length(big) / 1e6))
+
 cat(sprintf("zuproto %s, upb from protobuf %s, R %s, n = %s\n",
             zuproto_info()$version, zuproto_info()$protobuf,
             getRversion(), format(n, big.mark = ",")))
@@ -60,7 +75,28 @@ t_one <- time(sprintf("proto_decode() + rbind, %s messages", format(k, big.mark 
 cat(sprintf("proto_decode_df() is %.0fx faster than one proto_decode() per message\n", t_one / t_list))
 
 if (requireNamespace("RProtoBuf", quietly = TRUE)) {
-  cat("RProtoBuf is installed; add its timing here.\n")
+  proto <- tempfile(fileext = ".proto")
+  writeLines(c(
+    'syntax = "proto3";', "package bench;",
+    "message Row { int64 id = 1; double value = 2; int32 count = 3; bool flag = 4; string name = 5; }"
+  ), proto)
+  RProtoBuf::readProtoFiles(proto)
+  Row <- RProtoBuf::P("bench.Row")
+  t_rpb <- time(sprintf("RProtoBuf read() + as.list + rbind, %s", format(k, big.mark = ",")), {
+    rows_rpb <- lapply(msgs, function(m) as.list(RProtoBuf::read(Row, m)))
+    do.call(rbind.data.frame, rows_rpb)
+  })
+  cat(sprintf("proto_decode_df() is %.0fx faster than RProtoBuf on the same %s messages\n", t_rpb / t_list, format(k, big.mark = ",")))
+  m1 <- msgs[[1]]
+  r1 <- RProtoBuf::read(Row, m1)
+  reps <- 2e4
+  t_dec <- system.time(for (i in seq_len(reps)) proto_decode(m1, "bench.Row", pool))[["elapsed"]]
+  t_rdec <- system.time(for (i in seq_len(reps)) RProtoBuf::read(Row, m1))[["elapsed"]]
+  x1 <- proto_decode(m1, "bench.Row", pool)
+  t_enc <- system.time(for (i in seq_len(reps)) proto_encode(x1, "bench.Row", pool))[["elapsed"]]
+  t_renc <- system.time(for (i in seq_len(reps)) RProtoBuf::serialize(r1, NULL))[["elapsed"]]
+  cat(sprintf("one message, %s times: proto_decode() %.2f s vs read() %.2f s (%.2fx); proto_encode() %.2f s vs serialize() %.2f s (%.2fx)\n",
+              format(reps, big.mark = ","), t_dec, t_rdec, t_dec / t_rdec, t_enc, t_renc, t_enc / t_renc))
 } else {
   cat("RProtoBuf is not installed: no comparison.\n")
 }

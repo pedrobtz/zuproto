@@ -52,3 +52,6 @@ CRAN-SUBMISSION
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# A crashing input from tools/fuzz/standalone.c
+crash-input

@@ -196,3 +196,18 @@ test_that("integer64 values encode exactly", {
     class = "zuproto_type_mismatch"
   )
 })
+
+test_that("Timestamp and Duration nanos out of range are refused in JSON", {
+  pool <- proto_pool()
+  # Duration{nanos = -2^31} and Timestamp{nanos = -1}, which binary allows.
+  dur <- c(as.raw(0x10), varint(2^64 - 2^31))
+  ts <- c(as.raw(0x10), as.raw(c(rep(0xff, 9), 0x01))) # -1 as a 10-byte varint
+  expect_error(
+    proto_to_json(dur, "google.protobuf.Duration", pool),
+    class = "zuproto_json_error"
+  )
+  expect_error(
+    proto_to_json(ts, "google.protobuf.Timestamp", pool),
+    class = "zuproto_json_error"
+  )
+})

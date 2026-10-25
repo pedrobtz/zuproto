@@ -1,0 +1,2 @@
+# zuproto does not support text format (design section 2), so the testee
+# skips every text format test.

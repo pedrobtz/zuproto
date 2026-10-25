@@ -15,3 +15,5 @@
 ^pkgdown$
 ^\.superpowers$
 ^\.worktrees$
+^tools/fuzz$
+^tools/conformance$
