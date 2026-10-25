@@ -21,7 +21,7 @@ documentation and release, and `Full CI` goes in before the release.
 | 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | [#17](https://github.com/pedrobtz/zuproto/pull/17) | 2026-10-25 |
 | 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | [#18](https://github.com/pedrobtz/zuproto/pull/18) | 2026-10-25 |
 | 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | [#19](https://github.com/pedrobtz/zuproto/pull/19) | 2026-10-25 |
-| 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | | 2026-10-25 |
+| 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | [#20](https://github.com/pedrobtz/zuproto/pull/20) | 2026-10-25 |
 | 7 | [Conformance, fuzzing and hostile inputs](#stage-7--conformance-fuzzing-and-hostile-inputs) | quick | [#9](https://github.com/pedrobtz/zuproto/issues/9) | | |
 | 8 | [Documentation](#stage-8--documentation) | quick | [#10](https://github.com/pedrobtz/zuproto/issues/10) | | |
 | 9 | [Full CI](#stage-9--full-ci) | full | [#11](https://github.com/pedrobtz/zuproto/issues/11) | | |
