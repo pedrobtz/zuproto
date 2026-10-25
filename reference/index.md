@@ -14,9 +14,14 @@
 - [`proto_read_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
   [`proto_write_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
   : Length-delimited streams
+- [`proto_to_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
+  [`proto_from_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
+  : Protobuf JSON
 - [`proto_types()`](https://pedrobtz.github.io/zuproto/reference/proto_types.md)
   [`proto_fields()`](https://pedrobtz.github.io/zuproto/reference/proto_types.md)
   : Message types and their fields
+- [`proto_unpack_any()`](https://pedrobtz.github.io/zuproto/reference/proto_unpack_any.md)
+  : Unpack an Any
 - [`zuproto-conditions`](https://pedrobtz.github.io/zuproto/reference/zuproto-conditions.md)
   : Conditions raised by zuproto
 - [`zuproto_info()`](https://pedrobtz.github.io/zuproto/reference/zuproto_info.md)

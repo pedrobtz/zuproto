@@ -33,3 +33,11 @@
   and
   [`proto_write_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
   read and write length-delimited streams, in chunks with `each`.
+- [`proto_to_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
+  and
+  [`proto_from_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
+  convert to and from protobuf’s canonical JSON mapping through upb, and
+  to and from R values through zujson when it is installed.
+  [`proto_unpack_any()`](https://pedrobtz.github.io/zuproto/reference/proto_unpack_any.md)
+  decodes an `Any`. `int64 = "integer64"` decodes 64-bit fields as bit64
+  vectors.

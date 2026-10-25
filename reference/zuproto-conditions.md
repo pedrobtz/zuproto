@@ -70,12 +70,21 @@ Every class below inherits from `zuproto_error`.
   [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
   with `check_required = TRUE`: a proto2 `required` field is not set.
 
+- `zuproto_json_error`:
+
+  [`proto_from_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
+  was given JSON that is not valid, or not the type's, or
+  [`proto_to_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
+  could not write a message (an `Any` whose packed type is not in the
+  pool). Carries `detail`, upb's description.
+
 - `zuproto_limit_error`:
 
   A limit was reached. The subclasses `zuproto_size_limit` (the input,
-  or the memory decoding it needs, is too large for `max_size`) and
-  `zuproto_depth_limit` (messages nest deeper than `max_depth`) name
-  which. Carries `limit`, the argument's name, and `limit_value`.
+  or the memory decoding it needs, is too large for `max_size`),
+  `zuproto_depth_limit` (messages nest deeper than `max_depth`) and
+  `zuproto_row_limit` (more rows than `max_rows`) name which. Carries
+  `limit`, the argument's name, and `limit_value`.
 
 Warnings inherit `zuproto_warning`:
 

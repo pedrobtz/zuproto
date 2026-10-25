@@ -13,7 +13,7 @@ proto_decode_df(
   type,
   pool,
   field = NULL,
-  int64 = c("double", "character"),
+  int64 = c("double", "character", "integer64"),
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
@@ -50,8 +50,12 @@ proto_decode_df(
 - int64:
 
   How 64-bit integer fields become R values: `"double"` (values beyond
-  2^53 lose precision, with a `zuproto_precision_loss` warning) or
-  `"character"` (exact decimal strings).
+  2^53 lose precision, with a `zuproto_precision_loss` warning),
+  `"character"` (exact decimal strings) or `"integer64"`
+  ([`bit64::integer64()`](https://bit64.r-lib.org/reference/bit64-package.html)
+  vectors, exact for signed values; needs bit64). Under `"integer64"`,
+  `-2^63` (bit64's `NA`) and `uint64` values above `2^63 - 1` become
+  `NA` with a `zuproto_precision_loss` warning.
 
 - enums:
 

@@ -45,6 +45,8 @@
 <code><a href="../reference/proto_encode.html">proto_encode()</a></code> encodes a named list as one message, deterministically, the inverse of <code><a href="../reference/proto_decode.html">proto_decode()</a></code>; a value of the wrong form fails with a <code>zuproto_type_mismatch</code> naming the field.</li>
 <li>
 <code><a href="../reference/proto_decode_df.html">proto_decode_df()</a></code> decodes many messages, or the elements of one message’s repeated field (<code>field =</code>), into a data frame built column by column. <code><a href="../reference/proto_read_delimited.html">proto_read_delimited()</a></code> and <code><a href="../reference/proto_read_delimited.html">proto_write_delimited()</a></code> read and write length-delimited streams, in chunks with <code>each</code>.</li>
+<li>
+<code><a href="../reference/proto_to_json.html">proto_to_json()</a></code> and <code><a href="../reference/proto_to_json.html">proto_from_json()</a></code> convert to and from protobuf’s canonical JSON mapping through upb, and to and from R values through zujson when it is installed. <code><a href="../reference/proto_unpack_any.html">proto_unpack_any()</a></code> decodes an <code>Any</code>. <code>int64 = "integer64"</code> decodes 64-bit fields as bit64 vectors.</li>
 </ul></div>
   </main></div>
 
