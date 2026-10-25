@@ -5248,6 +5248,9 @@ static void jsonenc_timestamp(jsonenc* e, const upb_Message* msg,
     jsonenc_err(e,
                 "error formatting timestamp as JSON: maximum acceptable value "
                 "is 9999-12-31T23:59:59Z");
+  } else if (nanos < 0 || nanos > 999999999) {
+    // zuproto: nanos must be in [0, 999999999], as for Duration above.
+    jsonenc_err(e, "error formatting timestamp as JSON: nanos out of range");
   }
 
   /* Julian Day -> Y/M/D, Algorithm from:
@@ -5283,7 +5286,10 @@ static void jsonenc_duration(jsonenc* e, const upb_Message* msg,
   int32_t nanos = upb_Message_GetFieldByDef(msg, nanos_f).int32_val;
   bool negative = false;
 
+  // zuproto: nanos out of range is a bad duration too; negating -2^31
+  // below is undefined (UBSan, fuzz_decode).
   if (seconds > 315576000000 || seconds < -315576000000 ||
+      nanos > 999999999 || nanos < -999999999 ||
       (seconds != 0 && nanos != 0 && (seconds < 0) != (nanos < 0))) {
     jsonenc_err(e, "bad duration");
   }

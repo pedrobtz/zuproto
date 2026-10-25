@@ -14,6 +14,7 @@ Vendored dependency: upb and utf8_range, from Protocol Buffers
                  0005-flexible-str.patch
                  0006-any-empty-url.patch
                  0007-json-any-arena-leak.patch
+                 0008-json-nanos-range.patch
   Upstream SHA-256, before patching:
                  4954a9cc98c822fa6eae14df779cc806434800a7283f2be4f02942bf65f51a13  upb/ruby-upb.c
                  c05d895292cb6929a12a892eea2c759f442f6ad0b693448f7cf5e17c59b411a6  upb/ruby-upb.h
