@@ -13,5 +13,6 @@ SEXP zpb_set_files(SEXP raw);
 SEXP zpb_pool_add_file(SEXP ptr, SEXP raw);
 SEXP zpb_pool_types(SEXP ptr, SEXP files);
 SEXP zpb_pool_fields(SEXP ptr, SEXP type);
+SEXP zpb_decode(SEXP ptr, SEXP type, SEXP raw, SEXP opts);
 
 #endif
