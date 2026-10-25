@@ -239,19 +239,34 @@ the main thing slowing roadmaps down, so:
 
 ## Vendored native code
 
-upb, as protobuf’s checked-in Ruby amalgamation (`ruby-upb.{c,h}`, to
-become `src/upb/upb.{c,h}`), plus `third_party/utf8_range`, from the
-protobuf repository, with their licences in `inst/COPYRIGHTS`. Not
-vendored yet: Stage 0 picks the release tag (`v36.2` or later) and fills
-in `src/upb/VERSION`, `tools/vendor-upb` and `tools/patches/`.
+upb, as protobuf’s checked-in Ruby amalgamation
+(`src/vendor/upb/ruby-upb.{c,h}`), plus `utf8_range`
+(`src/vendor/utf8_range/`), at protobuf `v36.2` (BSD-3-Clause and MIT;
+`inst/COPYRIGHTS`). `src/vendor/PROVENANCE` records the tag, commit,
+upstream hashes and patch series. `tools/vendor-upb <tag>` re-vendors,
+`tools/verify-vendor` (run by the `vendor` workflow) checks “upstream
+plus exactly these patches”, and `tools/make-pedantic-patch` regenerates
+`0003-pedantic.patch`. Design §9 says why each patch exists.
+
+- **Never hand-edit `src/vendor/`.** Change a patch in `tools/patches/`
+  and re-run `tools/vendor-upb`, or `tools/verify-vendor` fails.
+
+- **`devtools::load_all()` builds without `NDEBUG`**, which brings
+  `assert()` and upb’s unreachable-failure path back. Judge symbols and
+  compiled-code NOTEs on an `R CMD INSTALL` build; `test-symbols.R`
+  skips dev builds.
 
 - Pin a stable upstream release, never `master` or a release candidate.
+
 - Record the tag, the commit and the checksums, and write down the
   update procedure so the next bump is mechanical.
+
 - Keep upstream `LICENSE` and `NOTICE` under `src/vendor/<lib>/`,
   declare the vendored code in `DESCRIPTION` and `inst/COPYRIGHTS`.
+
 - Keep the vendor tree clearly separated from first-party source, and
   record every local patch and why it exists.
+
 - **CRAN’s compiled-code check applies to vendored code too.** No
   `stdout` or `stderr`, no `printf`, `abort`, `exit` or system RNG may
   be linked, even behind a debug switch that never runs. Remove them
@@ -262,6 +277,7 @@ in `src/upb/VERSION`, `tools/vendor-upb` and `tools/patches/`.
   `tools/patches/0002-no-stdio.patch` and `tools/verify-vendor`. zuxml’s
   first upload was archived because it justified such a symbol instead
   of patching it.
+
 - Guard against regressions in CI: run `nm -u` on the built objects and
   fail on any of those symbols, so an upstream bump cannot bring them
   back.

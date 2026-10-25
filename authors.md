@@ -4,6 +4,12 @@
 
 - **Pedro Baltazar**. Author, maintainer, copyright holder.
 
+- **Google LLC**. Copyright holder.  
+  upb and utf8_range, bundled in src/vendor
+
+- **Yibo Cai**. Copyright holder.  
+  utf8_range, bundled in src/vendor/utf8_range
+
 ## Citation
 
 Source:
