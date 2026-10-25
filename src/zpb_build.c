@@ -658,3 +658,212 @@ SEXP zpb_build(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg *msg)
 {
     return build_message(ctx, m, msg);
 }
+
+/* ---- Data frames (design section 6.2 and 6.4) ----
+ *
+ * One column at a time, each filled across every row. `rows[i]` is row i's
+ * message, or NULL where the row has none (a nested message its parent did
+ * not set), which makes every column of that row NA. */
+
+static void set_na(SEXP col, R_xlen_t i)
+{
+    switch (TYPEOF(col)) {
+    case LGLSXP: LOGICAL(col)[i] = NA_LOGICAL; break;
+    case INTSXP: INTEGER(col)[i] = NA_INTEGER; break;
+    case REALSXP: REAL(col)[i] = NA_REAL; break;
+    case STRSXP: SET_STRING_ELT(col, i, NA_STRING); break;
+    default: SET_VECTOR_ELT(col, i, R_NilValue); break;
+    }
+}
+
+static void check_interrupt(R_xlen_t i)
+{
+    if ((i & 0xffff) == 0xffff) R_CheckUserInterrupt();
+}
+
+static SEXP all_na(R_xlen_t n)
+{
+    SEXP col = Rf_allocVector(LGLSXP, n);
+    for (R_xlen_t i = 0; i < n; i++) LOGICAL(col)[i] = NA_LOGICAL;
+    return col;
+}
+
+static SEXP make_frame(SEXP cols, SEXP names, R_xlen_t n)
+{
+    Rf_setAttrib(cols, R_NamesSymbol, names);
+    SEXP rn = PROTECT(Rf_allocVector(INTSXP, 2));
+    INTEGER(rn)[0] = NA_INTEGER;
+    INTEGER(rn)[1] = -(int) n;
+    Rf_setAttrib(cols, R_RowNamesSymbol, rn);
+    Rf_setAttrib(cols, R_ClassSymbol, Rf_mkString("data.frame"));
+    UNPROTECT(1);
+    return cols;
+}
+
+static SEXP build_frame(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg **rows,
+                        R_xlen_t n);
+
+/* A message field that is not a well-known type, as a nested data frame,
+ * or an all-NA column when no row sets it (which also ends recursive
+ * types where the data does). */
+static SEXP nested_column(zpb_build_ctx *ctx, const zpb_fielddef *f, const zpb_msg **rows,
+                          R_xlen_t n)
+{
+    const zpb_msg **sub = n > 0 ? (const zpb_msg **) R_alloc((size_t) n, sizeof *sub) : NULL;
+    int any = 0;
+    for (R_xlen_t i = 0; i < n; i++) {
+        sub[i] = rows[i] != NULL && zpb_msg_has(rows[i], f) ? zpb_msg_get(rows[i], f).msg_val
+                                                            : NULL;
+        any |= sub[i] != NULL;
+    }
+    if (!any) return all_na(n);
+    return build_frame(ctx, zpb_field_msgdef(f), sub, n);
+}
+
+/* A singular field's column: atomic for scalars and scalar-like
+ * well-known types, a list for bytes and the other well-known types. */
+static SEXP singular_column(zpb_build_ctx *ctx, const zpb_fielddef *f, const zpb_msg **rows,
+                            R_xlen_t n)
+{
+    /* A message with no fields (Empty) would be a frame of no columns, which
+     * cannot say whether a row set it: it is a list column instead. */
+    if (zpb_field_ctype(f) == ZPB_CTYPE_MESSAGE &&
+        zpb_msgdef_wkt(zpb_field_msgdef(f)) == ZPB_WKT_NONE &&
+        zpb_msgdef_field_count(zpb_field_msgdef(f)) > 0)
+        return nested_column(ctx, f, rows, n);
+
+    SEXP col = PROTECT(alloc_values(ctx, f, n));
+    int presence = zpb_field_has_presence(f);
+    for (R_xlen_t i = 0; i < n; i++) {
+        check_interrupt(i);
+        const zpb_msg *row = rows[i];
+        if (row == NULL || (presence && !zpb_msg_has(row, f))) {
+            set_na(col, i);
+            continue;
+        }
+        zpb_value v = zpb_msg_get(row, f);
+        if (!presence && !ctx->defaults && is_default(f, v)) {
+            set_na(col, i);
+            continue;
+        }
+        if (set_value(ctx, f, col, i, v) < 0) {
+            UNPROTECT(1);
+            return NULL;
+        }
+    }
+    finish_values(ctx, f, col);
+    UNPROTECT(1);
+    return col;
+}
+
+/* A repeated field or map's column: a list, one value per row; repeated
+ * messages that are not well-known types become a data frame per row. */
+static SEXP list_column(zpb_build_ctx *ctx, const zpb_fielddef *f, const zpb_msg **rows,
+                        R_xlen_t n)
+{
+    int is_map = zpb_field_is_map(f);
+    int frames = !is_map && zpb_field_ctype(f) == ZPB_CTYPE_MESSAGE &&
+                 zpb_msgdef_wkt(zpb_field_msgdef(f)) == ZPB_WKT_NONE;
+    SEXP col = PROTECT(Rf_allocVector(VECSXP, n));
+    for (R_xlen_t i = 0; i < n; i++) {
+        check_interrupt(i);
+        if (rows[i] == NULL) continue; /* NULL element */
+        zpb_value v = zpb_msg_get(rows[i], f);
+        SEXP x;
+        if (is_map) {
+            x = build_map(ctx, f, v.map_val);
+        } else if (frames) {
+            size_t k = zpb_array_size(v.array_val);
+            const zpb_msg **elts =
+                k > 0 ? (const zpb_msg **) R_alloc(k, sizeof *elts) : NULL;
+            for (size_t j = 0; j < k; j++) elts[j] = zpb_array_get(v.array_val, j).msg_val;
+            x = build_frame(ctx, zpb_field_msgdef(f), elts, (R_xlen_t) k);
+        } else {
+            x = build_array(ctx, f, v.array_val);
+        }
+        if (x == NULL) {
+            UNPROTECT(1);
+            return NULL;
+        }
+        SET_VECTOR_ELT(col, i, x);
+    }
+    UNPROTECT(1);
+    return col;
+}
+
+static SEXP field_column(zpb_build_ctx *ctx, const zpb_fielddef *f, const zpb_msg **rows,
+                         R_xlen_t n)
+{
+    if (zpb_field_is_map(f) || zpb_field_is_repeated(f)) return list_column(ctx, f, rows, n);
+    return singular_column(ctx, f, rows, n);
+}
+
+static SEXP build_frame(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg **rows,
+                        R_xlen_t n)
+{
+    R_CheckStack();
+    int nf = zpb_msgdef_field_count(m);
+    ptrdiff_t ne = zpb_defpool_extensions(ctx->pool, m, NULL, 0);
+    if (ne < 0) Rf_error("zuproto: out of memory listing extensions");
+    const zpb_fielddef **ext = NULL;
+    if (ne > 0) {
+        ext = (const zpb_fielddef **) R_alloc((size_t) ne, sizeof *ext);
+        ne = zpb_defpool_extensions(ctx->pool, m, ext, (size_t) ne);
+    }
+    int no = 0;
+    for (int i = 0; i < zpb_msgdef_oneof_count(m); i++)
+        no += !zpb_oneof_is_synthetic(zpb_msgdef_oneof(m, i));
+
+    R_xlen_t ncol = nf + (R_xlen_t) ne + no, k = 0;
+    SEXP cols = PROTECT(Rf_allocVector(VECSXP, ncol));
+    SEXP names = PROTECT(Rf_allocVector(STRSXP, ncol));
+
+    for (R_xlen_t j = 0; j < nf + (R_xlen_t) ne; j++) {
+        const zpb_fielddef *f = j < nf ? zpb_msgdef_field(m, (int) j) : ext[j - nf];
+        SEXP col = field_column(ctx, f, rows, n);
+        if (col == NULL) {
+            UNPROTECT(2);
+            return NULL;
+        }
+        SET_VECTOR_ELT(cols, k, col);
+        if (j < nf) {
+            SET_STRING_ELT(names, k, Rf_mkCharCE(zpb_field_name(f), CE_UTF8));
+        } else {
+            const char *full = zpb_field_full_name(f);
+            size_t len = strlen(full) + 3;
+            char *bracketed = R_alloc(len, 1);
+            snprintf(bracketed, len, "[%s]", full);
+            SET_STRING_ELT(names, k, Rf_mkCharCE(bracketed, CE_UTF8));
+        }
+        k++;
+    }
+
+    /* `<oneof>_case`: the name of the member each row sets, or NA. */
+    for (int o = 0; o < zpb_msgdef_oneof_count(m); o++) {
+        const zpb_oneofdef *od = zpb_msgdef_oneof(m, o);
+        if (zpb_oneof_is_synthetic(od)) continue;
+        SEXP col = Rf_allocVector(STRSXP, n);
+        SET_VECTOR_ELT(cols, k, col);
+        for (R_xlen_t i = 0; i < n; i++) {
+            const zpb_fielddef *set = rows[i] != NULL ? zpb_msg_which_oneof(rows[i], od) : NULL;
+            SET_STRING_ELT(col, i, set != NULL ? Rf_mkCharCE(zpb_field_name(set), CE_UTF8)
+                                               : NA_STRING);
+        }
+        const char *name = zpb_oneof_name(od);
+        size_t len = strlen(name) + 6;
+        char *case_name = R_alloc(len, 1);
+        snprintf(case_name, len, "%s_case", name);
+        SET_STRING_ELT(names, k, Rf_mkCharCE(case_name, CE_UTF8));
+        k++;
+    }
+
+    make_frame(cols, names, n);
+    UNPROTECT(2);
+    return cols;
+}
+
+SEXP zpb_build_frame(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg **rows,
+                     R_xlen_t n)
+{
+    return build_frame(ctx, m, rows, n);
+}

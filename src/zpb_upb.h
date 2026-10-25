@@ -663,4 +663,36 @@ static inline char *zpb_encode_message(const zpb_msg *msg, const zpb_msgdef *m,
     return NULL;
 }
 
+/* ---- Oneofs, for data-frame `<oneof>_case` columns ---- */
+
+typedef upb_OneofDef zpb_oneofdef;
+
+static inline int zpb_msgdef_oneof_count(const zpb_msgdef *m)
+{
+    return upb_MessageDef_OneofCount(m);
+}
+
+static inline const zpb_oneofdef *zpb_msgdef_oneof(const zpb_msgdef *m, int i)
+{
+    return upb_MessageDef_Oneof(m, i);
+}
+
+/* proto3 `optional` fields sit in synthetic oneofs, which get no column. */
+static inline bool zpb_oneof_is_synthetic(const zpb_oneofdef *o)
+{
+    return upb_OneofDef_IsSynthetic(o);
+}
+
+static inline const char *zpb_oneof_name(const zpb_oneofdef *o)
+{
+    return upb_OneofDef_Name(o);
+}
+
+/* The member of o set in msg, or NULL. */
+static inline const zpb_fielddef *zpb_msg_which_oneof(const zpb_msg *msg,
+                                                      const zpb_oneofdef *o)
+{
+    return upb_Message_WhichOneofByDef(msg, o);
+}
+
 #endif

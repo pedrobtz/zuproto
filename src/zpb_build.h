@@ -33,4 +33,9 @@ const zpb_defpool *zpb_pool_get(SEXP ptr);
 /* m's message msg as an R value, or NULL with ctx->err set. */
 SEXP zpb_build(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg *msg);
 
+/* A data frame with one row per message of type m (rows[i] NULL: a row of
+ * NA), or NULL with ctx->err set. */
+SEXP zpb_build_frame(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg **rows,
+                     R_xlen_t n);
+
 #endif

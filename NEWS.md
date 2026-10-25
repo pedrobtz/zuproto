@@ -15,3 +15,7 @@
 * `proto_encode()` encodes a named list as one message, deterministically,
   the inverse of `proto_decode()`; a value of the wrong form fails with a
   `zuproto_type_mismatch` naming the field.
+* `proto_decode_df()` decodes many messages, or the elements of one
+  message's repeated field (`field =`), into a data frame built column by
+  column. `proto_read_delimited()` and `proto_write_delimited()` read and
+  write length-delimited streams, in chunks with `each`.

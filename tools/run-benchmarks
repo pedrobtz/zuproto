@@ -1,0 +1,66 @@
+#!/usr/bin/env Rscript
+# Benchmarks for design section 16. Run from the package root, against the
+# installed zuproto:
+#
+#   R CMD INSTALL . && tools/run-benchmarks [n]
+#
+# n messages (default 10^6) of a type with five scalar fields are decoded
+# into a data frame, from a list of raw vectors and from a length-delimited
+# stream, and singly with proto_decode() for comparison. RProtoBuf is timed
+# too when it is installed. Record the results in .agents/design.md.
+
+suppressPackageStartupMessages(library(zuproto))
+args <- commandArgs(trailingOnly = TRUE)
+n <- as.integer(if (length(args) > 0) as.numeric(args[[1]]) else 1e6)
+
+pool <- proto_pool()
+# The schema, written with descriptor.proto's own types so no protoc is
+# needed: message bench.Row { int64 id = 1; double value = 2; int32 count = 3;
+# bool flag = 4; string name = 5; }
+field <- function(name, number, type) {
+  list(name = name, number = number, label = "LABEL_OPTIONAL", type = type, json_name = name)
+}
+set <- proto_encode(
+  list(file = list(list(
+    name = "bench.proto", package = "bench", syntax = "proto3",
+    message_type = list(list(name = "Row", field = list(
+      field("id", 1L, "TYPE_INT64"), field("value", 2L, "TYPE_DOUBLE"),
+      field("count", 3L, "TYPE_INT32"), field("flag", 4L, "TYPE_BOOL"),
+      field("name", 5L, "TYPE_STRING")
+    )))
+  ))),
+  "google.protobuf.FileDescriptorSet", pool
+)
+proto_pool_add(pool, set)
+
+time <- function(label, expr) {
+  gc()
+  t <- system.time(force(expr))[["elapsed"]]
+  cat(sprintf("%-46s %8.2f s\n", label, t))
+  invisible(t)
+}
+
+cat(sprintf("zuproto %s, upb from protobuf %s, R %s, n = %s\n",
+            zuproto_info()$version, zuproto_info()$protobuf,
+            getRversion(), format(n, big.mark = ",")))
+rows <- data.frame(
+  id = as.double(seq_len(n)), value = seq_len(n) / 7, count = seq_len(n) %% 1000L,
+  flag = seq_len(n) %% 2L == 0L, name = paste0("row", seq_len(n))
+)
+time("encode n rows (proto_write_delimited)", stream <- proto_write_delimited(rows, "bench.Row", pool))
+# 10^5 single messages for the list-input and one-at-a-time comparisons.
+msgs <- lapply(seq_len(min(n, 1e5)), function(i) proto_encode(as.list(rows[i, ]), "bench.Row", pool))
+t_df <- time("proto_read_delimited(), n messages", df <- proto_read_delimited(stream, "bench.Row", pool))
+stopifnot(nrow(df) == n, identical(df$name[n], paste0("row", n)))
+k <- length(msgs)
+t_list <- time(sprintf("proto_decode_df(), %s raw vectors", format(k, big.mark = ",")),
+               proto_decode_df(msgs, "bench.Row", pool))
+t_one <- time(sprintf("proto_decode() + rbind, %s messages", format(k, big.mark = ",")),
+              do.call(rbind.data.frame, lapply(msgs, proto_decode, "bench.Row", pool)))
+cat(sprintf("proto_decode_df() is %.0fx faster than one proto_decode() per message\n", t_one / t_list))
+
+if (requireNamespace("RProtoBuf", quietly = TRUE)) {
+  cat("RProtoBuf is installed; add its timing here.\n")
+} else {
+  cat("RProtoBuf is not installed: no comparison.\n")
+}

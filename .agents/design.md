@@ -279,6 +279,15 @@ values of those types, become vectors rather than lists.
 
 ### 6.4 Data frames
 
+Decided in Stage 5 (2026-10-25): with `field = "<name>"`, the input is
+one message and the rows are the elements of that repeated message field
+(question 6); `<oneof>_case` columns hold the member set; every extension
+the pool knows for the type has a `[pkg.ext]` column; a message field
+that no row sets is an all-`NA` column, which is where a recursive
+type's columns end; a message type with no fields (`Empty`) is a list
+column, so set and unset stay distinct. Each failing message's
+condition carries `index`.
+
 `proto_decode_df()` decodes every message into one arena first, then
 builds column by column from the message definition: one pass over the
 messages per column, scalar columns written straight into their R
@@ -578,7 +587,18 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
 ## 16. Performance targets
 
 Measured by `tools/run-benchmarks` against `RProtoBuf` where it
-installs, and recorded in the design:
+installs, and recorded in the design.
+
+**Stage 5, 2026-10-25** (Intel i5-8500B, macOS, R 4.5.2, upb v36.2;
+10^6 messages of five scalar fields): `proto_read_delimited()` decodes
+them into a data frame in 0.32 s; `proto_decode_df()` on 10^5 raw
+vectors takes 0.07 s, 77 times faster than `proto_decode()` per message
+plus `rbind` (5.49 s). RProtoBuf was not installed, so the 10x target
+below is not yet measured. Encoding is the slow side: 51 s for
+`proto_write_delimited()` of 10^6 rows, which builds each row's list in
+R; no target covers it, and it is recorded for Stage 7.
+
+Targets:
 
 - `proto_decode_df()` on 10^6 small messages (5 scalar fields): at least
   10× faster than `RProtoBuf` reading the same messages and converting
@@ -652,7 +672,8 @@ Reasons where they are not in the section cited:
    rebinding `entity` builds the per-object lists that §6.4 avoids.
    Should there be a way to decode a repeated message field straight to a
    data frame, for example `proto_decode_df(raw, "transit_realtime.FeedMessage",
-   pool, field = "entity")`? Not yet decided.
+   pool, field = "entity")`? **Decided 2026-10-25: yes, `field =` on
+   `proto_decode_df()`** (§6.4).
 7. **Extensions.** `gtfs-realtime.proto` is proto2 and reserves extension
    ranges, and agencies publish extensions there. §2 and §6 say nothing
    about extensions, either in the pool (adding extension files) or in

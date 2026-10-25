@@ -57,6 +57,15 @@ static double opt_real(SEXP opts, const char *name)
     Rf_error("zuproto: missing decode option '%s'", name);
 }
 
+static const char *opt_str(SEXP opts, const char *name)
+{
+    SEXP names = Rf_getAttrib(opts, R_NamesSymbol);
+    for (R_xlen_t i = 0; i < XLENGTH(opts); i++)
+        if (strcmp(CHAR(STRING_ELT(names, i)), name) == 0)
+            return Rf_translateCharUTF8(STRING_ELT(VECTOR_ELT(opts, i), 0));
+    Rf_error("zuproto: missing decode option '%s'", name);
+}
+
 /* Decode raw as message type `type` of pool. Returns list(value, error,
  * field, precision_loss, unknown_enum); R/decode.R raises or warns. error
  * is NULL on success, else one of "unknown_type", "malformed",
@@ -119,5 +128,208 @@ SEXP zpb_decode(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
     holder_finalize(hptr);
     SEXP out = result(value, NULL, NULL, ctx.precision_loss, ctx.unknown_enum);
     UNPROTECT(2);
+    return out;
+}
+
+/* ---- Many messages (design sections 6.4 and 10) ---- */
+
+static SEXP df_result(SEXP value, const char *error, const char *field, double index,
+                      double consumed, double precision_loss, double unknown_enum)
+{
+    const char *names[] = {"value", "error", "field", "index", "consumed",
+                           "precision_loss", "unknown_enum", ""};
+    PROTECT(value);
+    SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
+    SET_VECTOR_ELT(out, 0, value);
+    SET_VECTOR_ELT(out, 1, error ? Rf_mkString(error) : R_NilValue);
+    SET_VECTOR_ELT(out, 2, field ? Rf_mkString(field) : R_NilValue);
+    SET_VECTOR_ELT(out, 3, Rf_ScalarReal(index));
+    SET_VECTOR_ELT(out, 4, Rf_ScalarReal(consumed));
+    SET_VECTOR_ELT(out, 5, Rf_ScalarReal(precision_loss));
+    SET_VECTOR_ELT(out, 6, Rf_ScalarReal(unknown_enum));
+    UNPROTECT(2);
+    return out;
+}
+
+static const char *decode_status_name(int status, const zpb_counting_alloc *ca)
+{
+    return status == ZPB_DECODE_MALFORMED ? "malformed"
+           : status == ZPB_DECODE_DEPTH   ? "max_depth"
+           : status == ZPB_DECODE_UTF8    ? "invalid_utf8"
+           : status == ZPB_DECODE_MEMORY  ? (ca->exceeded ? "arena_limit" : "out_of_memory")
+                                          : "other";
+}
+
+/* A varint at buf[*at], within len; -1 if the buffer ends inside it, -2 if
+ * it runs past ten bytes. */
+static int read_varint(const unsigned char *buf, size_t len, size_t *at, uint64_t *out)
+{
+    uint64_t v = 0;
+    for (int shift = 0; shift < 70; shift += 7) {
+        if (*at >= len) return -1;
+        unsigned char b = buf[(*at)++];
+        v |= (uint64_t) (b & 0x7f) << shift;
+        if (!(b & 0x80)) {
+            *out = v;
+            return 0;
+        }
+    }
+    return -2;
+}
+
+/* proto_decode_df(), proto_read_delimited(). mode 0: x is a list of raw
+ * vectors, one message each. mode 1: x is one message, and the rows are the
+ * elements of its repeated message field `field`. mode 2: x is a
+ * length-delimited buffer; whole messages are decoded, at most chunk_rows
+ * of them, and `consumed` says how many bytes they took, so the caller can
+ * keep the rest for the next chunk. Returns the data frame, or an error
+ * with `index`, the 1-based position of the message at fault. */
+SEXP zpb_decode_df(SEXP ptr, SEXP type, SEXP x, SEXP opts)
+{
+    const zpb_defpool *pool = zpb_pool_get(ptr);
+    const zpb_msgdef *m =
+        zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
+    if (m == NULL) return df_result(R_NilValue, "unknown_type", NULL, 0, 0, 0, 0);
+
+    zpb_build_ctx ctx = {0};
+    ctx.pool = pool;
+    ctx.int64 = opt_int(opts, "int64");
+    ctx.enums = opt_int(opts, "enums");
+    ctx.defaults = opt_int(opts, "defaults");
+    ctx.bytes_base64 = opt_int(opts, "bytes_base64");
+    int mode = opt_int(opts, "mode");
+    int max_depth = opt_int(opts, "max_depth");
+    double max_size = opt_real(opts, "max_size");
+    double max_rows = opt_real(opts, "max_rows");
+    double chunk_rows = opt_real(opts, "chunk_rows");
+    double arena_limit = opt_real(opts, "arena_limit");
+
+    decode_holder *h = (decode_holder *) calloc(1, sizeof *h);
+    if (h == NULL) Rf_error("zuproto: out of memory");
+    SEXP hptr = PROTECT(R_MakeExternalPtr(h, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(hptr, holder_finalize, TRUE);
+    h->arena = zpb_arena_new_limited(&h->alloc, (size_t) arena_limit);
+    if (h->arena == NULL) {
+        holder_finalize(hptr);
+        UNPROTECT(1);
+        return df_result(R_NilValue, "arena_limit", NULL, 0, 0, 0, 0);
+    }
+
+#define FAIL(err, field, index, consumed)                                    \
+    do {                                                                     \
+        holder_finalize(hptr);                                               \
+        UNPROTECT(1);                                                        \
+        return df_result(R_NilValue, err, field, index, consumed, 0, 0);     \
+    } while (0)
+
+    const zpb_msgdef *row_def = m;
+    const zpb_msg **rows = NULL;
+    R_xlen_t n = 0;
+    double consumed = 0;
+    int status;
+
+    if (mode == 0) {
+        n = XLENGTH(x);
+        rows = n > 0 ? (const zpb_msg **) R_alloc((size_t) n, sizeof *rows) : NULL;
+        for (R_xlen_t i = 0; i < n; i++) {
+            if ((i & 0xfff) == 0xfff) R_CheckUserInterrupt();
+            SEXP r = VECTOR_ELT(x, i);
+            rows[i] = zpb_decode_message(pool, m, (const char *) RAW(r), (size_t) XLENGTH(r),
+                                         h->arena, (uint16_t) max_depth, &status);
+            if (rows[i] == NULL) FAIL(decode_status_name(status, &h->alloc), NULL, i + 1, 0);
+        }
+    } else if (mode == 1) {
+        const char *fname = opt_str(opts, "field");
+        const zpb_fielddef *f = zpb_msgdef_find_field(m, fname, strlen(fname));
+        if (f == NULL || !zpb_field_is_repeated(f) || zpb_field_is_map(f) ||
+            zpb_field_ctype(f) != ZPB_CTYPE_MESSAGE)
+            FAIL("bad_field", NULL, 0, 0);
+        const zpb_msg *msg = zpb_decode_message(pool, m, (const char *) RAW(x),
+                                                (size_t) XLENGTH(x), h->arena,
+                                                (uint16_t) max_depth, &status);
+        if (msg == NULL) FAIL(decode_status_name(status, &h->alloc), NULL, 1, 0);
+        const zpb_array *a = zpb_msg_get(msg, f).array_val;
+        n = (R_xlen_t) zpb_array_size(a);
+        if ((double) n > max_rows) FAIL("max_rows", NULL, 0, 0);
+        rows = n > 0 ? (const zpb_msg **) R_alloc((size_t) n, sizeof *rows) : NULL;
+        for (R_xlen_t i = 0; i < n; i++) rows[i] = zpb_array_get(a, (size_t) i).msg_val;
+        row_def = zpb_field_msgdef(f);
+    } else {
+        const unsigned char *buf = RAW(x);
+        size_t len = (size_t) XLENGTH(x), at = 0;
+        size_t cap = 1024;
+        rows = (const zpb_msg **) R_alloc(cap, sizeof *rows);
+        while (at < len && (double) n < chunk_rows) {
+            if ((n & 0xfff) == 0xfff) R_CheckUserInterrupt();
+            size_t start = at;
+            uint64_t size;
+            int r = read_varint(buf, len, &at, &size);
+            if (r == -2) FAIL("malformed", NULL, (double) n + 1, (double) start);
+            if (r == -1) {
+                at = start; /* ends inside a varint: leave it for the next chunk */
+                break;
+            }
+            if ((double) size > max_size) FAIL("max_size", NULL, (double) n + 1, (double) start);
+            if (size > len - at) {
+                at = start; /* ends inside a message */
+                break;
+            }
+            if ((double) n + 1 > max_rows) FAIL("max_rows", NULL, 0, (double) start);
+            if ((size_t) n == cap) {
+                const zpb_msg **grown = (const zpb_msg **) R_alloc(2 * cap, sizeof *rows);
+                memcpy(grown, rows, cap * sizeof *rows);
+                rows = grown;
+                cap *= 2;
+            }
+            rows[n] = zpb_decode_message(pool, m, (const char *) buf + at, (size_t) size,
+                                         h->arena, (uint16_t) max_depth, &status);
+            if (rows[n] == NULL)
+                FAIL(decode_status_name(status, &h->alloc), NULL, (double) n + 1, (double) start);
+            at += (size_t) size;
+            n++;
+        }
+        consumed = (double) at;
+    }
+#undef FAIL
+
+    SEXP value = zpb_build_frame(&ctx, row_def, rows, n);
+    if (value == NULL) {
+        const char *err =
+            ctx.err == ZPB_BUILD_ERR_NUL ? "nul_in_string" : "string_too_long";
+        holder_finalize(hptr);
+        UNPROTECT(1);
+        return df_result(R_NilValue, err, ctx.err_field, 0, consumed, 0, 0);
+    }
+    PROTECT(value);
+    holder_finalize(hptr);
+    SEXP out = df_result(value, NULL, NULL, 0, consumed, ctx.precision_loss, ctx.unknown_enum);
+    UNPROTECT(2);
+    return out;
+}
+
+/* Raw messages joined as a length-delimited stream: each preceded by its
+ * length as a varint. */
+SEXP zpb_frame_delimited(SEXP msgs)
+{
+    R_xlen_t n = XLENGTH(msgs);
+    double total = 0;
+    for (R_xlen_t i = 0; i < n; i++) total += 10 + (double) XLENGTH(VECTOR_ELT(msgs, i));
+    if (total > R_XLEN_T_MAX) Rf_error("zuproto: the stream would be too long for a raw vector");
+    unsigned char *buf = (unsigned char *) R_alloc((size_t) total + 1, 1);
+    size_t at = 0;
+    for (R_xlen_t i = 0; i < n; i++) {
+        SEXP r = VECTOR_ELT(msgs, i);
+        uint64_t size = (uint64_t) XLENGTH(r);
+        do {
+            unsigned char b = size & 0x7f;
+            size >>= 7;
+            buf[at++] = size ? b | 0x80 : b;
+        } while (size);
+        if (XLENGTH(r) > 0) memcpy(buf + at, RAW(r), (size_t) XLENGTH(r));
+        at += (size_t) XLENGTH(r);
+    }
+    SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t) at));
+    if (at > 0) memcpy(RAW(out), buf, at);
+    UNPROTECT(1);
     return out;
 }
