@@ -13,6 +13,16 @@
 
 #define TWO_53_INT ((uint64_t) 1 << 53)
 
+/* Whether a 64-bit magnitude is exactly a double: what is left after its
+ * trailing zero bits must fit in the 53-bit significand. No cast of an
+ * out-of-range double back to an integer, which is undefined. */
+static int exact_in_double(uint64_t m)
+{
+    if (m <= TWO_53_INT) return 1;
+    while ((m & 1) == 0) m >>= 1;
+    return m < TWO_53_INT;
+}
+
 static SEXP build_message(zpb_build_ctx *ctx, const zpb_msgdef *m,
                           const zpb_msg *msg);
 
@@ -166,12 +176,10 @@ static int set_value(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out,
         } else {
             /* Judge exactness on the integer: past 2^53 a double cannot
              * tell a rounded value from an exact one. */
-            int exact = is_signed ? (v.int64_val >= -(int64_t) TWO_53_INT &&
-                                     v.int64_val <= (int64_t) TWO_53_INT) ||
-                                        (int64_t) (double) v.int64_val == v.int64_val
-                                  : v.uint64_val <= TWO_53_INT ||
-                                        (uint64_t) (double) v.uint64_val == v.uint64_val;
-            if (!exact) ctx->precision_loss++;
+            uint64_t mag = !is_signed            ? v.uint64_val
+                           : v.int64_val >= 0    ? (uint64_t) v.int64_val
+                                                 : (uint64_t) 0 - (uint64_t) v.int64_val;
+            if (!exact_in_double(mag)) ctx->precision_loss++;
             REAL(out)[i] = is_signed ? (double) v.int64_val : (double) v.uint64_val;
         }
         return 0;
