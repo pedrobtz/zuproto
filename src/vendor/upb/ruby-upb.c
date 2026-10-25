@@ -287,8 +287,16 @@ Error, UINTPTR_MAX is undefined
 #define UPB_FORCEINLINE __inline__ __attribute__((always_inline)) static
 #define UPB_NOINLINE __attribute__((noinline))
 #define UPB_NORETURN __attribute__((__noreturn__))
+#if defined(__MINGW32__)
+// zuproto: src/Makevars defines __USE_MINGW_ANSI_STDIO=1, so upb's
+// vsnprintf is MinGW's C99 one, which understands "%zu". Check formats
+// against that, not against the Microsoft printf "printf" means here.
+#define UPB_PRINTF(str, first_vararg) \
+  __attribute__((format(gnu_printf, str, first_vararg)))
+#else
 #define UPB_PRINTF(str, first_vararg) \
   __attribute__((format(printf, str, first_vararg)))
+#endif
 #elif defined(_MSC_VER)
 #define UPB_NOINLINE
 #define UPB_FORCEINLINE static
