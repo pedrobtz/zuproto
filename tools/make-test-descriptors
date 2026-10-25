@@ -1,0 +1,23 @@
+#!/bin/sh
+# Compile tests/testthat/fixtures/proto/*.proto into the descriptor sets the
+# tests load, with protoc. Run from the package root after changing a
+# .proto there; commit the .binpb files it writes.
+#
+# None uses --include_imports except all.binpb, so a set holds only its own
+# file and its imports must already be in the pool (the well-known types
+# always are). The tests join sets to build reversed-order and
+# missing-import cases.
+set -eu
+
+P=tests/testthat/fixtures/proto
+OUT=tests/testthat/fixtures
+command -v protoc >/dev/null || { echo "protoc is needed" >&2; exit 1; }
+
+for f in schema legacy editions dep uses_dep; do
+  protoc --proto_path="$P" --descriptor_set_out="$OUT/$f.binpb" "$P/$f.proto"
+done
+protoc --proto_path="$P/v2" --descriptor_set_out="$OUT/dep_v2.binpb" "$P/v2/dep.proto"
+protoc --proto_path="$P" --include_imports --descriptor_set_out="$OUT/all.binpb" \
+  "$P/schema.proto" "$P/legacy.proto" "$P/editions.proto" "$P/uses_dep.proto"
+
+echo "==> wrote $(ls "$OUT"/*.binpb | wc -l | tr -d ' ') descriptor sets with $(protoc --version)"

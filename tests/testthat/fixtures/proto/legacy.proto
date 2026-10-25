@@ -1,0 +1,14 @@
+// proto2, with an extension range and an extension of it.
+syntax = "proto2";
+
+package zpb.legacy;
+
+message Base {
+  required int32 id = 1;
+  optional string note = 2;
+  extensions 100 to 199;
+}
+
+extend Base {
+  optional string tag = 100;
+}

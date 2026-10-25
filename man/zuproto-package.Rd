@@ -25,5 +25,11 @@ Authors:
   \item Pedro Baltazar \email{pedrobtz@gmail.com} [copyright holder]
 }
 
+Other contributors:
+\itemize{
+  \item Google LLC (upb and utf8_range, bundled in src/vendor) [copyright holder]
+  \item Yibo Cai (utf8_range, bundled in src/vendor/utf8_range) [copyright holder]
+}
+
 }
 \keyword{internal}

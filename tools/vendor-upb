@@ -2,7 +2,10 @@
 # Vendor upb and utf8_range from a protobuf release tag into src/vendor/:
 # fetch the files tools/upb-files.txt lists at the tag's commit, record
 # their SHA-256 in src/vendor/PROVENANCE, then apply tools/patches/ in
-# order. Run from the package root; tools/verify-vendor checks the result.
+# order. Also compile the well-known types at that commit into
+# inst/descriptors/wkt.binpb with protoc (design section 8), and write
+# src/zpb_version.h for zuproto_info(). Run from the package root;
+# tools/verify-vendor checks the result.
 #
 #   tools/vendor-upb v36.2
 #
@@ -14,6 +17,11 @@ set -eu
 
 TAG=${1:?usage: tools/vendor-upb <tag>}
 REPO=https://github.com/protocolbuffers/protobuf
+# The well-known types, plus descriptor.proto, which schemas with custom
+# options import.
+WKT="any api descriptor duration empty field_mask source_context struct
+  timestamp type wrappers"
+command -v protoc >/dev/null || { echo "protoc is needed for wkt.binpb" >&2; exit 1; }
 
 COMMIT=$(git ls-remote "$REPO" "refs/tags/$TAG^{}" | cut -f1)
 [ -n "$COMMIT" ] || COMMIT=$(git ls-remote "$REPO" "refs/tags/$TAG" | cut -f1)
@@ -43,6 +51,24 @@ find "$WORK/tree" \( -name '*.orig' -o -name '*.rej' \) -delete
 rm -rf src/vendor/upb src/vendor/utf8_range
 cp -R "$WORK/tree/." src/vendor/
 
+mkdir -p "$WORK/protos/google/protobuf" inst/descriptors
+set --
+for w in $WKT; do
+  curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused \
+    -o "$WORK/protos/google/protobuf/$w.proto" \
+    "https://raw.githubusercontent.com/protocolbuffers/protobuf/$COMMIT/src/google/protobuf/$w.proto"
+  set -- "$@" "google/protobuf/$w.proto"
+done
+protoc --proto_path="$WORK/protos" \
+  --descriptor_set_out=inst/descriptors/wkt.binpb "$@"
+WKT_SUM=$(shasum -a 256 inst/descriptors/wkt.binpb | cut -d' ' -f1)
+
+cat > src/zpb_version.h <<EOF
+/* Written by tools/vendor-upb; checked by tools/verify-vendor. */
+#define ZPB_PROTOBUF_TAG "$TAG"
+#define ZPB_PROTOBUF_COMMIT "$COMMIT"
+EOF
+
 {
   cat <<EOF
 Vendored dependency: upb and utf8_range, from Protocol Buffers
@@ -60,12 +86,17 @@ EOF
   done
   echo "  Upstream SHA-256, before patching:"
   cat "$WORK/hashes"
+  echo "  Well-known types: inst/descriptors/wkt.binpb, $(protoc --version)"
+  printf '                 %s  %s\n' "$WKT_SUM" "wkt.binpb"
   cat <<'EOF'
 
 src/vendor/ is the files listed in tools/upb-files.txt, fetched at the
 commit above, with exactly the patches above applied. tools/verify-vendor
 re-derives the tree and fails on any other difference. The patches and why
-each exists are in .agents/design.md section 9.2.
+each exists are in .agents/design.md section 9.2. wkt.binpb is protoc's
+output for the well-known types at the commit above; tools/verify-vendor
+checks it against the SHA-256 above rather than regenerating it, since
+another protoc may encode the same files differently.
 EOF
 } > src/vendor/PROVENANCE
 

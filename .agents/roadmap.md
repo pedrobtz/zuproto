@@ -17,7 +17,7 @@ documentation and release, and `Full CI` goes in before the release.
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/zuproto/issues/2) | [#14](https://github.com/pedrobtz/zuproto/pull/14) | 2026-10-24 |
 | 1 | [Vendor upb](#stage-1--vendor-upb) | full | [#3](https://github.com/pedrobtz/zuproto/issues/3) | [#15](https://github.com/pedrobtz/zuproto/pull/15) | 2026-10-25 |
-| 2 | [Shim, pools and well-known types](#stage-2--shim-pools-and-well-known-types) | quick | [#4](https://github.com/pedrobtz/zuproto/issues/4) | | |
+| 2 | [Shim, pools and well-known types](#stage-2--shim-pools-and-well-known-types) | quick | [#4](https://github.com/pedrobtz/zuproto/issues/4) | [#16](https://github.com/pedrobtz/zuproto/pull/16) | 2026-10-25 |
 | 3 | [Decode one message](#stage-3--decode-one-message) | full | [#5](https://github.com/pedrobtz/zuproto/issues/5) | | |
 | 4 | [Encode one message](#stage-4--encode-one-message) | quick | [#6](https://github.com/pedrobtz/zuproto/issues/6) | | |
 | 5 | [Data frames and delimited streams](#stage-5--data-frames-and-delimited-streams) | quick | [#7](https://github.com/pedrobtz/zuproto/issues/7) | | |
@@ -159,6 +159,15 @@ header that touches upb.
   missing imports and conflicts fail with their condition classes.
 - The shim audit test passes.
 - `R CMD check` passes on the quick r-actions profile.
+
+**Deviations, 2026-10-25.**
+
+- `wkt.binpb` is checked by its SHA-256 in `src/vendor/PROVENANCE`,
+  through `tools/verify-vendor`, not by a test: base R before 4.5 has no
+  SHA-256, and the package supports R 4.1. The shim audit is in
+  `tools/verify-vendor` too, since the installed package has no `src/`.
+- Extensions decided with the maintainer (open question 7): design §8.
+- withr joins `Suggests` here, its first use in tests.
 
 **Design.** §8, §9.3, §11; §18 question 7.
 
@@ -408,7 +417,6 @@ No new features.
   reach CRAN (or at least r-universe, with `Additional_repositories`)
   before zuproto can suggest it; otherwise `int64 = "zuint"` waits for
   0.2.0.
-- **Extensions** (question 7): blocks Stage 2.
 - **`defaults = TRUE`** (question 2) and **a message class** (question 5):
   block Stage 3.
 - **A repeated field as a data frame** (question 6): blocks Stage 5, and
