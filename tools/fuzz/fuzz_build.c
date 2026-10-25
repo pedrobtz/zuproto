@@ -130,6 +130,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     FUZZ_CANARY(data, size);
     if (size < 1 || size > (1 << 16)) return 0;
     input in = {data, size};
+    /* The entry points use R_alloc(), which R frees when a .Call returns;
+     * called directly, that is this target's to do. */
+    const void *vmax = vmaxget();
     R_ToplevelExec(run, &in);
+    vmaxset(vmax);
     return 0;
 }

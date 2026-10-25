@@ -57,13 +57,20 @@ for t in fuzz_decode fuzz_json fuzz_build; do
   echo "==> $t: canary"
   build "$t" "$WORK/$t-canary" -DZPB_FUZZ_CANARY
   printf 'ZPB-CANARY' > "$WORK/canary"
+  # fuzz_build embeds R, whose heap outlives each input by design; the
+  # other targets keep ASan's default (leak checks where supported).
+  if [ "$t" = fuzz_build ]; then export ASAN_OPTIONS=detect_leaks=0; else unset ASAN_OPTIONS; fi
   if R_HOME=$(R RHOME) "$WORK/$t-canary" "$WORK/canary" > "$WORK/$t-canary.log" 2>&1; then
     echo "CANARY FAILED: $t did not crash on its canary" >&2
     status=1
     continue
   fi
-  grep -q 'stack-buffer-overflow' "$WORK/$t-canary.log" ||
-    { echo "CANARY FAILED: $t crashed, but not as ASan's overflow" >&2; status=1; continue; }
+  if ! grep -q 'stack-buffer-overflow' "$WORK/$t-canary.log"; then
+    echo "CANARY FAILED: $t crashed, but not as ASan's overflow:" >&2
+    tail -20 "$WORK/$t-canary.log" >&2
+    status=1
+    continue
+  fi
   echo "    crashed as it must"
   [ "${CANARY_ONLY:-0}" = 1 ] && continue
 
