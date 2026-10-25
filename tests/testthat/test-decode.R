@@ -189,6 +189,8 @@ test_that("well-known types decode as design section 6.3 maps them", {
 
   expect_s3_class(x$when, "POSIXct")
   expect_identical(attr(x$when, "tzone"), "UTC")
+  # 2026-10-25T12:34:56.123456789Z: nanos rounded to the microsecond.
+  expect_lt(abs(unclass(x$when) - (1792931696 + 0.123457)), 1e-6)
   expect_equal(
     unclass(x$when),
     unclass(as.POSIXct("2026-10-25 12:34:56", tz = "UTC")) + 0.123457,
@@ -447,5 +449,91 @@ test_that("unusable arguments are invalid arguments, naming the argument", {
   expect_error(
     proto_decode(list(), type, pool),
     class = "zuproto_invalid_argument"
+  )
+})
+
+test_that("precision loss is warned exactly when a 64-bit value is not exact", {
+  pool <- decode_pool()
+  # Scalars.f_int64 (field 8) = 2^53 + 1 and = 2^60, as Python's protobuf
+  # serialises them; R doubles cannot write 2^53 + 1 themselves.
+  hex <- function(h) {
+    as.raw(strtoi(substring(h, seq(1, nchar(h), 2), seq(2, nchar(h), 2)), 16L))
+  }
+  w <- expect_warning(
+    x <- proto_decode(hex("408180808080808010"), "zpb.decode.Scalars", pool),
+    class = "zuproto_precision_loss"
+  )
+  expect_identical(w$n, 1)
+  expect_identical(x$f_int64, 2^53)
+  expect_no_warning(
+    y <- proto_decode(hex("40808080808080808010"), "zpb.decode.Scalars", pool)
+  )
+  expect_identical(y$f_int64, 2^60)
+})
+
+test_that("a negative Duration keeps its sign", {
+  # Duration{seconds = -1, nanos = -500000000}, as Python's protobuf
+  # serialises it.
+  hex <- "08ffffffffffffffffff011080b6ca91feffffffff01"
+  raw <- as.raw(strtoi(substring(hex, seq(1, 43, 2), seq(2, 44, 2)), 16L))
+  x <- proto_decode(raw, "google.protobuf.Duration", proto_pool())
+  expect_identical(x, as.difftime(-1.5, units = "secs"))
+})
+
+test_that("unknown fields are kept on nested and repeated messages", {
+  # Repeated.points[0] = Point{x = 1, field 99 = 5}.
+  inner <- as.raw(c(0x08, 0x01, 0x98, 0x06, 0x05))
+  raw <- c(as.raw(0x32), varint(length(inner)), inner)
+  x <- proto_decode(raw, "zpb.decode.Repeated", decode_pool(), unknown = "keep")
+  expect_identical(
+    attr(x$points[[1]], "proto_unknown"),
+    as.raw(c(0x98, 0x06, 0x05))
+  )
+})
+
+# A map whose values allocate, large enough for the gctorture CI job to
+# collect a key's name while its value is built.
+test_that("a map whose values allocate keeps every key", {
+  pool <- decode_pool()
+  # Maps.points (field 5): 200 entries uint32 -> Point{x}, values allocate.
+  entry <- function(k) {
+    point <- c(as.raw(0x08), varint(k))
+    body <- c(
+      as.raw(0x08),
+      varint(k),
+      as.raw(0x12),
+      varint(length(point)),
+      point
+    )
+    c(as.raw(0x2a), varint(length(body)), body)
+  }
+  raw <- do.call(c, lapply(1:200, entry))
+  expected <- stats::setNames(lapply(1:200, function(k) list(x = k)), 1:200)
+  x <- proto_decode(raw, "zpb.decode.Maps", pool, defaults = FALSE)
+  expect_identical(x$points, expected)
+})
+
+test_that("max_depth is capped well below what the C stack can take", {
+  pool <- decode_pool()
+  err <- expect_error(
+    proto_decode(raw(), "zpb.decode.Nested", pool, max_depth = 1001),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "max_depth")
+  expect_no_error(proto_decode(
+    raw(),
+    "zpb.decode.Nested",
+    pool,
+    max_depth = 1000
+  ))
+})
+
+test_that("a Struct key with a NUL byte is unrepresentable", {
+  # Struct{fields: {"a\0b": Value{null_value}}}.
+  entry <- as.raw(c(0x0a, 0x03, 0x61, 0x00, 0x62, 0x12, 0x02, 0x08, 0x00))
+  raw <- c(as.raw(0x0a), as.raw(length(entry)), entry)
+  expect_error(
+    proto_decode(raw, "google.protobuf.Struct", proto_pool()),
+    class = "zuproto_unrepresentable"
   )
 })
