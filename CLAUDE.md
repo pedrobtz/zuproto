@@ -95,12 +95,13 @@ CONFORMANCE_RUNNER=<path> tools/conformance/run  # protobuf conformance suite
 R CMD INSTALL . && tools/run-benchmarks          # design section 16
 ```
 
-The conformance runner is built from protobuf at the vendored tag with
-CMake (`-Dprotobuf_BUILD_CONFORMANCE=ON`); `.github/workflows/conformance.yaml`
+The conformance runner is built from protobuf at the vendored tag with CMake
+(`-Dprotobuf_BUILD_CONFORMANCE=ON`); `.github/workflows/conformance.yaml`
 shows how. The runner matches each expected failure's message, so after a
 change that alters how a listed test fails, regenerate the list with
-`tools/conformance/update-failure-list.py`. After changing fixtures, run `Rscript tools/fuzz/make-fuzz-data.R`
-to refresh the fuzz seeds and `tools/fuzz/data.h`.
+`tools/conformance/update-failure-list.py`. After changing fixtures, run
+`Rscript tools/fuzz/make-fuzz-data.R` to refresh the fuzz seeds and
+`tools/fuzz/data.h`.
 
 ## Architecture
 
