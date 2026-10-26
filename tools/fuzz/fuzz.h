@@ -40,7 +40,7 @@ static const char *const zpb_fuzz_types[] = {
     "zpb.decode2.Legacy",   "google.protobuf.Struct", "google.protobuf.Value",
     "google.protobuf.Any",  "google.protobuf.Timestamp",
     "google.protobuf.FileDescriptorSet", "google.protobuf.Duration",
-    "zpb.decode.Point"};
+    "zpb.decode.Point",     "zpb.decode.Uint64Keys", "zpb.decode.Outer"};
 #define ZPB_FUZZ_NTYPES (sizeof zpb_fuzz_types / sizeof zpb_fuzz_types[0])
 
 /* The serialised descriptor set behind them (tools/fuzz/data.h). */

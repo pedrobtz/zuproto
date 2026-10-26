@@ -36,7 +36,7 @@ types <- c(
   "zpb.decode2.Legacy", "google.protobuf.Struct", "google.protobuf.Value",
   "google.protobuf.Any", "google.protobuf.Timestamp",
   "google.protobuf.FileDescriptorSet", "google.protobuf.Duration",
-  "zpb.decode.Point"
+  "zpb.decode.Point", "zpb.decode.Uint64Keys", "zpb.decode.Outer"
 )
 pool <- proto_pool(set)
 manifest <- utils::read.delim(file.path(fixtures, "msg", "MANIFEST.tsv"))
