@@ -122,6 +122,16 @@ test_that("proto_unpack_any() decodes the packed message", {
     proto_unpack_any(list(value = raw()), pool),
     class = "zuproto_invalid_argument"
   )
+  # #38: `type` in ... would shift proto_decode()'s arguments.
+  err <- expect_error(
+    proto_unpack_any(wk$any, pool, type = "zpb.decode.Point"),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "type")
+  expect_identical(
+    proto_unpack_any(wk$any, pool, defaults = FALSE),
+    list(x = 1L, y = 2L)
+  )
 })
 
 test_that("int64 = \"integer64\" decodes 64-bit fields exactly", {

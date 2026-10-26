@@ -230,6 +230,13 @@ json_error <- function(res, type, max_size, max_depth, call) {
 #' proto_unpack_any(any, pool)
 proto_unpack_any <- function(x, pool, ...) {
   call <- sys.call()
+  if ("type" %in% ...names()) {
+    zpb_invalid_argument(
+      "type",
+      "`type` comes from `x$type_url`; it cannot be given.",
+      call
+    )
+  }
   ok <- is.list(x) &&
     is.character(x$type_url) &&
     length(x$type_url) == 1L &&
