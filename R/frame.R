@@ -257,7 +257,7 @@ proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
     zpb_invalid_argument("path", "`path` must be NULL or a single path.", call)
   }
   if (is.data.frame(x)) {
-    msgs <- frame_rows(x, case_columns(pool, type))
+    msgs <- frame_rows(x, pool, type)
   } else if (is.list(x) && is.null(names(x))) {
     msgs <- x
   } else {
@@ -423,32 +423,56 @@ open_path <- function(x, call) {
   file(x, "rb")
 }
 
-# Names of the `<oneof>_case` columns of type, which encoding skips.
-case_columns <- function(pool, type) {
-  f <- proto_fields(pool, type)
-  paste0(unique(f$oneof[!is.na(f$oneof)]), "_case")
+# What frame_rows() needs of a message type, looked up once per type and
+# kept in `cache`: the names of its `<oneof>_case` columns, which encoding
+# skips, and the type of each message field, by column name, for the
+# columns nested inside it. NULL for a type the pool lacks.
+frame_type <- function(pool, type, cache) {
+  if (is.null(type)) {
+    return(NULL)
+  }
+  if (is.null(cache[[type]])) {
+    f <- proto_fields(pool, type)
+    msg <- !is.na(f$type_name)
+    names <- ifelse(f$extension, paste0("[", f$name, "]"), f$name)
+    cache[[type]] <- list(
+      skip = paste0(unique(f$oneof[!is.na(f$oneof)]), "_case"),
+      sub = as.list(stats::setNames(f$type_name[msg], names[msg]))
+    )
+  }
+  cache[[type]]
 }
 
 # A data frame's rows as messages for proto_encode(): a column's element i,
-# a list column's element, a data-frame column's row i as a message.
-frame_rows <- function(df, skip = character()) {
-  cols <- df[setdiff(names(df), skip)]
-  lapply(seq_len(nrow(df)), function(i) frame_row(cols, i))
+# a list column's element, a data-frame column's row i as a message. The
+# `<oneof>_case` columns are dropped at every level, by each message
+# type's own oneofs.
+frame_rows <- function(df, pool, type, cache = new.env(parent = emptyenv())) {
+  info <- frame_type(pool, type, cache)
+  cols <- df[setdiff(names(df), info$skip)]
+  lapply(seq_len(nrow(df)), function(i) frame_row(cols, i, pool, info, cache))
 }
 
-frame_row <- function(cols, i) {
-  out <- lapply(cols, function(col) {
-    if (is.data.frame(col)) {
-      row <- frame_row(col, i)
-      if (length(row) == 0L) NULL else row
-    } else if (is.list(col)) {
-      v <- col[[i]]
-      # A repeated message field's cell is a data frame of its elements.
-      if (is.data.frame(v)) frame_rows(v) else v
-    } else {
-      v <- col[i]
-      if (is.na(v)) NULL else v
-    }
-  })
+frame_row <- function(cols, i, pool, info, cache) {
+  out <- Map(
+    function(col, name) {
+      sub <- info$sub[[name]]
+      if (is.data.frame(col)) {
+        sub_info <- frame_type(pool, sub, cache)
+        col <- col[setdiff(names(col), sub_info$skip)]
+        row <- frame_row(col, i, pool, sub_info, cache)
+        if (length(row) == 0L) NULL else row
+      } else if (is.list(col)) {
+        v <- col[[i]]
+        # A repeated message field's cell is a data frame of its elements.
+        if (is.data.frame(v)) frame_rows(v, pool, sub, cache) else v
+      } else {
+        v <- col[i]
+        if (is.na(v)) NULL else v
+      }
+    },
+    cols,
+    names(cols)
+  )
   out[!vapply(out, is.null, logical(1))]
 }

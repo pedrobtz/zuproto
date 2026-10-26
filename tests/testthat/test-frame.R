@@ -12,10 +12,7 @@ test_that("each row encodes to the same bytes as the single-message decode", {
     expect_identical(nrow(df), 2L)
     single <- proto_decode(raw, types[[name]], pool, int64 = "character")
     expected <- proto_encode(single, types[[name]], pool)
-    for (row in zuproto:::frame_rows(
-      df,
-      zuproto:::case_columns(pool, types[[name]])
-    )) {
+    for (row in zuproto:::frame_rows(df, pool, types[[name]])) {
       expect_identical(
         proto_encode(row, types[[name]], pool),
         expected,
@@ -312,5 +309,20 @@ test_that("batches of thousands of small messages decode (the schema's ceiling)"
       field = "points"
     )),
     as.integer(n)
+  )
+})
+
+test_that("a decoded frame with nested oneofs writes back as it was read", {
+  # #28: the <oneof>_case columns of a message field's data frame, and of a
+  # repeated one's cells, were taken for fields.
+  pool <- decode_pool()
+  raw <- msg_fixture("outer")
+  df <- proto_decode_df(list(raw, raw), "zpb.decode.Outer", pool)
+  expect_identical(df$inner$kind_case, c("text", "text"))
+  expect_identical(df$items[[1]]$kind_case, c("number", "point", NA))
+  stream <- proto_write_delimited(df, "zpb.decode.Outer", pool)
+  expect_identical(
+    stream,
+    c(varint(length(raw)), raw, varint(length(raw)), raw)
   )
 })

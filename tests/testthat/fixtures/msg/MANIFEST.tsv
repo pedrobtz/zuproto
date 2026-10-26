@@ -7,6 +7,8 @@ maps	zpb.decode.Maps	python-protobuf 7.36.2 json_format.ParseDict	01daa9dba016e9
 choice_text	zpb.decode.Choice	python-protobuf 7.36.2 json_format.ParseDict	934f97bc6e051a034aa016136ac80ed2fcc678a3500a5a07baee49721306884f
 choice_point	zpb.decode.Choice	python-protobuf 7.36.2 json_format.ParseDict	ba6c5be5969389c839a29c3cb849bc729a543535ac6e926074e6fa806717a35d
 choice_none	zpb.decode.Choice	python-protobuf 7.36.2 json_format.ParseDict	169499cb84d07246a5e56b0f2e2576c9a3c464e8a2434d0f5946fd6099bf5708
+uint64_keys	zpb.decode.Uint64Keys	python-protobuf 7.36.2 json_format.ParseDict	cdc20b7ec1aa59add439db02cf03920e5b0c3cfc2acfb22fe3419cc440f651f3
+outer	zpb.decode.Outer	python-protobuf 7.36.2 json_format.ParseDict	2c86845db5e77a113f9a910a0d8cbe062574b0aeecc014de2d353e6f7d131b03
 wellknown	zpb.decode.WellKnown	python-protobuf 7.36.2 json_format.ParseDict	5d2f5d763fe1c1c0877ca2326f92f8d567d7c29b47a5c3cf99dc8fed471c5f95
 nested_3	zpb.decode.Nested	python-protobuf 7.36.2 json_format.ParseDict	f7145d9d7691add4fb311d003ffce5edae0a1e7e190c40ead3e66968a0d73ed1
 legacy_min	zpb.decode2.Legacy	python-protobuf 7.36.2 json_format.ParseDict	fb8da7eb5b1b399e7321179dac9e9f65773d7331e1e30554e3911e4325e1ef19

@@ -87,6 +87,14 @@ FIXTURES_MSG = {
     "choice_text": ("zpb.decode.Choice", {"text": "hi", "other": "o"}),
     "choice_point": ("zpb.decode.Choice", {"point": {"x": 1}}),
     "choice_none": ("zpb.decode.Choice", {"other": "o"}),
+    "uint64_keys": ("zpb.decode.Uint64Keys", {
+        "byUint64": {"18446744073709551615": "max", "1": "one",
+                     "9223372036854775808": "2^63"},
+    }),
+    "outer": ("zpb.decode.Outer", {
+        "inner": {"text": "hi"},
+        "items": [{"number": "3"}, {"point": {"x": 1}}, {"other": "o"}],
+    }),
     "wellknown": ("zpb.decode.WellKnown", {
         "when": "2026-10-25T12:34:56.123456789Z", "took": "90.5s",
         "i32": -3, "i64": "12", "u32": 4000000000, "u64": "5",
