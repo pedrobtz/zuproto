@@ -258,6 +258,11 @@ reserves that bit pattern for `NA`; a `string` holding a NUL byte is a
 `zuproto_unrepresentable` error naming the field. Warnings are raised
 once per call, with the count in `n`.
 
+Found by `fuzz_build` after Stage 7 (2026-10-26): a wire `double` whose
+bits are R's `NA` read as `NA`; every decoded NaN is now R's `NaN`, so a
+decoded double is never `NA`. Timestamp and Duration seconds beyond 2^53
+count as precision loss, as 64-bit integers do.
+
 ### 6.2 Messages, repeated, maps, oneofs
 
 | Protobuf | One message | Data-frame column |
