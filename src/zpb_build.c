@@ -142,10 +142,20 @@ static SEXP alloc_values(zpb_build_ctx *ctx, const zpb_fielddef *f, R_xlen_t n)
     return Rf_allocVector(VECSXP, n);
 }
 
-static double seconds_nanos(const zpb_msg *msg, const zpb_msgdef *m)
+/* A wire NaN whose payload is R's NA would read as NA; any NaN becomes R's
+ * NaN, so a decoded double is never NA and always re-encodes. */
+static double r_double(double d)
+{
+    return ISNAN(d) ? R_NaN : d;
+}
+
+static double seconds_nanos(zpb_build_ctx *ctx, const zpb_msg *msg, const zpb_msgdef *m)
 {
     int64_t s = zpb_msg_get(msg, zpb_msgdef_field_by_number(m, 1)).int64_val;
     int32_t ns = zpb_msg_get(msg, zpb_msgdef_field_by_number(m, 2)).int32_val;
+    /* Beyond 2^53 seconds a double cannot hold the value; warn, as for
+     * 64-bit integers. */
+    if (s > (int64_t) TWO_53_INT || s < -(int64_t) TWO_53_INT) ctx->precision_loss++;
     /* Sub-microsecond digits are rounded (design section 6.3). */
     return (double) s + nearbyint((double) ns / 1000.0) / 1e6;
 }
@@ -156,8 +166,8 @@ static int set_value(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out,
 {
     switch (zpb_field_ctype(f)) {
     case ZPB_CTYPE_BOOL: LOGICAL(out)[i] = v.bool_val; return 0;
-    case ZPB_CTYPE_FLOAT: REAL(out)[i] = (double) v.float_val; return 0;
-    case ZPB_CTYPE_DOUBLE: REAL(out)[i] = v.double_val; return 0;
+    case ZPB_CTYPE_FLOAT: REAL(out)[i] = r_double((double) v.float_val); return 0;
+    case ZPB_CTYPE_DOUBLE: REAL(out)[i] = r_double(v.double_val); return 0;
     case ZPB_CTYPE_UINT32: REAL(out)[i] = (double) v.uint32_val; return 0;
     case ZPB_CTYPE_INT32:
         if (v.int32_val == INT_MIN) ctx->precision_loss++;
@@ -231,7 +241,7 @@ static int set_value(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out,
         const zpb_msgdef *m = zpb_field_msgdef(f);
         int w = zpb_msgdef_wkt(m);
         if (w == ZPB_WKT_TIMESTAMP || w == ZPB_WKT_DURATION) {
-            REAL(out)[i] = seconds_nanos(v.msg_val, m);
+            REAL(out)[i] = seconds_nanos(ctx, v.msg_val, m);
             return 0;
         }
         if (w == ZPB_WKT_WRAPPER) {
@@ -482,7 +492,7 @@ static SEXP build_value_msg(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_m
         zpb_value v = zpb_msg_get(msg, f);
         switch (n) {
         case 1: return R_NilValue;
-        case 2: return Rf_ScalarReal(v.double_val);
+        case 2: return Rf_ScalarReal(r_double(v.double_val));
         case 3: {
             SEXP s = mk_utf8(ctx, zpb_str_from(v.str_val), f);
             return s == NULL ? NULL : Rf_ScalarString(s);
@@ -571,7 +581,7 @@ static SEXP build_message(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg
             const zpb_fielddef *vf = wrapper_value_field(m);
             return build_single(ctx, vf, zpb_msg_get(msg, vf));
         }
-        SEXP out = PROTECT(Rf_ScalarReal(seconds_nanos(msg, m)));
+        SEXP out = PROTECT(Rf_ScalarReal(seconds_nanos(ctx, msg, m)));
         if (zpb_msgdef_wkt(m) == ZPB_WKT_TIMESTAMP) {
             SEXP cls = PROTECT(Rf_allocVector(STRSXP, 2));
             SET_STRING_ELT(cls, 0, Rf_mkChar("POSIXct"));
