@@ -142,7 +142,7 @@ test_that("a message that fails names its index", {
     proto_decode_df(msgs, "zpb.decode.Nested", pool, max_size = 3),
     class = "zuproto_size_limit"
   )
-  expect_identical(err$index, 1L)
+  expect_identical(err$index, 1)
 })
 
 test_that("more rows than max_rows is a row limit error", {
@@ -269,7 +269,7 @@ test_that("proto_write_delimited() names the message that fails to encode", {
     ),
     class = "zuproto_type_mismatch"
   )
-  expect_identical(err$index, 2L)
+  expect_identical(err$index, 2)
   expect_error(
     proto_write_delimited(list(x = 1L), "zpb.decode.Point", pool),
     class = "zuproto_invalid_argument"
@@ -324,5 +324,41 @@ test_that("a decoded frame with nested oneofs writes back as it was read", {
   expect_identical(
     stream,
     c(varint(length(raw)), raw, varint(length(raw)), raw)
+  )
+})
+
+test_that("the readers and writers refuse unusable arguments", {
+  # #42: argument paths no other test takes.
+  pool <- decode_pool()
+  raw <- msg_fixture("nested_3")
+  expect_error(
+    proto_read_delimited("no/such/stream.bin", "zpb.decode.Nested", pool),
+    class = "zuproto_io_error"
+  )
+  err <- expect_error(
+    proto_read_delimited(raw, "zpb.decode.Nested", pool, each = 1),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "each")
+  err <- expect_error(
+    proto_write_delimited(list(list()), "zpb.decode.Nested", pool, path = 1),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "path")
+  err <- expect_error(
+    proto_decode_df(raw, "zpb.decode.Repeated", pool, field = NA),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "field")
+})
+
+test_that("proto_to_json() reads a message from a path", {
+  skip_if_not_installed("withr")
+  pool <- decode_pool()
+  path <- withr::local_tempfile(fileext = ".binpb")
+  writeBin(msg_fixture("nested_3"), path)
+  expect_identical(
+    proto_to_json(path, "zpb.decode.Nested", pool),
+    proto_to_json(msg_fixture("nested_3"), "zpb.decode.Nested", pool)
   )
 })

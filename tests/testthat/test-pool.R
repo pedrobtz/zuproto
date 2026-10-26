@@ -163,3 +163,29 @@ test_that("a pool prints its size", {
     "^<proto_pool: 11 files, [0-9]+ message types>$"
   )
 })
+
+test_that("a set whose imports form a cycle is a pool error", {
+  err <- expect_error(
+    proto_pool(fixture("cycle")),
+    class = "zuproto_pool_error"
+  )
+  expect_true(err$file %in% c("a.proto", "b.proto"))
+})
+
+test_that("a file upb rejects is a pool error naming it", {
+  err <- expect_error(
+    proto_pool(fixture("unresolved")),
+    class = "zuproto_pool_error"
+  )
+  expect_identical(err$file, "unresolved.proto")
+})
+
+test_that("files and connections that cannot be read are io errors", {
+  skip_if_not_installed("withr")
+  path <- withr::local_tempfile(fileext = ".binpb")
+  expect_error(proto_pool(file(path)), class = "zuproto_io_error")
+  writeBin(fixture("dep"), path)
+  con <- file(path, "wb") # open for writing: reading it fails
+  withr::defer(close(con))
+  expect_error(proto_pool(con), class = "zuproto_io_error")
+})

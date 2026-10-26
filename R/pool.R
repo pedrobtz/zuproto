@@ -148,13 +148,16 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
 
 read_connection <- function(con, call = NULL, limit = Inf) {
   if (!isOpen(con)) {
-    tryCatch(open(con, "rb"), error = function(e) {
+    # open() warns with the reason ("No such file or directory") before it
+    # fails with a generic error; the reason goes in the error.
+    fail_open <- function(e) {
       zpb_abort(
         "zuproto_io_error",
         sprintf("Cannot open connection: %s", conditionMessage(e)),
         call = call
       )
-    })
+    }
+    tryCatch(open(con, "rb"), warning = fail_open, error = fail_open)
     on.exit(close(con))
   }
   chunks <- list()

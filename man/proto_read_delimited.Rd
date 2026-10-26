@@ -66,7 +66,9 @@ counts as a level too, as upb counts it, so a message reached through
 a map is two levels down. At most 1000, so that hostile input cannot
 exhaust the C stack.}
 
-\item{max_rows}{The largest number of rows accepted.}
+\item{max_rows}{The largest number of rows accepted. With \code{each}, it
+bounds each chunk, not the whole stream, which is read a chunk at a
+time and never held whole.}
 
 \item{path}{\code{NULL} to return the stream, or a path to write it to.}
 

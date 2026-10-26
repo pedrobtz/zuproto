@@ -11,7 +11,9 @@ root, with the pinned protobuf release that matches the vendored tag:
 
 It writes tests/testthat/fixtures/msg/<name>.hex, the message's bytes as
 lower-case hex (R CMD check takes some short binary files for executables),
-and MANIFEST.tsv, with each message's type, source and SHA-256. Re-run after changing the fixture
+and MANIFEST.tsv, with each message's type, source and SHA-256; and
+tests/testthat/fixtures/{cycle,unresolved}.binpb, descriptor sets protoc
+would refuse to write. Re-run after changing the fixture
 schemas (tools/make-test-descriptors) or the messages below.
 """
 
@@ -138,3 +140,36 @@ with open(os.path.join(OUT, "MANIFEST.tsv"), "w") as f:
     for row in rows:
         f.write("\t".join(row) + "\n")
 print(f"==> wrote {len(rows)} messages to {OUT}")
+
+
+# Descriptor sets protoc refuses to write, for the pool's error paths
+# (#42), built with descriptor_pb2 rather than by hand.
+def file_set(*files):
+    fds = descriptor_pb2.FileDescriptorSet()
+    for name, deps, messages in files:
+        f = fds.file.add(name=name, package="zpb.bad", syntax="proto3")
+        f.dependency.extend(deps)
+        for msg_name, fields in messages:
+            m = f.message_type.add(name=msg_name)
+            for field_name, number, type_name in fields:
+                m.field.add(
+                    name=field_name, number=number,
+                    label=descriptor_pb2.FieldDescriptorProto.LABEL_OPTIONAL,
+                    type=descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE,
+                    type_name=type_name,
+                )
+    return fds.SerializeToString(deterministic=True)
+
+
+BAD_SETS = {
+    # a.proto and b.proto import each other.
+    "cycle": file_set(("a.proto", ["b.proto"], [("A", [])]),
+                      ("b.proto", ["a.proto"], [("B", [])])),
+    # A field of a message type no file defines: upb rejects the file.
+    "unresolved": file_set(
+        ("unresolved.proto", [], [("M", [("x", 1, ".zpb.bad.Missing")])])),
+}
+for name, data in BAD_SETS.items():
+    with open(os.path.join(FIXTURES, f"{name}.binpb"), "wb") as f:
+        f.write(data)
+print(f"==> wrote {len(BAD_SETS)} descriptor sets protoc would refuse")

@@ -27,6 +27,10 @@ Carries \code{type}.}
 \item{\code{zuproto_parse_error}}{The input is not a valid message of the
 type: it ends early, has a bad tag, a length beyond the input, or the
 wrong wire type. Carries \code{status}.}
+\item{In a batch or stream}{An error about one message of
+\code{\link[=proto_decode_df]{proto_decode_df()}}, \code{\link[=proto_read_delimited]{proto_read_delimited()}} or
+\code{\link[=proto_write_delimited]{proto_write_delimited()}} also carries \code{index}, the message's
+position, as a double (a stream can hold more than 2^31 - 1).}
 \item{\code{zuproto_invalid_utf8}}{A subclass of \code{zuproto_parse_error}: a
 \code{string} field is not valid UTF-8, in proto2 as in proto3.}
 \item{\code{zuproto_unrepresentable}}{The input is valid but holds a value

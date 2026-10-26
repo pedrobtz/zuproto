@@ -103,7 +103,7 @@ proto_decode_df <- function(
         ),
         limit = "max_size",
         limit_value = max_size,
-        index = big[[1L]],
+        index = as.double(big[[1L]]),
         call = call
       )
     }
@@ -145,6 +145,9 @@ proto_decode_df <- function(
 #' @inheritParams proto_decode_df
 #' @param each `NULL`, or a function called with each chunk's data frame.
 #' @param chunk_rows The number of messages in each chunk given to `each`.
+#' @param max_rows The largest number of rows accepted. With `each`, it
+#'   bounds each chunk, not the whole stream, which is read a chunk at a
+#'   time and never held whole.
 #' @return `proto_read_delimited()`: a data frame, or with `each`, `NULL`,
 #'   invisibly.
 #' @export
@@ -273,7 +276,7 @@ proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
       proto_encode(msgs[[i]], type, pool, ...),
       zuproto_error = function(e) {
         e$message <- sprintf("Message %d: %s", i, conditionMessage(e))
-        e$index <- i
+        e$index <- as.double(i)
         e$call <- call
         stop(e)
       }
