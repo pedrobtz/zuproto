@@ -37,5 +37,13 @@ test_that("the shared object links no symbol CRAN's compiled-code check rejects"
     "__assert_fail",
     "__assert_rtn"
   )
+  # A positive control (#37): the library must import R's API, so a listing
+  # without Rf_error means nm listed nothing and the check below would pass
+  # vacuously. nm may list no imports of a Windows DLL; that is a skip, said.
+  skip_if(
+    .Platform$OS.type == "windows" && !"Rf_error" %in% undefined,
+    "nm lists no imports of this DLL"
+  )
+  expect_contains(undefined, "Rf_error")
   expect_equal(intersect(undefined, forbidden), character())
 })
