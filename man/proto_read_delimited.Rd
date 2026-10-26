@@ -55,7 +55,9 @@ defaults (\code{TRUE}) or are left out (\code{FALSE}).}
 (strings, as protobuf JSON writes them).}
 
 \item{max_size}{The largest input accepted, in bytes. upb's memory for
-the decode is capped at four times this.}
+the decode is also capped, at a multiple of the input's size that the
+message type sets: the most a message of that type could legitimately
+need.}
 
 \item{max_depth}{The deepest nesting accepted: how many levels of
 messages within messages, the top-level message being level 0. A
@@ -64,7 +66,9 @@ counts as a level too, as upb counts it, so a message reached through
 a map is two levels down. At most 1000, so that hostile input cannot
 exhaust the C stack.}
 
-\item{max_rows}{The largest number of rows accepted.}
+\item{max_rows}{The largest number of rows accepted. With \code{each}, it
+bounds each chunk, not the whole stream, which is read a chunk at a
+time and never held whole.}
 
 \item{path}{\code{NULL} to return the stream, or a path to write it to.}
 

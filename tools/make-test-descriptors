@@ -20,4 +20,19 @@ protoc --proto_path="$P/v2" --descriptor_set_out="$OUT/dep_v2.binpb" "$P/v2/dep.
 protoc --proto_path="$P" --include_imports --descriptor_set_out="$OUT/all.binpb" \
   "$P/schema.proto" "$P/legacy.proto" "$P/editions.proto" "$P/uses_dep.proto"
 
+# Provenance of every set in fixtures/, as msg/MANIFEST.tsv records the
+# messages'. cycle and unresolved come from tools/make-fixtures.py: protoc
+# refuses to write them.
+{
+  printf 'name\tsource\tsha256\n'
+  for f in "$OUT"/*.binpb; do
+    name=$(basename "$f" .binpb)
+    case "$name" in
+    cycle | unresolved) source="tools/make-fixtures.py, descriptor_pb2" ;;
+    *) source="$(protoc --version)" ;;
+    esac
+    printf '%s\t%s\t%s\n' "$name" "$source" "$(shasum -a 256 "$f" | cut -d' ' -f1)"
+  done
+} > "$OUT/DESCRIPTORS.tsv"
+
 echo "==> wrote $(ls "$OUT"/*.binpb | wc -l | tr -d ' ') descriptor sets with $(protoc --version)"

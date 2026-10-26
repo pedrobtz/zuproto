@@ -32,3 +32,12 @@
   third of the time.
 * Decoding gives `NaN`, never `NA`, for a NaN on the wire, and warns
   (`zuproto_precision_loss`) for Timestamp and Duration seconds beyond 2^53.
+* The memory a decode may use is bounded by what a message of its type
+  can need, so valid input, such as a batch of thousands of small
+  messages, is never refused for it. `proto_to_json()` bounds every
+  `Any` it writes by `max_depth`.
+* `proto_encode()` nests as deep as `proto_decode()` accepts (1000
+  levels), and refuses strings that are not valid UTF-8, a `Date` for a
+  `Timestamp`, and a field given twice. `proto_write_delimited()` writes
+  back frames whose nested messages hold oneofs. Failures that are no
+  user error are a `zuproto_internal_error`.

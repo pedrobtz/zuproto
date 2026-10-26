@@ -191,9 +191,15 @@ stage establishes it.
   protobuf's `conformance_test_runner`, run against an R testee in CI only,
   with an expected-failure list that may only shrink; fixtures come from
   Python's `protobuf` and `protoc --encode`, never by hand.
-- **Helpers live in `tests/testthat/helper-*.R`.** None yet.
+- **Helpers live in `tests/testthat/helper-*.R`.** `helper-fixtures.R`
+  loads the committed fixtures (`fixture()`, `msg_fixture()`,
+  `decode_pool()`, `varint()`); `helper-entry-points.R` has the table of
+  entry points the shared argument tests walk. Fixtures come from
+  `tools/make-test-descriptors` (protoc) and `tools/make-fixtures.py`
+  (Python's protobuf), with provenance and SHA-256 in
+  `fixtures/DESCRIPTORS.tsv` and `fixtures/msg/MANIFEST.tsv`.
 - **Keep the suite inside the CRAN time budget.** The design's target is
-  under 15 s; there is no suite yet.
+  under 15 s; it ran in 9.3 s installed when last measured (2026-10-26).
 
 ## Definition of done
 

@@ -91,11 +91,10 @@ static void run(void *p)
     /* int64 as character keeps every value exact, so the re-encode is
      * expected to succeed; the high bits vary the other options. */
     const char *dn[] = {"int64", "enums", "defaults", "keep_unknown", "bytes_base64",
-                        "max_depth", "arena_limit", "mode", "max_size", "max_rows",
-                        "chunk_rows"};
+                        "max_depth", "mode", "max_size", "max_rows", "chunk_rows"};
     double dv[] = {1, (sel >> 5) % 3, (sel >> 7) & 1, 1, 0,
-                   100, 4.0 * (double) in->size + 65536, 0, 1 << 20, 1e6, 1e6};
-    SEXP dopts = PROTECT(opts(dn, dv, 11, ""));
+                   100, 0, 1 << 20, 1e6, 1e6};
+    SEXP dopts = PROTECT(opts(dn, dv, 10, ""));
 
     SEXP res = PROTECT(zpb_decode(pool_ptr, type, raw, dopts));
     SEXP value = get(res, "value");
@@ -117,12 +116,11 @@ static void run(void *p)
     SEXP list = PROTECT(Rf_allocVector(VECSXP, 1));
     SET_VECTOR_ELT(list, 0, raw);
     SEXP df = PROTECT(zpb_decode_df(pool_ptr, type, list, dopts));
-    /* The single decode and the one-row frame agree on whether it decodes. */
-    FUZZ_CHECK((get(df, "error") == R_NilValue) == (get(res, "error") == R_NilValue) ||
-               strcmp(CHAR(STRING_ELT(get(res, "error"), 0)), "arena_limit") == 0 ||
-               strcmp(CHAR(STRING_ELT(get(df, "error"), 0)), "arena_limit") == 0);
+    /* The single decode and the one-row frame agree on whether it decodes:
+     * both take the schema's ceiling for the same bytes (design section 12). */
+    FUZZ_CHECK((get(df, "error") == R_NilValue) == (get(res, "error") == R_NilValue));
 
-    SET_VECTOR_ELT(dopts, 7, Rf_ScalarReal(2)); /* mode 2: a delimited stream */
+    SET_VECTOR_ELT(dopts, 6, Rf_ScalarReal(2)); /* mode 2: a delimited stream */
     zpb_decode_df(pool_ptr, type, raw, dopts);
     UNPROTECT(6);
 }

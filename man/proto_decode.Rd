@@ -48,7 +48,9 @@ message (and on each nested message) holding them.}
 (strings, as protobuf JSON writes them).}
 
 \item{max_size}{The largest input accepted, in bytes. upb's memory for
-the decode is capped at four times this.}
+the decode is also capped, at a multiple of the input's size that the
+message type sets: the most a message of that type could legitimately
+need.}
 
 \item{max_depth}{The deepest nesting accepted: how many levels of
 messages within messages, the top-level message being level 0. A

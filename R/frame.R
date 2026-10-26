@@ -49,10 +49,11 @@
 #' @examples
 #' pool <- proto_pool()
 #' # Three FieldDescriptorProto messages, one per row.
+#' type <- "google.protobuf.FieldDescriptorProto"
 #' msgs <- lapply(c("id", "name", "when"), function(name) {
-#'   proto_encode(list(name = name, number = 1L), "google.protobuf.FieldDescriptorProto", pool)
+#'   proto_encode(list(name = name, number = 1L), type, pool)
 #' })
-#' df <- proto_decode_df(msgs, "google.protobuf.FieldDescriptorProto", pool)
+#' df <- proto_decode_df(msgs, type, pool)
 #' df[c("name", "number")]
 proto_decode_df <- function(
   x,
@@ -89,7 +90,7 @@ proto_decode_df <- function(
       )
     }
     if (length(x) > max_rows) {
-      row_limit(max_rows, call)
+      abort_row_limit(max_rows, call)
     }
     sizes <- lengths(x)
     big <- which(sizes > max_size)
@@ -103,12 +104,11 @@ proto_decode_df <- function(
         ),
         limit = "max_size",
         limit_value = max_size,
-        index = big[[1L]],
+        index = as.double(big[[1L]]),
         call = call
       )
     }
     opts$mode <- 0L
-    opts$arena_limit <- max(4 * sum(sizes), 65536)
   } else {
     if (
       !is.character(field) ||
@@ -125,7 +125,6 @@ proto_decode_df <- function(
     x <- read_message(x, max_size, call)
     opts$mode <- 1L
     opts$field <- field
-    opts$arena_limit <- max(4 * length(x), 65536)
   }
   res <- .Call(zpb_decode_df, pool$ptr, type, x, opts)
   df_finish(res, type, field, max_size, max_depth, max_rows, call)
@@ -147,6 +146,9 @@ proto_decode_df <- function(
 #' @inheritParams proto_decode_df
 #' @param each `NULL`, or a function called with each chunk's data frame.
 #' @param chunk_rows The number of messages in each chunk given to `each`.
+#' @param max_rows The largest number of rows accepted. With `each`, it
+#'   bounds each chunk, not the whole stream, which is read a chunk at a
+#'   time and never held whole.
 #' @return `proto_read_delimited()`: a data frame, or with `each`, `NULL`,
 #'   invisibly.
 #' @export
@@ -191,11 +193,10 @@ proto_read_delimited <- function(
   if (is.null(each)) {
     buf <- read_input(x, "x", call)
     opts$chunk_rows <- max_rows + 1
-    opts$arena_limit <- max(4 * length(buf), 65536)
     res <- .Call(zpb_decode_df, pool$ptr, type, buf, opts)
     df <- df_finish(res, type, NULL, max_size, max_depth, max_rows, call)
     if (res$consumed < length(buf)) {
-      truncated(length(buf) - res$consumed, call)
+      abort_truncated(length(buf) - res$consumed, call)
     }
     return(df)
   }
@@ -207,7 +208,7 @@ proto_read_delimited <- function(
   } else {
     con <- if (inherits(x, "connection")) x else open_path(x, call)
     if (!isOpen(con)) {
-      open(con, "rb")
+      open_connection(con, call)
       on.exit(close(con), add = TRUE)
     } else if (!inherits(x, "connection")) {
       on.exit(close(con), add = TRUE)
@@ -219,13 +220,16 @@ proto_read_delimited <- function(
   repeat {
     # Read only when the bytes in hand hold no whole chunk of messages.
     if (need_more && !eof) {
-      chunk <- readBin(con, "raw", 1048576L)
-      if (length(chunk) == 0L) eof <- TRUE else pending <- c(pending, chunk)
+      chunk <- read_chunk(con, 1048576L, call)
+      if (length(chunk) == 0L) {
+        eof <- TRUE
+      } else {
+        pending <- c(pending, chunk)
+      }
     }
     if (length(pending) == 0L && eof) {
       break
     }
-    opts$arena_limit <- max(4 * length(pending), 65536)
     res <- .Call(zpb_decode_df, pool$ptr, type, pending, opts)
     df <- df_finish(res, type, NULL, max_size, max_depth, max_rows, call)
     if (nrow(df) > 0L) {
@@ -233,7 +237,7 @@ proto_read_delimited <- function(
     }
     used <- res$consumed
     if (used == 0 && eof) {
-      truncated(length(pending), call)
+      abort_truncated(length(pending), call)
     }
     pending <- pending[seq_len(length(pending) - used) + used]
     need_more <- nrow(df) < chunk_rows
@@ -261,7 +265,7 @@ proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
     zpb_invalid_argument("path", "`path` must be NULL or a single path.", call)
   }
   if (is.data.frame(x)) {
-    msgs <- frame_rows(x, case_columns(pool, type))
+    msgs <- frame_rows(x, pool, type)
   } else if (is.list(x) && is.null(names(x))) {
     msgs <- x
   } else {
@@ -277,7 +281,7 @@ proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
       proto_encode(msgs[[i]], type, pool, ...),
       zuproto_error = function(e) {
         e$message <- sprintf("Message %d: %s", i, conditionMessage(e))
-        e$index <- i
+        e$index <- as.double(i)
         e$call <- call
         stop(e)
       }
@@ -309,25 +313,25 @@ df_options <- function(
   check_type(type, call = call)
   int64 <- zpb_match_arg(
     int64,
-    c("double", "character", "integer64"),
+    zpb_choices$int64,
     "int64",
     call
   )
   check_int64_mode(int64, call)
   enums <- zpb_match_arg(
     enums,
-    c("factor", "integer", "character"),
+    zpb_choices$enums,
     "enums",
     call
   )
-  bytes <- zpb_match_arg(bytes, c("raw", "base64"), "bytes", call)
+  bytes <- zpb_match_arg(bytes, zpb_choices$bytes, "bytes", call)
   check_flag(defaults, "defaults", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
   check_limit(max_depth, "max_depth", 1, 1000, call)
   check_limit(max_rows, "max_rows", 1, 2^31 - 1, call)
   list(
-    int64 = match(int64, c("double", "character", "integer64")) - 1L,
-    enums = match(enums, c("factor", "integer", "character")) - 1L,
+    int64 = match(int64, zpb_choices$int64) - 1L,
+    enums = match(enums, zpb_choices$enums) - 1L,
     defaults = as.integer(defaults),
     bytes_base64 = as.integer(bytes == "base64"),
     max_depth = as.integer(max_depth),
@@ -351,7 +355,7 @@ df_finish <- function(res, type, field, max_size, max_depth, max_rows, call) {
         ),
         call
       ),
-      max_rows = row_limit(max_rows, call),
+      max_rows = abort_row_limit(max_rows, call),
       max_size = zpb_abort(
         c("zuproto_size_limit", "zuproto_limit_error"),
         sprintf(
@@ -384,7 +388,7 @@ df_finish <- function(res, type, field, max_size, max_depth, max_rows, call) {
   res$value
 }
 
-row_limit <- function(max_rows, call) {
+abort_row_limit <- function(max_rows, call) {
   zpb_abort(
     c("zuproto_row_limit", "zuproto_limit_error"),
     sprintf(
@@ -397,7 +401,7 @@ row_limit <- function(max_rows, call) {
   )
 }
 
-truncated <- function(remaining, call) {
+abort_truncated <- function(remaining, call) {
   zpb_abort(
     "zuproto_parse_error",
     sprintf(
@@ -417,42 +421,60 @@ open_path <- function(x, call) {
       call
     )
   }
-  if (!file.exists(x) || dir.exists(x)) {
-    zpb_abort(
-      "zuproto_io_error",
-      sprintf("Cannot read file '%s': it does not exist.", x),
-      call = call
-    )
-  }
+  check_file(x, call)
   file(x, "rb")
 }
 
-# Names of the `<oneof>_case` columns of type, which encoding skips.
-case_columns <- function(pool, type) {
-  f <- proto_fields(pool, type)
-  paste0(unique(f$oneof[!is.na(f$oneof)]), "_case")
+# What frame_rows() needs of a message type, looked up once per type and
+# kept in `cache`: the names of its `<oneof>_case` columns, which encoding
+# skips, and the type of each message field, by column name, for the
+# columns nested inside it. NULL for a type the pool lacks.
+frame_type <- function(pool, type, cache) {
+  if (is.null(type)) {
+    return(NULL)
+  }
+  if (is.null(cache[[type]])) {
+    f <- proto_fields(pool, type)
+    msg <- !is.na(f$type_name)
+    names <- ifelse(f$extension, paste0("[", f$name, "]"), f$name)
+    cache[[type]] <- list(
+      skip = paste0(unique(f$oneof[!is.na(f$oneof)]), "_case"),
+      sub = as.list(stats::setNames(f$type_name[msg], names[msg]))
+    )
+  }
+  cache[[type]]
 }
 
 # A data frame's rows as messages for proto_encode(): a column's element i,
-# a list column's element, a data-frame column's row i as a message.
-frame_rows <- function(df, skip = character()) {
-  cols <- df[setdiff(names(df), skip)]
-  lapply(seq_len(nrow(df)), function(i) frame_row(cols, i))
+# a list column's element, a data-frame column's row i as a message. The
+# `<oneof>_case` columns are dropped at every level, by each message
+# type's own oneofs.
+frame_rows <- function(df, pool, type, cache = new.env(parent = emptyenv())) {
+  info <- frame_type(pool, type, cache)
+  cols <- df[setdiff(names(df), info$skip)]
+  lapply(seq_len(nrow(df)), function(i) frame_row(cols, i, pool, info, cache))
 }
 
-frame_row <- function(cols, i) {
-  out <- lapply(cols, function(col) {
-    if (is.data.frame(col)) {
-      row <- frame_row(col, i)
-      if (length(row) == 0L) NULL else row
-    } else if (is.list(col)) {
-      v <- col[[i]]
-      # A repeated message field's cell is a data frame of its elements.
-      if (is.data.frame(v)) frame_rows(v) else v
-    } else {
-      v <- col[i]
-      if (is.na(v)) NULL else v
-    }
-  })
+frame_row <- function(cols, i, pool, info, cache) {
+  out <- Map(
+    function(col, name) {
+      sub <- info$sub[[name]]
+      if (is.data.frame(col)) {
+        sub_info <- frame_type(pool, sub, cache)
+        col <- col[setdiff(names(col), sub_info$skip)]
+        row <- frame_row(col, i, pool, sub_info, cache)
+        if (length(row) == 0L) NULL else row
+      } else if (is.list(col)) {
+        v <- col[[i]]
+        # A repeated message field's cell is a data frame of its elements.
+        if (is.data.frame(v)) frame_rows(v, pool, sub, cache) else v
+      } else {
+        v <- col[i]
+        if (is.na(v)) NULL else v
+      }
+    },
+    cols,
+    names(cols)
+  )
   out[!vapply(out, is.null, logical(1))]
 }

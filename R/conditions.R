@@ -25,6 +25,10 @@
 #'   \item{`zuproto_parse_error`}{The input is not a valid message of the
 #'     type: it ends early, has a bad tag, a length beyond the input, or the
 #'     wrong wire type. Carries `status`.}
+#'   \item{In a batch or stream}{An error about one message of
+#'     [proto_decode_df()], [proto_read_delimited()] or
+#'     [proto_write_delimited()] also carries `index`, the message's
+#'     position, as a double (a stream can hold more than 2^31 - 1).}
 #'   \item{`zuproto_invalid_utf8`}{A subclass of `zuproto_parse_error`: a
 #'     `string` field is not valid UTF-8, in proto2 as in proto3.}
 #'   \item{`zuproto_unrepresentable`}{The input is valid but holds a value
@@ -33,7 +37,9 @@
 #'   \item{`zuproto_type_mismatch`}{[proto_encode()] was given a value of
 #'     the wrong form for its field: the wrong R type, a number out of
 #'     range or not whole, a name that is not a value of the enum, `NA`
-#'     inside a repeated field, a second member of a oneof, or a map key
+#'     inside a repeated field, a string that is not valid UTF-8 text, a
+#'     date or time where a number is expected (or a `Date` for a
+#'     `Timestamp`), a second member of a oneof, or a field or map key
 #'     given twice. Carries `path`, the field at fault, such as
 #'     `"points[2].x"`.}
 #'   \item{`zuproto_unknown_field`}{[proto_encode()] was given a name the
@@ -49,7 +55,11 @@
 #'     is too large for `max_size`), `zuproto_depth_limit` (messages nest
 #'     deeper than `max_depth`) and `zuproto_row_limit` (more rows than
 #'     `max_rows`) name which. Carries `limit`, the
-#'     argument's name, and `limit_value`.}
+#'     argument's name, and `limit_value`. [proto_encode()] raises
+#'     `zuproto_depth_limit` for messages nested deeper than 1000 levels,
+#'     the most `max_depth` lets [proto_decode()] accept.}
+#'   \item{`zuproto_internal_error`}{Memory ran out, or upb reported a
+#'     status zuproto does not expect. Carries `code`.}
 #' }
 #'
 #' Warnings inherit `zuproto_warning`:
@@ -83,6 +93,31 @@ zpb_warn <- function(class, message, ..., call = NULL) {
     class = c(class, "zuproto_warning", "warning", "condition"),
     list(message = message, call = call, ...)
   ))
+}
+
+# An error code the C side returned that is no user error: memory ran out,
+# or upb reported a status zuproto does not map.
+zpb_internal_error <- function(code, what, call = NULL) {
+  zpb_abort(
+    "zuproto_internal_error",
+    if (identical(code, "out_of_memory")) {
+      sprintf("Cannot %s: out of memory.", what)
+    } else {
+      sprintf("Cannot %s: internal error '%s'.", what, code)
+    },
+    code = code,
+    call = call
+  )
+}
+
+# Called from C by zpb_internal_error(): a failure the C side raises
+# directly, such as memory running out or a pointer that is not a pool's.
+zpb_raise_internal <- function(message) {
+  zpb_abort(
+    "zuproto_internal_error",
+    sprintf("zuproto internal error: %s.", message),
+    code = "internal"
+  )
 }
 
 zpb_invalid_argument <- function(arg, message, call = NULL) {

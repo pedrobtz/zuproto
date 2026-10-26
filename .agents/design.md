@@ -542,11 +542,32 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
   levels below the top-level message, so 100 accepts 101 messages, one
   inside the next (measured in Stage 3); a map entry is a level too.
   `max_depth` is at most 1000: upb's decoder recurses once per level,
-  and the C stack ran out at about 5000 on an 8 MB stack.
-- `max_rows` (1e7) per data frame, and an arena byte ceiling per call
-  (default 4 × `max_size`), enforced by a counting allocator handed to
-  `upb_Arena_Init`, so a small input that expands (packed repeated
-  fields of zeros) cannot exhaust memory.
+  and the C stack ran out at about 5000 on an 8 MB stack. The encoder
+  takes the same 1000 levels, fixed, so whatever decodes re-encodes
+  (upb's default of 100 had made a deeper message "out of memory",
+  #27); deeper is `zuproto_depth_limit`. upb's JSON parser stops at 64
+  levels on its own, a `zuproto_json_error`, so `proto_from_json()`
+  never reaches the encoder's limit (#48).
+- `max_rows` (1e7) per data frame, and an arena byte ceiling per call,
+  enforced by a counting allocator handed to `upb_Arena_Init`, so a small
+  input that expands cannot exhaust memory. The ceiling is derived from
+  the schema, which is trusted, not set by the user: input bytes times
+  (the largest struct reachable from the type + 64), plus, per message,
+  its struct + 256, plus 1 MiB (`zpb_arena_ceiling()` in the shim). Two
+  wire bytes (a tag and a zero length) can create one struct, a scalar
+  expands at most 8×, arrays and map tables at most double that, so no
+  legitimate input reaches it. *Revised 2026-10-26 (#26):* the first
+  ceiling, 4 × the input, refused legitimate input: 10^6 packed zeros,
+  and batches of a few dozen small messages. The `arena_limit` option is
+  gone, and the `arena_limit` path of `zuproto_size_limit` is now reachable
+  only through hostile input past the schema's factor, not from R tests
+  (§15).
+- `google.protobuf.Any` on the way to JSON: upb's JSON encoder decodes
+  each packed Any afresh, with no depth limit, no UTF-8 check and an
+  uncapped arena. `zpb_check_any()` decodes every Any first, with the
+  depth left, UTF-8 validation and the capped arena (raised by each Any's
+  own ceiling), so a chain of Anys is `zuproto_depth_limit`, not a stack
+  overflow (#25).
 - UTF-8 is validated for every `string` field
   (`kUpb_DecodeOption_AlwaysValidateUtf8`), not only proto3 ones.
 - Interrupts are checked between messages in batch and stream decoding,
@@ -642,7 +663,33 @@ conformance run also found that NaN was refused on encode and that `NULL`
 in a `Value` field was read as unset; both are fixed. In CI, `fuzz_build`
 found a heap use-after-free in zuproto's own batch decoder: the error
 path for a message past the memory ceiling read the allocator after
-freeing it. Fixed, with a test that takes that path.
+freeing it. Fixed, with a test that took that path until the ceiling
+became the schema's (§12, revised): no R test can reach it now, and
+`fuzz_build` under ASan is what still runs it.
+
+**Error branches no R test reaches (2026-10-26, #35).** Each has a reason
+it cannot be reached from R, and what checks it instead:
+
+- *Allocation failure*: an arena that cannot be created
+  (`src/zpb_decode.c`'s four entry points), `out_of_memory` from upb's
+  decoder or encoder, and `zpb_encode()`'s first message. They need
+  `malloc()` to fail, which R cannot arrange; r-actions'
+  `alloc-failure.yml` is the check, and the R side raises them as
+  `zuproto_internal_error` (tested with the code given directly).
+- *The arena ceiling* (`arena_limit`), in every entry point including
+  `proto_from_json()`'s encode step: the ceiling is what a message of
+  the type can need (§12), so valid input never reaches it, and no input
+  is known that does; it is the backstop against an expansion the
+  bound's reasoning missed, and the fuzz targets run under it.
+- *`string_too_long`*: a string field over 2^31 - 1 bytes needs an input
+  over 2 GiB, past `max_size`'s ceiling on CRAN's machines.
+- *`ZPB_DECODE_OTHER` and the encoder's `other`*: a upb status the shim
+  does not map; there is none in v36.2, so the branch is for a later
+  upb. `zuproto_internal_error` names the code if one appears.
+- *Interrupts* between messages and while building columns: R has no way
+  for a test to raise a user interrupt at a chosen point. Their
+  cleanup is the finalised external pointers' (§13), which gctorture and
+  valgrind run on every other path.
 
 ## 16. Performance targets
 

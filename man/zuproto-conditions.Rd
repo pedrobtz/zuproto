@@ -27,6 +27,10 @@ Carries \code{type}.}
 \item{\code{zuproto_parse_error}}{The input is not a valid message of the
 type: it ends early, has a bad tag, a length beyond the input, or the
 wrong wire type. Carries \code{status}.}
+\item{In a batch or stream}{An error about one message of
+\code{\link[=proto_decode_df]{proto_decode_df()}}, \code{\link[=proto_read_delimited]{proto_read_delimited()}} or
+\code{\link[=proto_write_delimited]{proto_write_delimited()}} also carries \code{index}, the message's
+position, as a double (a stream can hold more than 2^31 - 1).}
 \item{\code{zuproto_invalid_utf8}}{A subclass of \code{zuproto_parse_error}: a
 \code{string} field is not valid UTF-8, in proto2 as in proto3.}
 \item{\code{zuproto_unrepresentable}}{The input is valid but holds a value
@@ -35,7 +39,9 @@ may be. Carries \code{field}, the field's full name.}
 \item{\code{zuproto_type_mismatch}}{\code{\link[=proto_encode]{proto_encode()}} was given a value of
 the wrong form for its field: the wrong R type, a number out of
 range or not whole, a name that is not a value of the enum, \code{NA}
-inside a repeated field, a second member of a oneof, or a map key
+inside a repeated field, a string that is not valid UTF-8 text, a
+date or time where a number is expected (or a \code{Date} for a
+\code{Timestamp}), a second member of a oneof, or a field or map key
 given twice. Carries \code{path}, the field at fault, such as
 \code{"points[2].x"}.}
 \item{\code{zuproto_unknown_field}}{\code{\link[=proto_encode]{proto_encode()}} was given a name the
@@ -51,7 +57,11 @@ message (an \code{Any} whose packed type is not in the pool). Carries
 is too large for \code{max_size}), \code{zuproto_depth_limit} (messages nest
 deeper than \code{max_depth}) and \code{zuproto_row_limit} (more rows than
 \code{max_rows}) name which. Carries \code{limit}, the
-argument's name, and \code{limit_value}.}
+argument's name, and \code{limit_value}. \code{\link[=proto_encode]{proto_encode()}} raises
+\code{zuproto_depth_limit} for messages nested deeper than 1000 levels,
+the most \code{max_depth} lets \code{\link[=proto_decode]{proto_decode()}} accept.}
+\item{\code{zuproto_internal_error}}{Memory ran out, or upb reported a
+status zuproto does not expect. Carries \code{code}.}
 }
 
 Warnings inherit \code{zuproto_warning}:

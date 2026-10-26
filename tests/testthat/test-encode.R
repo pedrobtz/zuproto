@@ -246,12 +246,15 @@ test_that("a name the type does not define is an unknown field, or ignored", {
 
 test_that("values of the wrong form are type mismatches naming the field", {
   pool <- decode_pool()
+  # Each case is labelled with its value, so a failure names the case (#46).
   mismatch <- function(x, type, path) {
+    label <- deparse1(substitute(x))
     err <- expect_error(
       proto_encode(x, type, pool),
-      class = "zuproto_type_mismatch"
+      class = "zuproto_type_mismatch",
+      label = label
     )
-    expect_identical(err$path, path)
+    expect_identical(err$path, path, label = label)
   }
   mismatch(list(f_int32 = "1"), "zpb.decode.Scalars", "f_int32")
   mismatch(list(f_int32 = 1.5), "zpb.decode.Scalars", "f_int32")
@@ -385,4 +388,184 @@ test_that("a Timestamp the binary format allows round-trips, and JSON refuses it
     proto_to_json(raw, "google.protobuf.Timestamp", pool),
     class = "zuproto_json_error"
   )
+})
+
+test_that("encoding nests as deep as decoding allows, then is a depth limit error", {
+  # #27: upb's encoder stopped at 100 levels and zuproto called it out of
+  # memory. nested(n) is n messages, one inside the next.
+  nested <- function(n) {
+    x <- list(depth = 1L)
+    for (i in seq_len(n - 1)) {
+      x <- list(depth = 1L, child = x)
+    }
+    x
+  }
+  pool <- decode_pool()
+  raw <- proto_encode(nested(1001), "zpb.decode.Nested", pool)
+  x <- proto_decode(raw, "zpb.decode.Nested", pool, max_depth = 1000)
+  expect_identical(proto_encode(x, "zpb.decode.Nested", pool), raw)
+  err <- expect_error(
+    proto_encode(nested(1002), "zpb.decode.Nested", pool),
+    class = "zuproto_depth_limit"
+  )
+  expect_s3_class(err, "zuproto_limit_error")
+  expect_identical(err$limit, "max_depth")
+  expect_identical(err$limit_value, 1000L)
+})
+
+test_that("an error code R does not map is a zuproto_internal_error", {
+  err <- expect_error(
+    encode_error(list(error = "other"), "pkg.M", NULL),
+    class = "zuproto_internal_error"
+  )
+  expect_identical(err$code, "other")
+  err <- expect_error(
+    decode_error(list(error = "out_of_memory"), "pkg.M", 1, 1, NULL),
+    class = "zuproto_internal_error"
+  )
+  expect_match(conditionMessage(err), "out of memory")
+})
+
+test_that("strings that are not valid UTF-8 text are type mismatches", {
+  # #29: invalid UTF-8 was written as R's "<ff><fe>" escapes, and a string
+  # marked as bytes raised a bare error.
+  pool <- decode_pool()
+  bad <- "\xff\xfe"
+  Encoding(bad) <- "UTF-8"
+  bytes <- "abc\xff" # R marks only non-ASCII strings as bytes
+  Encoding(bytes) <- "bytes"
+  cases <- list(
+    list(list(f_string = bad), "zpb.decode.Scalars", "f_string"),
+    list(list(f_string = bytes), "zpb.decode.Scalars", "f_string"),
+    list(
+      list(by_string = stats::setNames(1L, bad)),
+      "zpb.decode.Maps",
+      "by_string"
+    ),
+    list(
+      list(meta = stats::setNames(list(1), bad)),
+      "zpb.decode.WellKnown",
+      "meta"
+    ),
+    list(list(value = bad), "zpb.decode.WellKnown", "value"),
+    list(stats::setNames(list("x"), bad), "zpb.decode.Scalars", "")
+  )
+  for (case in cases) {
+    err <- expect_error(
+      proto_encode(case[[1]], case[[2]], pool),
+      class = "zuproto_type_mismatch"
+    )
+    expect_identical(err$path, case[[3]])
+  }
+  latin1 <- "caf\xe9"
+  Encoding(latin1) <- "latin1"
+  raw <- proto_encode(list(f_string = latin1), "zpb.decode.Scalars", pool)
+  expect_identical(
+    proto_decode(raw, "zpb.decode.Scalars", pool)$f_string,
+    "café"
+  )
+})
+
+test_that("dates and times go only where a Timestamp or Duration is", {
+  # #30: a Date was taken as seconds since the epoch.
+  pool <- proto_pool()
+  date <- as.Date("2026-10-26")
+  expect_error(
+    proto_encode(date, "google.protobuf.Timestamp", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(
+      as.difftime(1, units = "secs"),
+      "google.protobuf.Timestamp",
+      pool
+    ),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(Sys.time(), "google.protobuf.Duration", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(date, "google.protobuf.DoubleValue", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(list(f_double = date), "zpb.decode.Scalars", decode_pool()),
+    class = "zuproto_type_mismatch"
+  )
+  when <- as.POSIXct(date, tz = "UTC")
+  raw <- proto_encode(when, "google.protobuf.Timestamp", pool)
+  expect_equal(proto_decode(raw, "google.protobuf.Timestamp", pool), when)
+})
+
+test_that("a field given twice is a type mismatch", {
+  # #31: the last value won, or a repeated field's values were appended.
+  pool <- decode_pool()
+  err <- expect_error(
+    proto_encode(
+      list(f_string = "a", f_string = "b"),
+      "zpb.decode.Scalars",
+      pool
+    ),
+    class = "zuproto_type_mismatch"
+  )
+  expect_identical(err$path, "f_string")
+  expect_error(
+    proto_encode(list(packed = 1:2, packed = 3L), "zpb.decode.Repeated", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(
+      list(f_int32 = NULL, f_int32 = 1L),
+      "zpb.decode.Scalars",
+      pool
+    ),
+    class = "zuproto_type_mismatch"
+  )
+})
+
+test_that("every scalar kind of the mapping round-trips its edge values", {
+  # #45: one row per kind of design section 6.1, at its edges, built in R.
+  pool <- decode_pool()
+  type <- "zpb.decode.Scalars"
+  imax <- .Machine$integer.max
+  edges <- list(
+    f_double = c(
+      -Inf,
+      -.Machine$double.xmax,
+      -0,
+      5e-324,
+      .Machine$double.xmax,
+      Inf
+    ),
+    f_float = c(-Inf, -3.4028234663852886e38, 1.401298464324817e-45, 0.25, Inf),
+    f_int32 = c(-imax, -1L, 0L, imax),
+    f_sint32 = c(-imax, -1L, 1L, imax),
+    f_sfixed32 = c(-imax, -1L, imax),
+    f_uint32 = c(0, 1, 2^31, 2^32 - 1),
+    f_fixed32 = c(0, 2^31, 2^32 - 1),
+    f_int64 = c("-9223372036854775808", "-1", "9223372036854775807"),
+    f_sint64 = c("-9223372036854775808", "-1", "1", "9223372036854775807"),
+    f_sfixed64 = c("-9223372036854775808", "9223372036854775807"),
+    f_uint64 = c("0", "9223372036854775808", "18446744073709551615"),
+    f_fixed64 = c("0", "18446744073709551615"),
+    f_bool = c(FALSE, TRUE),
+    f_string = c("", "a", "é中\U0001f600"),
+    f_enum = c("LEVEL_UNSPECIFIED", "HIGH")
+  )
+  for (field in names(edges)) {
+    for (v in edges[[field]]) {
+      x <- stats::setNames(list(v), field)
+      raw <- proto_encode(x, type, pool)
+      y <- proto_decode(
+        raw,
+        type,
+        pool,
+        int64 = "character",
+        enums = "character"
+      )
+      expect_identical(y[[field]], v, label = sprintf("%s = %s", field, v))
+    }
+  }
 })

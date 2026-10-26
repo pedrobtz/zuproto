@@ -99,3 +99,15 @@ message Nested {
   int32 depth = 1;
   Nested child = 2;
 }
+
+// map<uint64, ...> keys, sorted and written unsigned (#34).
+message Uint64Keys {
+  map<uint64, string> by_uint64 = 1;
+}
+
+// A oneof inside a message field and a repeated one, for the nested
+// <oneof>_case columns of a data frame (#28).
+message Outer {
+  Choice inner = 1;
+  repeated Choice items = 2;
+}

@@ -56,7 +56,7 @@ test_that("unset fields take defaults, except those with presence", {
   expect_identical(set$f_optional, 0L)
 })
 
-test_that("64-bit and -2^31 values warn when they cannot be exact", {
+test_that("64-bit values past 2^53 and -2^31 warn when decoded as numbers", {
   pool <- decode_pool()
   expect_warning(
     x <- proto_decode(msg_fixture("scalars_big"), "zpb.decode.Scalars", pool),
@@ -65,7 +65,10 @@ test_that("64-bit and -2^31 values warn when they cannot be exact", {
   expect_identical(x$f_int32, NA_integer_)
   expect_identical(x$f_sint32, NA_integer_)
   expect_identical(x$f_int64, 2^63 - 1)
+})
 
+test_that("as character, only the -2^31 values warn", {
+  pool <- decode_pool()
   w <- expect_warning(
     y <- proto_decode(
       msg_fixture("scalars_big"),
@@ -79,7 +82,10 @@ test_that("64-bit and -2^31 values warn when they cannot be exact", {
   expect_identical(y$f_int64, "9223372036854775807")
   expect_identical(y$f_uint64, "18446744073709551615")
   expect_identical(y$f_sfixed64, "0")
+})
 
+test_that("values that are exact do not warn", {
+  pool <- decode_pool()
   expect_no_warning(proto_decode(
     msg_fixture("scalars_set"),
     "zpb.decode.Scalars",
@@ -297,7 +303,7 @@ test_that("input can be a path or a connection", {
   expected <- proto_decode(msg_fixture("nested_3"), "zpb.decode.Nested", pool)
   expect_identical(proto_decode(path, "zpb.decode.Nested", pool), expected)
   con <- file(path, "rb")
-  on.exit(close(con))
+  withr::defer(close(con))
   expect_identical(proto_decode(con, "zpb.decode.Nested", pool), expected)
 })
 
@@ -319,7 +325,7 @@ test_that("input beyond max_size is refused before decoding", {
     class = "zuproto_size_limit"
   )
   con <- rawConnection(raw)
-  on.exit(close(con))
+  withr::defer(close(con))
   expect_error(
     proto_decode(con, "zpb.decode.Scalars", pool, max_size = 10),
     class = "zuproto_size_limit"
@@ -383,16 +389,26 @@ test_that("nesting beyond max_depth is a depth limit error", {
   )
 })
 
-test_that("a small input that expands past the arena ceiling is a size limit error", {
-  n <- 1e6
-  raw <- c(as.raw(0x0a), varint(n), raw(n)) # field 1, packed: 10^6 zeros
+test_that("inputs that expand a lot decode within the schema's ceiling", {
+  # The ceiling is the most a message of the type can need (design section
+  # 12): packed zeros expand 4x (int32) and 8x (double), empty sub-messages
+  # to a whole struct each. None of these legitimate inputs may hit it.
   pool <- decode_pool()
-  err <- expect_error(
-    proto_decode(raw, "zpb.decode.Repeated", pool, max_size = length(raw)),
-    class = "zuproto_size_limit"
+  n <- 1e6
+  zeros <- c(as.raw(0x0a), varint(n), raw(n)) # Repeated.packed, 10^6 zeros
+  expect_length(
+    proto_decode(
+      zeros,
+      "zpb.decode.Repeated",
+      pool,
+      max_size = length(zeros)
+    )$packed,
+    n
   )
-  expect_identical(err$limit, "max_size")
-  expect_length(proto_decode(raw, "zpb.decode.Repeated", pool)$packed, n)
+  doubles <- c(as.raw(0x3a), varint(8 * 1e5), raw(8 * 1e5)) # Repeated.doubles
+  expect_length(proto_decode(doubles, "zpb.decode.Repeated", pool)$doubles, 1e5)
+  points <- rep(as.raw(c(0x32, 0x00)), 1e5) # Repeated.points: 10^5 empty Points
+  expect_length(proto_decode(points, "zpb.decode.Repeated", pool)$points, 1e5)
 })
 
 test_that("invalid UTF-8 is an error in proto3 and proto2 strings alike", {

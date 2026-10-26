@@ -11,8 +11,9 @@
 #'
 #' `Any` messages convert only when the type they pack is in the pool.
 #'
-#' JSON meets R values through [zujson](https://CRAN.R-project.org/package=zujson),
-#' which must be installed for it: `proto_to_json(parse = TRUE)` returns
+#' JSON meets R values through
+#' [zujson](https://CRAN.R-project.org/package=zujson), which must be
+#' installed for it: `proto_to_json(parse = TRUE)` returns
 #' [zujson::json_parse()]'s R value, and `proto_from_json()` takes an R value
 #' as well as JSON text, written with [zujson::json_write()]. There, a
 #' length-1 vector is a JSON scalar: give a repeated field of one element as
@@ -65,7 +66,9 @@ proto_to_json <- function(
   }
   if (!missing(parse)) {
     check_flag(parse, "parse", sys.call())
-    if (parse) require_zujson("parse", sys.call())
+    if (parse) {
+      require_zujson("parse", sys.call())
+    }
   }
   opts <- if (
     missing(emit_defaults) &&
@@ -108,12 +111,11 @@ json_options <- function(
 ) {
   check_flag(emit_defaults, "emit_defaults", call)
   check_flag(proto_names, "proto_names", call)
-  enums <- zpb_match_arg(enums, c("name", "integer"), "enums", call)
+  enums <- zpb_match_arg(enums, zpb_choices$json_enums, "enums", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
   check_limit(max_depth, "max_depth", 1, 1000, call)
   list(
     max_depth = as.integer(max_depth),
-    arena_limit = max(4 * max_size, 65536),
     json_options = as.integer(emit_defaults) +
       2L * as.integer(proto_names) +
       4L * as.integer(enums == "integer")
@@ -123,7 +125,6 @@ json_options <- function(
 # json_options() with every argument at its default, built once.
 zpb_json_defaults <- list(
   max_depth = zpb_limits$max_depth,
-  arena_limit = max(4 * zpb_limits$max_size, 65536),
   json_options = 0L
 )
 
@@ -174,12 +175,17 @@ proto_from_json <- function(
     )
   }
   opts <- list(
-    arena_limit = max(4 * max_size, 65536),
     ignore_unknown = as.integer(ignore_unknown),
     check_required = as.integer(check_required)
   )
   res <- .Call(zpb_from_json, pool$ptr, type, enc2utf8(json), opts)
   if (!is.null(res$error)) {
+    # upb's JSON parser stops at 64 levels (a zuproto_json_error), so the
+    # encoder's limit of 1000 is not reached from JSON; were it, it is the
+    # encoder's error, as proto_encode() raises it.
+    if (identical(res$error, "max_depth")) {
+      encode_error(res, type, call)
+    }
     json_error(res, type, max_size, NA, call)
   }
   res$value
@@ -227,6 +233,13 @@ json_error <- function(res, type, max_size, max_depth, call) {
 #' proto_unpack_any(any, pool)
 proto_unpack_any <- function(x, pool, ...) {
   call <- sys.call()
+  if ("type" %in% ...names()) {
+    zpb_invalid_argument(
+      "type",
+      "`type` comes from `x$type_url`; it cannot be given.",
+      call
+    )
+  }
   ok <- is.list(x) &&
     is.character(x$type_url) &&
     length(x$type_url) == 1L &&

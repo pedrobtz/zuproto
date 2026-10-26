@@ -16,8 +16,10 @@
 #'   kinds also decimal strings, which are exact;
 #' * enums: factors, value names, or numbers (a closed enum accepts only
 #'   the numbers it defines);
-#' * `Timestamp`: `POSIXct` or seconds since the epoch; `Duration`:
+#' * `Timestamp`: `POSIXct` or seconds since the epoch (not a `Date`,
+#'   whose number is days: convert it with [as.POSIXct()]); `Duration`:
 #'   `difftime` or seconds; a wrapper: its value;
+#' * strings: valid UTF-8, or in an encoding R translates to it;
 #' * `Value`: `NULL`, a logical, number or string, a named list (a
 #'   `Struct`), or an unnamed list or vector (a `ListValue`).
 #'
@@ -148,10 +150,21 @@ encode_error <- function(res, type, call) {
       sprintf("Cannot encode as '%s': a required field is not set.", type),
       call = call
     ),
-    zpb_abort(
-      "zuproto_error",
-      sprintf("Cannot encode as '%s': out of memory.", type),
+    max_depth = zpb_abort(
+      c("zuproto_depth_limit", "zuproto_limit_error"),
+      sprintf(
+        "Cannot encode as '%s': messages are nested deeper than %d levels, the most zuproto encodes.",
+        type,
+        zpb_encode_max_depth
+      ),
+      limit = "max_depth",
+      limit_value = zpb_encode_max_depth,
       call = call
-    )
+    ),
+    zpb_internal_error(res$error, sprintf("encode as '%s'", type), call)
   )
 }
+
+# The deepest nesting proto_encode() writes, ZPB_ENCODE_MAX_DEPTH in C: the
+# most `max_depth` lets proto_decode() accept.
+zpb_encode_max_depth <- 1000L

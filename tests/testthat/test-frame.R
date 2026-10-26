@@ -10,22 +10,21 @@ test_that("each row encodes to the same bytes as the single-message decode", {
       int64 = "character"
     )
     expect_identical(nrow(df), 2L)
+    # Through public functions only (#44): writing the frame gives the
+    # single decode's encoding, framed, once per row.
     single <- proto_decode(raw, types[[name]], pool, int64 = "character")
     expected <- proto_encode(single, types[[name]], pool)
-    for (row in zuproto:::frame_rows(
-      df,
-      zuproto:::case_columns(pool, types[[name]])
-    )) {
-      expect_identical(
-        proto_encode(row, types[[name]], pool),
-        expected,
-        label = name
-      )
-    }
+    framed <- c(varint(length(expected)), expected)
+    expect_identical(
+      proto_write_delimited(df, types[[name]], pool),
+      c(framed, framed),
+      label = name
+    )
   }
 })
 
-test_that("columns take the shapes design section 6.2 gives them", {
+# Design section 6.2's column shapes, one test per kind of column (#46).
+test_that("scalar columns are atomic vectors, bytes a list column", {
   pool <- decode_pool()
   df <- proto_decode_df(
     list(msg_fixture("scalars_set"), msg_fixture("scalars_empty")),
@@ -37,7 +36,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
   expect_s3_class(df$f_enum, "factor")
   expect_identical(as.character(df$f_enum), c("HIGH", "LEVEL_UNSPECIFIED"))
   expect_identical(df$f_bytes, list(as.raw(c(0, 1, 2, 255)), raw()))
+})
 
+test_that("defaults = FALSE gives NA for fields not on the wire", {
+  pool <- decode_pool()
   none <- proto_decode_df(
     list(msg_fixture("scalars_empty")),
     "zpb.decode.Scalars",
@@ -45,7 +47,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
     defaults = FALSE
   )
   expect_identical(none$f_int32, NA_integer_)
+})
 
+test_that("repeated fields are list columns, of data frames for messages", {
+  pool <- decode_pool()
   rep <- proto_decode_df(
     list(msg_fixture("repeated")),
     "zpb.decode.Repeated",
@@ -55,7 +60,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
   expect_identical(rep$packed[[1]], 1:3)
   expect_s3_class(rep$points[[1]], "data.frame")
   expect_identical(rep$points[[1]]$x, c(1L, 3L))
+})
 
+test_that("well-known types take their R forms as columns", {
+  pool <- decode_pool()
   wk <- proto_decode_df(
     list(msg_fixture("wellknown")),
     "zpb.decode.WellKnown",
@@ -67,7 +75,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
   expect_identical(wk$unset_wrapper, NA_integer_)
   expect_type(wk$meta, "list")
   expect_s3_class(wk$times[[1]], "POSIXct")
+})
 
+test_that("maps are list columns of named vectors", {
+  pool <- decode_pool()
   maps <- proto_decode_df(list(msg_fixture("maps")), "zpb.decode.Maps", pool)
   expect_identical(maps$by_string[[1]], c(a = 1L, b = 2L))
 })
@@ -145,7 +156,7 @@ test_that("a message that fails names its index", {
     proto_decode_df(msgs, "zpb.decode.Nested", pool, max_size = 3),
     class = "zuproto_size_limit"
   )
-  expect_identical(err$index, 1L)
+  expect_identical(err$index, 1)
 })
 
 test_that("more rows than max_rows is a row limit error", {
@@ -206,7 +217,7 @@ test_that("a delimited stream round-trips through a data frame", {
   )
   expect_identical(proto_read_delimited(path, "zpb.decode.Choice", pool), df)
   con <- file(path, "rb")
-  on.exit(close(con))
+  withr::defer(close(con))
   expect_identical(proto_read_delimited(con, "zpb.decode.Choice", pool), df)
 })
 
@@ -272,37 +283,131 @@ test_that("proto_write_delimited() names the message that fails to encode", {
     ),
     class = "zuproto_type_mismatch"
   )
-  expect_identical(err$index, 2L)
+  expect_identical(err$index, 2)
   expect_error(
     proto_write_delimited(list(x = 1L), "zpb.decode.Point", pool),
     class = "zuproto_invalid_argument"
   )
 })
 
-test_that("a message past the memory ceiling in a batch is a size limit error", {
-  # 10^6 packed zeros expand past four times their size; the error path
-  # must name the limit without touching the freed arena.
-  n <- 1e6
-  raw <- c(as.raw(0x0a), varint(n), raw(n))
+test_that("batches of thousands of small messages decode (the schema's ceiling)", {
+  # #26: the old ceiling, four times the input, refused batches of small
+  # messages after a few dozen; 5,000 rows also runs the row buffer's growth.
   pool <- decode_pool()
-  err <- expect_error(
-    proto_decode_df(
-      list(raw),
+  types <- fixture_types()
+  n <- 5000
+  for (name in c(
+    "maps",
+    "repeated",
+    "nested_3",
+    "wellknown",
+    "scalars_empty"
+  )) {
+    raw <- msg_fixture(name)
+    msgs <- rep(list(raw), n)
+    df <- proto_decode_df(msgs, types[[name]], pool)
+    expect_identical(nrow(df), as.integer(n), label = name)
+    stream <- do.call(c, rep(list(c(varint(length(raw)), raw)), n))
+    expect_identical(
+      nrow(proto_read_delimited(stream, types[[name]], pool)),
+      as.integer(n),
+      label = name
+    )
+  }
+  points <- rep(as.raw(c(0x32, 0x00)), n) # one Repeated with 5,000 empty points
+  expect_identical(
+    nrow(proto_decode_df(
+      points,
       "zpb.decode.Repeated",
       pool,
-      max_size = length(raw)
-    ),
-    class = "zuproto_size_limit"
+      field = "points"
+    )),
+    as.integer(n)
   )
-  expect_identical(err$index, 1)
-  stream <- c(varint(length(raw)), raw)
+})
+
+test_that("a decoded frame with nested oneofs writes back as it was read", {
+  # #28: the <oneof>_case columns of a message field's data frame, and of a
+  # repeated one's cells, were taken for fields.
+  pool <- decode_pool()
+  raw <- msg_fixture("outer")
+  df <- proto_decode_df(list(raw, raw), "zpb.decode.Outer", pool)
+  expect_identical(df$inner$kind_case, c("text", "text"))
+  expect_identical(df$items[[1]]$kind_case, c("number", "point", NA))
+  stream <- proto_write_delimited(df, "zpb.decode.Outer", pool)
+  expect_identical(
+    stream,
+    c(varint(length(raw)), raw, varint(length(raw)), raw)
+  )
+})
+
+test_that("the readers and writers refuse unusable arguments", {
+  # #42: argument paths no other test takes.
+  pool <- decode_pool()
+  raw <- msg_fixture("nested_3")
   expect_error(
-    proto_read_delimited(
-      stream,
-      "zpb.decode.Repeated",
-      pool,
-      max_size = length(raw)
-    ),
-    class = "zuproto_size_limit"
+    proto_read_delimited("no/such/stream.bin", "zpb.decode.Nested", pool),
+    class = "zuproto_io_error"
   )
+  err <- expect_error(
+    proto_read_delimited(raw, "zpb.decode.Nested", pool, each = 1),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "each")
+  err <- expect_error(
+    proto_write_delimited(list(list()), "zpb.decode.Nested", pool, path = 1),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "path")
+  err <- expect_error(
+    proto_decode_df(raw, "zpb.decode.Repeated", pool, field = NA),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "field")
+})
+
+test_that("proto_to_json() reads a message from a path", {
+  skip_if_not_installed("withr")
+  pool <- decode_pool()
+  path <- withr::local_tempfile(fileext = ".binpb")
+  writeBin(msg_fixture("nested_3"), path)
+  expect_identical(
+    proto_to_json(path, "zpb.decode.Nested", pool),
+    proto_to_json(msg_fixture("nested_3"), "zpb.decode.Nested", pool)
+  )
+})
+
+test_that("a stream read with `each` fails on its connection as an io error", {
+  # #47: open() and readBin() there gave base R errors.
+  skip_if_not_installed("withr")
+  pool <- decode_pool()
+  path <- withr::local_tempfile(fileext = ".bin")
+  noop <- function(df) NULL
+  expect_error(
+    proto_read_delimited(file(path), "zpb.decode.Nested", pool, each = noop),
+    class = "zuproto_io_error"
+  )
+  writeBin(raw(), path)
+  con <- file(path, "wb")
+  withr::defer(close(con))
+  expect_error(
+    proto_read_delimited(con, "zpb.decode.Nested", pool, each = noop),
+    class = "zuproto_io_error"
+  )
+})
+
+test_that("a directory is named as one, not as missing", {
+  # #49
+  pool <- decode_pool()
+  dir <- tempdir()
+  for (f in list(
+    function() proto_pool(dir),
+    function() proto_decode(dir, "zpb.decode.Nested", pool),
+    function() {
+      proto_read_delimited(dir, "zpb.decode.Nested", pool, each = print)
+    }
+  )) {
+    err <- expect_error(f(), class = "zuproto_io_error")
+    expect_match(conditionMessage(err), "it is a directory", fixed = TRUE)
+  }
 })

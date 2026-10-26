@@ -20,7 +20,7 @@ zuproto_info <- function() {
       version = unname(getNamespaceVersion("zuproto")),
       protobuf = info$protobuf_tag,
       protobuf_commit = info$protobuf_commit,
-      limits = zpb_default_limits()
+      limits = zpb_limits
     ),
     class = "zuproto_info"
   )

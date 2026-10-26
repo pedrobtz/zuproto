@@ -45,7 +45,9 @@ their \code{json_name}s.}
 \code{\link[zujson:json_parse]{zujson::json_parse()}} rather than as text.}
 
 \item{max_size}{The largest input accepted, in bytes. upb's memory for
-the decode is capped at four times this.}
+the decode is also capped, at a multiple of the input's size that the
+message type sets: the most a message of that type could legitimately
+need.}
 
 \item{max_depth}{The deepest nesting accepted: how many levels of
 messages within messages, the top-level message being level 0. A
@@ -78,8 +80,9 @@ types take their special JSON forms (\code{Timestamp} as an RFC 3339 string,
 \details{
 \code{Any} messages convert only when the type they pack is in the pool.
 
-JSON meets R values through \href{https://CRAN.R-project.org/package=zujson}{zujson},
-which must be installed for it: \code{proto_to_json(parse = TRUE)} returns
+JSON meets R values through
+\href{https://CRAN.R-project.org/package=zujson}{zujson}, which must be
+installed for it: \code{proto_to_json(parse = TRUE)} returns
 \code{\link[zujson:json_parse]{zujson::json_parse()}}'s R value, and \code{proto_from_json()} takes an R value
 as well as JSON text, written with \code{\link[zujson:json_write]{zujson::json_write()}}. There, a
 length-1 vector is a JSON scalar: give a repeated field of one element as

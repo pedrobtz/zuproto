@@ -120,13 +120,7 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
     return(read_connection(x, call, limit))
   }
   if (is.character(x) && length(x) == 1L && !is.na(x)) {
-    if (!file.exists(x) || dir.exists(x)) {
-      zpb_abort(
-        "zuproto_io_error",
-        sprintf("Cannot read file '%s': it does not exist.", x),
-        call = call
-      )
-    }
+    check_file(x, call)
     size <- min(file.size(x), limit)
     return(tryCatch(
       readBin(x, "raw", size),
@@ -146,30 +140,39 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
   )
 }
 
+# open() and readBin() on a connection, failing as zuproto_io_error.
+open_connection <- function(con, call) {
+  # open() warns with the reason ("No such file or directory") before it
+  # fails with a generic error; the reason goes in the error.
+  fail <- function(e) {
+    zpb_abort(
+      "zuproto_io_error",
+      sprintf("Cannot open connection: %s", conditionMessage(e)),
+      call = call
+    )
+  }
+  tryCatch(open(con, "rb"), warning = fail, error = fail)
+}
+
+read_chunk <- function(con, n, call) {
+  tryCatch(readBin(con, "raw", n), error = function(e) {
+    zpb_abort(
+      "zuproto_io_error",
+      sprintf("Cannot read connection: %s", conditionMessage(e)),
+      call = call
+    )
+  })
+}
+
 read_connection <- function(con, call = NULL, limit = Inf) {
   if (!isOpen(con)) {
-    tryCatch(open(con, "rb"), error = function(e) {
-      zpb_abort(
-        "zuproto_io_error",
-        sprintf("Cannot open connection: %s", conditionMessage(e)),
-        call = call
-      )
-    })
+    open_connection(con, call)
     on.exit(close(con))
   }
   chunks <- list()
   got <- 0
   while (got < limit) {
-    chunk <- tryCatch(
-      readBin(con, "raw", min(65536, limit - got)),
-      error = function(e) {
-        zpb_abort(
-          "zuproto_io_error",
-          sprintf("Cannot read connection: %s", conditionMessage(e)),
-          call = call
-        )
-      }
-    )
+    chunk <- read_chunk(con, min(65536, limit - got), call)
     if (length(chunk) == 0L) {
       break
     }
@@ -179,6 +182,7 @@ read_connection <- function(con, call = NULL, limit = Inf) {
   unlist(chunks, use.names = FALSE) %||% raw()
 }
 
+# Base R has %||% from 4.4 only; zuproto supports 4.1.
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
 # Check the whole set before adding any of it, so a set that fails leaves
@@ -283,4 +287,20 @@ pool_add_set <- function(pool, bytes, call = NULL) {
     pending <- pending[!ready]
   }
   invisible(pool)
+}
+
+# A path that is a readable file, or a zuproto_io_error saying why not.
+check_file <- function(path, call) {
+  why <- if (dir.exists(path)) {
+    "it is a directory"
+  } else if (!file.exists(path)) {
+    "it does not exist"
+  }
+  if (!is.null(why)) {
+    zpb_abort(
+      "zuproto_io_error",
+      sprintf("Cannot read file '%s': %s.", path, why),
+      call = call
+    )
+  }
 }

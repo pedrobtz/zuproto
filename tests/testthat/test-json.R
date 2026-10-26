@@ -122,6 +122,16 @@ test_that("proto_unpack_any() decodes the packed message", {
     proto_unpack_any(list(value = raw()), pool),
     class = "zuproto_invalid_argument"
   )
+  # #38: `type` in ... would shift proto_decode()'s arguments.
+  err <- expect_error(
+    proto_unpack_any(wk$any, pool, type = "zpb.decode.Point"),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "type")
+  expect_identical(
+    proto_unpack_any(wk$any, pool, defaults = FALSE),
+    list(x = 1L, y = 2L)
+  )
 })
 
 test_that("int64 = \"integer64\" decodes 64-bit fields exactly", {
@@ -208,6 +218,56 @@ test_that("Timestamp and Duration nanos out of range are refused in JSON", {
   )
   expect_error(
     proto_to_json(ts, "google.protobuf.Timestamp", pool),
+    class = "zuproto_json_error"
+  )
+})
+
+test_that("nested Anys are bounded by max_depth before upb's JSON encoder sees them", {
+  # #25: upb's JSON encoder decodes each packed Any afresh, unbounded; a chain
+  # of Anys must fail as a depth limit, not overflow the C stack.
+  pool <- proto_pool()
+  any <- function(type, value) {
+    url <- charToRaw(paste0("type.googleapis.com/google.protobuf.", type))
+    c(
+      as.raw(0x0a),
+      varint(length(url)),
+      url,
+      as.raw(0x12),
+      varint(length(value)),
+      value
+    )
+  }
+  chain <- function(n) {
+    out <- any("Duration", as.raw(c(0x08, 0x01))) # 1s
+    for (i in seq_len(n)) {
+      out <- any("Any", out)
+    }
+    out
+  }
+  deep <- chain(2000)
+  expect_no_error(proto_decode(deep, "google.protobuf.Any", pool))
+  err <- expect_error(
+    proto_to_json(deep, "google.protobuf.Any", pool),
+    class = "zuproto_depth_limit"
+  )
+  expect_identical(err$limit, "max_depth")
+  expect_match(
+    proto_to_json(chain(5), "google.protobuf.Any", pool),
+    '"1s"',
+    fixed = TRUE
+  )
+})
+
+test_that("JSON nested past upb's parser limit is a JSON error", {
+  # #48: upb's JSON parser stops at 64 levels, below the encoder's 1000, so
+  # proto_from_json() never reaches the encoder's depth limit.
+  pool <- decode_pool()
+  json <- function(n) {
+    paste0(strrep('{"child":', n - 1), '{"depth":1}', strrep("}", n - 1))
+  }
+  expect_type(proto_from_json(json(60), "zpb.decode.Nested", pool), "raw")
+  expect_error(
+    proto_from_json(json(100), "zpb.decode.Nested", pool),
     class = "zuproto_json_error"
   )
 })

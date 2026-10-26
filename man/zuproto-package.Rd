@@ -4,9 +4,9 @@
 \name{zuproto-package}
 \alias{zuproto}
 \alias{zuproto-package}
-\title{zuproto: Protocol Buffers Decoding and Encoding with 'upb'}
+\title{zuproto: 'Protocol Buffers' Decoding and Encoding with 'upb'}
 \description{
-Decodes and encodes Protocol Buffers messages from descriptor sets rather than generated code. One message becomes a named list; many messages become a data frame built column by column. Uses a bundled copy of the 'upb' runtime (\url{https://github.com/protocolbuffers/protobuf}), so no system 'protobuf' library or 'protoc' compiler is required.
+Decodes and encodes 'Protocol Buffers' messages from descriptor sets rather than generated code. One message becomes a named list; many messages become a data frame built column by column. Uses a bundled copy of the 'upb' runtime (\url{https://github.com/protocolbuffers/protobuf}), so no system 'protobuf' library or 'protoc' compiler is required.
 }
 \seealso{
 Useful links:

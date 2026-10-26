@@ -22,14 +22,16 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if (len) memcpy(text, data + 1, len);
 
     zpb_counting_alloc ca;
-    zpb_arena *a = zpb_arena_new_limited(&ca, 4 * len + 65536);
+    zpb_arena *a = zpb_arena_new_limited(&ca, (size_t) zpb_arena_ceiling(pool, m, (double) len, 1));
     zpb_msg *msg = a ? zpb_msg_new(m, a) : NULL;
     char err[512];
     if (msg != NULL && zpb_json_decode(text, len, msg, m, pool, (data[0] & 0x80) != 0, a, err, sizeof err)) {
         int status;
         size_t n = 0;
         zpb_encode_message(msg, m, true, false, a, &n, &status);
-        size_t j = zpb_json_encode(msg, m, pool, ZPB_JSON_EMIT_DEFAULTS, NULL, 0, err, sizeof err);
+        size_t j = zpb_check_any(pool, m, msg, 100, a, &ca) == ZPB_DECODE_OK
+                       ? zpb_json_encode(msg, m, pool, ZPB_JSON_EMIT_DEFAULTS, NULL, 0, err, sizeof err)
+                       : (size_t) -1;
         if (j != (size_t) -1) {
             char *json = (char *) malloc(j + 1);
             if (json != NULL) {

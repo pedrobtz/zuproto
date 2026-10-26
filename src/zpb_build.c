@@ -98,12 +98,8 @@ static SEXP enum_levels(const zpb_enumdef *e)
 /* 1-based level of number v, or NA_INTEGER for a number the enum lacks. */
 static int enum_code(const zpb_enumdef *e, int32_t v)
 {
-    const char *name = zpb_enum_name_of(e, v);
-    if (name == NULL) return NA_INTEGER;
-    int n = zpb_enum_value_count(e);
-    for (int i = 0; i < n; i++)
-        if (strcmp(zpb_enum_value_name(e, i), name) == 0) return i + 1;
-    return NA_INTEGER;
+    int i = zpb_enum_index_of(e, v);
+    return i < 0 ? NA_INTEGER : i + 1;
 }
 
 /* ---- Values of one field ---- */
@@ -329,6 +325,10 @@ typedef struct {
     zpb_value val;
 } map_entry;
 
+/* The key type cmp_entry() compares, set just before each qsort(): qsort
+ * passes no context and qsort_r() is not portable. Safe because nothing
+ * sorts again until the sort returns (building the values, which can
+ * recurse into another map, comes after). */
 static int map_key_ctype;
 
 static int cmp_entry(const void *a, const void *b)
@@ -844,7 +844,7 @@ static SEXP build_frame(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg *
     R_CheckStack();
     int nf = zpb_msgdef_field_count(m);
     ptrdiff_t ne = zpb_defpool_extensions(ctx->pool, m, NULL, 0);
-    if (ne < 0) Rf_error("zuproto: out of memory listing extensions");
+    if (ne < 0) zpb_internal_error("out of memory listing extensions");
     const zpb_fielddef **ext = NULL;
     if (ne > 0) {
         ext = (const zpb_fielddef **) R_alloc((size_t) ne, sizeof *ext);

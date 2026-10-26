@@ -71,6 +71,22 @@ static int fail(fill_ctx *ctx, int err, const char *detail)
 
 /* ---- R values ---- */
 
+/* A string as UTF-8 for upb. One R marks as bytes has no encoding to
+ * translate from, and one that claims UTF-8 but is not valid would reach
+ * the message as R's <xx> escapes. `name` says whether it is a name (a
+ * field's, a map or Struct key), for the description. */
+static int utf8_elt(fill_ctx *ctx, SEXP c, int name, const char **s)
+{
+    if (Rf_getCharCE(c) == CE_BYTES)
+        return fail(ctx, FILL_TYPE, name ? "has a name marked as bytes, not text"
+                                         : "must not be a string marked as bytes");
+    if (Rf_charIsUTF8(c) && !zpb_utf8_valid(CHAR(c), (size_t) LENGTH(c)))
+        return fail(ctx, FILL_TYPE, name ? "has a name that is not valid UTF-8"
+                                         : "must be valid UTF-8");
+    *s = Rf_translateCharUTF8(c);
+    return 0;
+}
+
 static int is_integer64(SEXP x)
 {
     return TYPEOF(x) == REALSXP && Rf_inherits(x, "integer64");
@@ -107,8 +123,23 @@ static int whole_in(double d, double lo, double hi)
     return !ISNAN(d) && d == floor(d) && d >= lo && d <= hi;
 }
 
-/* Element i of a numeric vector as a double, or fail on NA. */
+static int is_time(SEXP x)
+{
+    return Rf_inherits(x, "Date") || Rf_inherits(x, "POSIXt") || Rf_inherits(x, "difftime");
+}
+
+static int num_value(fill_ctx *ctx, SEXP x, R_xlen_t i, double *out);
+
+/* Element i of a numeric vector as a double, or fail on NA. A date or
+ * time is refused, since its number is in units the field does not
+ * have; Timestamp and Duration take theirs through fill_seconds(). */
 static int num_elt(fill_ctx *ctx, SEXP x, R_xlen_t i, double *out)
+{
+    if (is_time(x)) return fail(ctx, FILL_TYPE, "must be a number, not a date or time");
+    return num_value(ctx, x, i, out);
+}
+
+static int num_value(fill_ctx *ctx, SEXP x, R_xlen_t i, double *out)
 {
     if (TYPEOF(x) == INTSXP && !is_factor(x)) {
         if (INTEGER(x)[i] == NA_INTEGER) return fail(ctx, FILL_TYPE, "must not be NA");
@@ -136,8 +167,7 @@ static int str_elt(fill_ctx *ctx, SEXP x, R_xlen_t i, const char **s)
     if (TYPEOF(x) != STRSXP) return fail(ctx, FILL_TYPE, "must be a character vector");
     SEXP c = STRING_ELT(x, i);
     if (c == NA_STRING) return fail(ctx, FILL_TYPE, "must not be NA");
-    *s = Rf_translateCharUTF8(c);
-    return 0;
+    return utf8_elt(ctx, c, 0, s);
 }
 
 static int parse_int64(const char *s, int64_t *out)
@@ -246,7 +276,7 @@ static int scalar_elt(fill_ctx *ctx, const zpb_fielddef *f, SEXP x, R_xlen_t i,
             SEXP levels = Rf_getAttrib(x, R_LevelsSymbol);
             if (TYPEOF(levels) != STRSXP || code < 1 || code > XLENGTH(levels))
                 return fail(ctx, FILL_TYPE, "is a factor with invalid codes");
-            s = Rf_translateCharUTF8(STRING_ELT(levels, code - 1));
+            if (utf8_elt(ctx, STRING_ELT(levels, code - 1), 0, &s) < 0) return -1;
             if (!zpb_enum_number_of(e, s, strlen(s), &num))
                 return fail(ctx, FILL_TYPE, "has a level that is not a value of the enum");
         } else if (TYPEOF(x) == STRSXP) {
@@ -293,8 +323,14 @@ static int set_field(fill_ctx *ctx, zpb_msg *msg, const zpb_fielddef *f, zpb_val
 static int fill_seconds(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x,
                         R_xlen_t i, int timestamp)
 {
+    /* A Timestamp takes POSIXct, a Duration difftime, and either plain
+     * seconds; a Date's number is days, so it is refused with the rest. */
+    if (Rf_isObject(x) && !is_integer64(x) &&
+        !(timestamp ? Rf_inherits(x, "POSIXct") : Rf_inherits(x, "difftime")))
+        return fail(ctx, FILL_TYPE, timestamp ? "must be a POSIXct or seconds since the epoch"
+                                              : "must be a difftime or seconds");
     double d;
-    if (num_elt(ctx, x, i, &d) < 0) return -1;
+    if (num_value(ctx, x, i, &d) < 0) return -1;
     if (!timestamp) {
         SEXP units = Rf_getAttrib(x, Rf_install("units"));
         if (TYPEOF(units) == STRSXP && XLENGTH(units) == 1) {
@@ -374,7 +410,8 @@ static int fill_value_wkt(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP
             if (num_elt(ctx, x, 0, &v.double_val) < 0) return -1;
             return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 2), v);
         case STRSXP: {
-            const char *s = Rf_translateCharUTF8(STRING_ELT(x, 0));
+            const char *s;
+            if (utf8_elt(ctx, STRING_ELT(x, 0), 0, &s) < 0) return -1;
             return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 3),
                              zpb_value_str(s, strlen(s)));
         }
@@ -447,7 +484,8 @@ static int fill_struct(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
     if (map == NULL) return fail(ctx, FILL_MEMORY, "out of memory");
     for (R_xlen_t i = 0; i < XLENGTH(x); i++) {
         if (STRING_ELT(names, i) == NA_STRING) return fail(ctx, FILL_TYPE, "must not have NA names");
-        const char *key = Rf_translateCharUTF8(STRING_ELT(names, i));
+        const char *key;
+        if (utf8_elt(ctx, STRING_ELT(names, i), 1, &key) < 0) return -1;
         size_t at = path_push(ctx, "[\"%s\"]", key, 0);
         zpb_msg *sub = zpb_msg_new(value_def, ctx->arena);
         if (sub == NULL) return fail(ctx, FILL_MEMORY, "out of memory");
@@ -546,7 +584,8 @@ static int fill_map(fill_ctx *ctx, zpb_msg *msg, const zpb_fielddef *f, SEXP x)
     const zpb_msgdef *sm = ct == ZPB_CTYPE_MESSAGE ? zpb_field_msgdef(vf) : NULL;
     for (R_xlen_t i = 0; i < XLENGTH(x); i++) {
         if (STRING_ELT(names, i) == NA_STRING) return fail(ctx, FILL_TYPE, "must not have NA names");
-        const char *s = Rf_translateCharUTF8(STRING_ELT(names, i));
+        const char *s;
+        if (utf8_elt(ctx, STRING_ELT(names, i), 1, &s) < 0) return -1;
         size_t at = path_push(ctx, "[\"%s\"]", s, 0);
         zpb_value k, v;
         if (map_key(ctx, kf, s, &k) < 0) return -1;
@@ -610,14 +649,19 @@ static int fill_generic(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x
     R_xlen_t n = XLENGTH(x);
     if (n > 0 && TYPEOF(names) != STRSXP) return fail(ctx, FILL_TYPE, "must be a named list");
 
-    /* Oneofs given a member so far, to refuse a second. */
+    /* Oneofs given a member so far, to refuse a second, and fields given
+     * so far, to refuse one given twice. */
     const void **oneofs = n > 0 ? (const void **) R_alloc((size_t) n, sizeof *oneofs) : NULL;
     R_xlen_t n_oneofs = 0;
+    const zpb_fielddef **given =
+        n > 0 ? (const zpb_fielddef **) R_alloc((size_t) n, sizeof *given) : NULL;
+    R_xlen_t n_given = 0;
 
     for (R_xlen_t i = 0; i < n; i++) {
         SEXP v = VECTOR_ELT(x, i);
         if (STRING_ELT(names, i) == NA_STRING) return fail(ctx, FILL_TYPE, "must not have NA names");
-        const char *name = Rf_translateCharUTF8(STRING_ELT(names, i));
+        const char *name;
+        if (utf8_elt(ctx, STRING_ELT(names, i), 1, &name) < 0) return -1;
         size_t len = strlen(name);
         size_t at = path_field(ctx, name);
 
@@ -637,6 +681,9 @@ static int fill_generic(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x
             }
             return fail(ctx, FILL_UNKNOWN_FIELD, "is not a field of the message type");
         }
+        for (R_xlen_t j = 0; j < n_given; j++)
+            if (given[j] == f) return fail(ctx, FILL_TYPE, "is a field given twice");
+        given[n_given++] = f;
 
         /* NULL and NA mean unset, except in a Value field, where they are
          * JSON null, as proto_decode() gives it; such a field is left unset
@@ -718,7 +765,7 @@ static SEXP result(SEXP value, const char *error, const char *path, const char *
 /* Encode R value x as message type `type` of pool. Returns list(value,
  * error, path, detail): value the raw bytes, or error one of
  * "unknown_type", "type_mismatch", "unknown_field", "missing_required",
- * "out_of_memory", "other". opts: deterministic, check_required,
+ * "max_depth", "out_of_memory", "other". opts: deterministic, check_required,
  * write_unknown, ignore_extra (integers). */
 SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts)
 {
@@ -728,7 +775,7 @@ SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts)
     if (m == NULL) return result(R_NilValue, "unknown_type", NULL, NULL);
 
     zpb_arena *a = zpb_arena_new();
-    if (a == NULL) Rf_error("zuproto: out of memory creating an arena");
+    if (a == NULL) zpb_internal_error("out of memory creating an arena");
     SEXP aptr = PROTECT(R_MakeExternalPtr(a, R_NilValue, R_NilValue));
     R_RegisterCFinalizerEx(aptr, arena_finalize, TRUE);
 
@@ -764,6 +811,7 @@ SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts)
         UNPROTECT(1);
         return result(R_NilValue,
                       status == ZPB_ENCODE_MISSING_REQUIRED ? "missing_required"
+                      : status == ZPB_ENCODE_DEPTH         ? "max_depth"
                       : status == ZPB_ENCODE_MEMORY        ? "out_of_memory"
                                                            : "other",
                       NULL, NULL);

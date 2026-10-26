@@ -52,8 +52,10 @@ forms \code{proto_decode()} gives them, and also:
 kinds also decimal strings, which are exact;
 \item enums: factors, value names, or numbers (a closed enum accepts only
 the numbers it defines);
-\item \code{Timestamp}: \code{POSIXct} or seconds since the epoch; \code{Duration}:
+\item \code{Timestamp}: \code{POSIXct} or seconds since the epoch (not a \code{Date},
+whose number is days: convert it with \code{\link[=as.POSIXct]{as.POSIXct()}}); \code{Duration}:
 \code{difftime} or seconds; a wrapper: its value;
+\item strings: valid UTF-8, or in an encoding R translates to it;
 \item \code{Value}: \code{NULL}, a logical, number or string, a named list (a
 \code{Struct}), or an unnamed list or vector (a \code{ListValue}).
 }
