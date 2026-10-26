@@ -383,16 +383,26 @@ test_that("nesting beyond max_depth is a depth limit error", {
   )
 })
 
-test_that("a small input that expands past the arena ceiling is a size limit error", {
-  n <- 1e6
-  raw <- c(as.raw(0x0a), varint(n), raw(n)) # field 1, packed: 10^6 zeros
+test_that("inputs that expand a lot decode within the schema's ceiling", {
+  # The ceiling is the most a message of the type can need (design section
+  # 12): packed zeros expand 4x (int32) and 8x (double), empty sub-messages
+  # to a whole struct each. None of these legitimate inputs may hit it.
   pool <- decode_pool()
-  err <- expect_error(
-    proto_decode(raw, "zpb.decode.Repeated", pool, max_size = length(raw)),
-    class = "zuproto_size_limit"
+  n <- 1e6
+  zeros <- c(as.raw(0x0a), varint(n), raw(n)) # Repeated.packed, 10^6 zeros
+  expect_length(
+    proto_decode(
+      zeros,
+      "zpb.decode.Repeated",
+      pool,
+      max_size = length(zeros)
+    )$packed,
+    n
   )
-  expect_identical(err$limit, "max_size")
-  expect_length(proto_decode(raw, "zpb.decode.Repeated", pool)$packed, n)
+  doubles <- c(as.raw(0x3a), varint(8 * 1e5), raw(8 * 1e5)) # Repeated.doubles
+  expect_length(proto_decode(doubles, "zpb.decode.Repeated", pool)$doubles, 1e5)
+  points <- rep(as.raw(c(0x32, 0x00)), 1e5) # Repeated.points: 10^5 empty Points
+  expect_length(proto_decode(points, "zpb.decode.Repeated", pool)$points, 1e5)
 })
 
 test_that("invalid UTF-8 is an error in proto3 and proto2 strings alike", {

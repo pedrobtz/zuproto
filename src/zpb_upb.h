@@ -734,4 +734,138 @@ static inline bool zpb_json_decode(const char *buf, size_t len, zpb_msg *msg,
     return ok;
 }
 
+/* ---- Memory ceilings (design section 12) ----
+ *
+ * A decode's arena is capped at a multiple of its input. The multiple comes
+ * from the schema, which is trusted: every two wire bytes (a tag and a zero
+ * length) can create one message struct, a scalar expands at most 8x, and
+ * arrays and map tables at most double that. So legitimate input never
+ * reaches the ceiling, and hostile input cannot go past a factor the schema
+ * fixes. */
+
+static inline size_t zpb_msgdef_struct_size(const zpb_msgdef *m)
+{
+    return upb_MessageDef_MiniTable(m)->size_dont_copy_me__upb_internal_use_only;
+}
+
+/* The largest struct among the message types reachable from m, through
+ * fields, map values and the pool's extensions; 0 if out of memory. */
+static inline size_t zpb_msgdef_max_struct(const zpb_defpool *p, const zpb_msgdef *m)
+{
+    size_t cap = 64, n = 0, head = 0, best = 0;
+    const upb_MessageDef **todo = (const upb_MessageDef **) malloc(cap * sizeof *todo);
+    if (todo == NULL) return 0;
+    todo[n++] = m;
+    while (head < n) {
+        const upb_MessageDef *cur = todo[head++];
+        size_t s = zpb_msgdef_struct_size(cur);
+        if (s > best) best = s;
+        size_t ne = 0;
+        const upb_FieldDef **ext = upb_DefPool_GetAllExtensions(p, cur, &ne);
+        int nf = upb_MessageDef_FieldCount(cur);
+        for (size_t i = 0; i < (size_t) nf + ne; i++) {
+            const upb_FieldDef *f = i < (size_t) nf ? upb_MessageDef_Field(cur, (int) i)
+                                                    : ext[i - (size_t) nf];
+            const upb_MessageDef *sub = upb_FieldDef_MessageSubDef(f);
+            if (sub == NULL) continue;
+            if (upb_MessageDef_IsMapEntry(sub)) {
+                sub = upb_FieldDef_MessageSubDef(upb_MessageDef_FindFieldByNumber(sub, 2));
+                if (sub == NULL) continue;
+            }
+            int seen = 0;
+            for (size_t j = 0; j < n && !seen; j++) seen = todo[j] == sub;
+            if (seen) continue;
+            if (n == cap) {
+                const upb_MessageDef **grown =
+                    (const upb_MessageDef **) realloc((void *) todo, 2 * cap * sizeof *todo);
+                if (grown == NULL) {
+                    upb_gfree((void *) ext);
+                    free((void *) todo);
+                    return 0;
+                }
+                todo = grown;
+                cap *= 2;
+            }
+            todo[n++] = sub;
+        }
+        upb_gfree((void *) ext);
+    }
+    free((void *) todo);
+    return best;
+}
+
+/* The ceiling for decoding `bytes` of input holding `n` messages of type m. */
+static inline double zpb_arena_ceiling(const zpb_defpool *p, const zpb_msgdef *m, double bytes,
+                                       double n)
+{
+    double s_max = (double) zpb_msgdef_max_struct(p, m);
+    double per_byte = s_max + 64 > 64 ? s_max + 64 : 64;
+    return bytes * per_byte + n * ((double) zpb_msgdef_struct_size(m) + 256) + 1048576.0;
+}
+
+/* Every set field of msg, extensions included, one per call; *iter starts at
+ * ZPB_MSG_ITER_BEGIN. */
+static inline bool zpb_msg_next(const zpb_msg *msg, const zpb_msgdef *m, const zpb_defpool *p,
+                                const zpb_fielddef **f, zpb_value *v, size_t *iter)
+{
+    return upb_Message_Next(msg, m, p, f, v, iter);
+}
+
+/* ---- Any, before upb's JSON encoder sees it (design section 12) ----
+ *
+ * upb's JSON encoder decodes each packed Any afresh, with no depth limit,
+ * no UTF-8 check and an uncapped arena. So before it runs, every Any in msg
+ * is decoded here: with the depth left, UTF-8 validation, and in the capped
+ * arena, whose limit each Any raises by its own bytes' ceiling. A message
+ * that passes cannot take upb's encoder past those bounds. Returns a
+ * ZPB_DECODE_* status. */
+static inline int zpb_check_any(const zpb_defpool *p, const zpb_msgdef *m, const zpb_msg *msg,
+                                int depth, zpb_arena *a, zpb_counting_alloc *ca)
+{
+    if (depth < 0) return ZPB_DECODE_DEPTH;
+    if (upb_MessageDef_WellKnownType(m) == kUpb_WellKnown_Any) {
+        zpb_str url = zpb_str_from(zpb_msg_get(msg, upb_MessageDef_FindFieldByNumber(m, 1)).str_val);
+        zpb_str val = zpb_str_from(zpb_msg_get(msg, upb_MessageDef_FindFieldByNumber(m, 2)).str_val);
+        const char *slash = NULL;
+        for (size_t i = 0; i < url.size; i++)
+            if (url.data[i] == '/') slash = url.data + i;
+        if (slash == NULL) return ZPB_DECODE_OK; /* upb's encoder refuses it */
+        const upb_MessageDef *packed = upb_DefPool_FindMessageByNameWithSize(
+            p, slash + 1, (size_t) (url.data + url.size - (slash + 1)));
+        if (packed == NULL) return ZPB_DECODE_OK; /* likewise, before its arena */
+        double grow = zpb_arena_ceiling(p, packed, (double) val.size, 1);
+        ca->limit = (double) ca->limit + grow > (double) SIZE_MAX ? SIZE_MAX
+                                                                  : ca->limit + (size_t) grow;
+        int status;
+        const zpb_msg *inner =
+            zpb_decode_message(p, packed, val.data, val.size, a, (uint16_t) depth, &status);
+        if (inner == NULL) return status;
+        return zpb_check_any(p, packed, inner, depth - 1, a, ca);
+    }
+    size_t iter = ZPB_MSG_ITER_BEGIN;
+    const zpb_fielddef *f;
+    zpb_value v;
+    while (zpb_msg_next(msg, m, p, &f, &v, &iter)) {
+        const upb_MessageDef *sub = upb_FieldDef_MessageSubDef(f);
+        if (sub == NULL) continue;
+        int st = ZPB_DECODE_OK;
+        if (upb_FieldDef_IsMap(f)) {
+            const upb_FieldDef *vf = upb_MessageDef_FindFieldByNumber(sub, 2);
+            const upb_MessageDef *vm = upb_FieldDef_MessageSubDef(vf);
+            if (vm == NULL) continue;
+            size_t it = ZPB_MAP_ITER_BEGIN;
+            zpb_value k, mv;
+            while (st == ZPB_DECODE_OK && zpb_map_next(v.map_val, &k, &mv, &it))
+                st = zpb_check_any(p, vm, mv.msg_val, depth - 1, a, ca);
+        } else if (upb_FieldDef_IsRepeated(f)) {
+            for (size_t i = 0; st == ZPB_DECODE_OK && i < zpb_array_size(v.array_val); i++)
+                st = zpb_check_any(p, sub, zpb_array_get(v.array_val, i).msg_val, depth - 1, a, ca);
+        } else {
+            st = zpb_check_any(p, sub, v.msg_val, depth - 1, a, ca);
+        }
+        if (st != ZPB_DECODE_OK) return st;
+    }
+    return ZPB_DECODE_OK;
+}
+
 #endif

@@ -108,7 +108,6 @@ proto_decode_df <- function(
       )
     }
     opts$mode <- 0L
-    opts$arena_limit <- max(4 * sum(sizes), 65536)
   } else {
     if (
       !is.character(field) ||
@@ -125,7 +124,6 @@ proto_decode_df <- function(
     x <- read_message(x, max_size, call)
     opts$mode <- 1L
     opts$field <- field
-    opts$arena_limit <- max(4 * length(x), 65536)
   }
   res <- .Call(zpb_decode_df, pool$ptr, type, x, opts)
   df_finish(res, type, field, max_size, max_depth, max_rows, call)
@@ -191,7 +189,6 @@ proto_read_delimited <- function(
   if (is.null(each)) {
     buf <- read_input(x, "x", call)
     opts$chunk_rows <- max_rows + 1
-    opts$arena_limit <- max(4 * length(buf), 65536)
     res <- .Call(zpb_decode_df, pool$ptr, type, buf, opts)
     df <- df_finish(res, type, NULL, max_size, max_depth, max_rows, call)
     if (res$consumed < length(buf)) {
@@ -225,7 +222,6 @@ proto_read_delimited <- function(
     if (length(pending) == 0L && eof) {
       break
     }
-    opts$arena_limit <- max(4 * length(pending), 65536)
     res <- .Call(zpb_decode_df, pool$ptr, type, pending, opts)
     df <- df_finish(res, type, NULL, max_size, max_depth, max_rows, call)
     if (nrow(df) > 0L) {

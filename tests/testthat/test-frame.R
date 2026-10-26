@@ -279,30 +279,38 @@ test_that("proto_write_delimited() names the message that fails to encode", {
   )
 })
 
-test_that("a message past the memory ceiling in a batch is a size limit error", {
-  # 10^6 packed zeros expand past four times their size; the error path
-  # must name the limit without touching the freed arena.
-  n <- 1e6
-  raw <- c(as.raw(0x0a), varint(n), raw(n))
+test_that("batches of thousands of small messages decode (the schema's ceiling)", {
+  # #26: the old ceiling, four times the input, refused batches of small
+  # messages after a few dozen; 5,000 rows also runs the row buffer's growth.
   pool <- decode_pool()
-  err <- expect_error(
-    proto_decode_df(
-      list(raw),
+  types <- fixture_types()
+  n <- 5000
+  for (name in c(
+    "maps",
+    "repeated",
+    "nested_3",
+    "wellknown",
+    "scalars_empty"
+  )) {
+    raw <- msg_fixture(name)
+    msgs <- rep(list(raw), n)
+    df <- proto_decode_df(msgs, types[[name]], pool)
+    expect_identical(nrow(df), as.integer(n), label = name)
+    stream <- do.call(c, rep(list(c(varint(length(raw)), raw)), n))
+    expect_identical(
+      nrow(proto_read_delimited(stream, types[[name]], pool)),
+      as.integer(n),
+      label = name
+    )
+  }
+  points <- rep(as.raw(c(0x32, 0x00)), n) # one Repeated with 5,000 empty points
+  expect_identical(
+    nrow(proto_decode_df(
+      points,
       "zpb.decode.Repeated",
       pool,
-      max_size = length(raw)
-    ),
-    class = "zuproto_size_limit"
-  )
-  expect_identical(err$index, 1)
-  stream <- c(varint(length(raw)), raw)
-  expect_error(
-    proto_read_delimited(
-      stream,
-      "zpb.decode.Repeated",
-      pool,
-      max_size = length(raw)
-    ),
-    class = "zuproto_size_limit"
+      field = "points"
+    )),
+    as.integer(n)
   )
 })

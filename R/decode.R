@@ -80,7 +80,9 @@ zpb_choices <- list(
 #' @param bytes How `bytes` fields become R values: `"raw"` or `"base64"`
 #'   (strings, as protobuf JSON writes them).
 #' @param max_size The largest input accepted, in bytes. upb's memory for
-#'   the decode is capped at four times this.
+#'   the decode is also capped, at a multiple of the input's size that the
+#'   message type sets: the most a message of that type could legitimately
+#'   need.
 #' @param max_depth The deepest nesting accepted: how many levels of
 #'   messages within messages, the top-level message being level 0. A
 #'   message holding a message holding a message is depth 2. A map entry
@@ -189,10 +191,7 @@ decode_options <- function(
     defaults = as.integer(defaults),
     keep_unknown = as.integer(unknown == "keep"),
     bytes_base64 = as.integer(bytes == "base64"),
-    max_depth = as.integer(max_depth),
-    # The arena ceiling (design section 12), with room for upb's own
-    # overhead on tiny inputs.
-    arena_limit = max(4 * max_size, 65536)
+    max_depth = as.integer(max_depth)
   )
 }
 
@@ -203,8 +202,7 @@ zpb_decode_defaults <- list(
   defaults = 1L,
   keep_unknown = 0L,
   bytes_base64 = 0L,
-  max_depth = zpb_limits$max_depth,
-  arena_limit = max(4 * zpb_limits$max_size, 65536)
+  max_depth = zpb_limits$max_depth
 )
 
 decode_error <- function(res, type, max_size, max_depth, call) {
@@ -249,9 +247,8 @@ decode_error <- function(res, type, max_size, max_depth, call) {
     arena_limit = zpb_abort(
       c("zuproto_size_limit", "zuproto_limit_error"),
       sprintf(
-        "Cannot decode the input as '%s': it needs more than %s bytes of memory, four times `max_size`.",
-        type,
-        format(4 * max_size, scientific = FALSE)
+        "Cannot decode the input as '%s': it needs more memory than a message of that type and size can legitimately need.",
+        type
       ),
       limit = "max_size",
       limit_value = max_size,

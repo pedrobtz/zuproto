@@ -543,10 +543,26 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
   inside the next (measured in Stage 3); a map entry is a level too.
   `max_depth` is at most 1000: upb's decoder recurses once per level,
   and the C stack ran out at about 5000 on an 8 MB stack.
-- `max_rows` (1e7) per data frame, and an arena byte ceiling per call
-  (default 4 × `max_size`), enforced by a counting allocator handed to
-  `upb_Arena_Init`, so a small input that expands (packed repeated
-  fields of zeros) cannot exhaust memory.
+- `max_rows` (1e7) per data frame, and an arena byte ceiling per call,
+  enforced by a counting allocator handed to `upb_Arena_Init`, so a small
+  input that expands cannot exhaust memory. The ceiling is derived from
+  the schema, which is trusted, not set by the user: input bytes times
+  (the largest struct reachable from the type + 64), plus, per message,
+  its struct + 256, plus 1 MiB (`zpb_arena_ceiling()` in the shim). Two
+  wire bytes (a tag and a zero length) can create one struct, a scalar
+  expands at most 8×, arrays and map tables at most double that, so no
+  legitimate input reaches it. *Revised 2026-10-26 (#26):* the first
+  ceiling, 4 × the input, refused legitimate input: 10^6 packed zeros,
+  and batches of a few dozen small messages. The `arena_limit` option is
+  gone, and the `arena_limit` path of `zuproto_size_limit` is now reachable
+  only through hostile input past the schema's factor, not from R tests
+  (§15).
+- `google.protobuf.Any` on the way to JSON: upb's JSON encoder decodes
+  each packed Any afresh, with no depth limit, no UTF-8 check and an
+  uncapped arena. `zpb_check_any()` decodes every Any first, with the
+  depth left, UTF-8 validation and the capped arena (raised by each Any's
+  own ceiling), so a chain of Anys is `zuproto_depth_limit`, not a stack
+  overflow (#25).
 - UTF-8 is validated for every `string` field
   (`kUpb_DecodeOption_AlwaysValidateUtf8`), not only proto3 ones.
 - Interrupts are checked between messages in batch and stream decoding,

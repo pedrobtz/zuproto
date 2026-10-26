@@ -113,7 +113,6 @@ json_options <- function(
   check_limit(max_depth, "max_depth", 1, 1000, call)
   list(
     max_depth = as.integer(max_depth),
-    arena_limit = max(4 * max_size, 65536),
     json_options = as.integer(emit_defaults) +
       2L * as.integer(proto_names) +
       4L * as.integer(enums == "integer")
@@ -123,7 +122,6 @@ json_options <- function(
 # json_options() with every argument at its default, built once.
 zpb_json_defaults <- list(
   max_depth = zpb_limits$max_depth,
-  arena_limit = max(4 * zpb_limits$max_size, 65536),
   json_options = 0L
 )
 
@@ -174,7 +172,6 @@ proto_from_json <- function(
     )
   }
   opts <- list(
-    arena_limit = max(4 * max_size, 65536),
     ignore_unknown = as.integer(ignore_unknown),
     check_required = as.integer(check_required)
   )

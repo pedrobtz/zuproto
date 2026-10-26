@@ -1,6 +1,7 @@
 /* One message as any of zpb_fuzz_types (the first byte picks), decoded by
  * upb into an arena on zuproto's counting allocator, then written as JSON
- * and re-encoded. Invariants: a message that decodes re-encodes, and its
+ * (behind zpb_check_any(), as zpb_to_json() does) and re-encoded.
+ * Invariants: a message that decodes re-encodes, and its
  * deterministic encoding decodes back to bytes that encode the same. */
 #include "fuzz.h"
 #include "zpb_upb.h"
@@ -25,12 +26,16 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if (len) memcpy(buf, data + 1, len);
 
     zpb_counting_alloc ca;
-    zpb_arena *a = zpb_arena_new_limited(&ca, 4 * len + 65536);
+    zpb_arena *a = zpb_arena_new_limited(&ca, (size_t) zpb_arena_ceiling(pool, m, (double) len, 1));
     int status;
     const zpb_msg *msg = a ? zpb_decode_message(pool, m, buf, len, a, 100, &status) : NULL;
     if (msg != NULL) {
         char err[512];
-        size_t n = zpb_json_encode(msg, m, pool, 0, NULL, 0, err, sizeof err);
+        /* zuproto bounds every Any before upb's JSON encoder sees it (design
+         * section 12), so JSON is written only for a message that passes. */
+        size_t n = zpb_check_any(pool, m, msg, 100, a, &ca) == ZPB_DECODE_OK
+                       ? zpb_json_encode(msg, m, pool, 0, NULL, 0, err, sizeof err)
+                       : (size_t) -1;
         if (n != (size_t) -1) {
             char *json = (char *) malloc(n + 1);
             if (json != NULL) {
