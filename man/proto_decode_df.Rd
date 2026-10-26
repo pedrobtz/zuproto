@@ -105,10 +105,11 @@ all \code{NA}.
 \examples{
 pool <- proto_pool()
 # Three FieldDescriptorProto messages, one per row.
+type <- "google.protobuf.FieldDescriptorProto"
 msgs <- lapply(c("id", "name", "when"), function(name) {
-  proto_encode(list(name = name, number = 1L), "google.protobuf.FieldDescriptorProto", pool)
+  proto_encode(list(name = name, number = 1L), type, pool)
 })
-df <- proto_decode_df(msgs, "google.protobuf.FieldDescriptorProto", pool)
+df <- proto_decode_df(msgs, type, pool)
 df[c("name", "number")]
 }
 \seealso{

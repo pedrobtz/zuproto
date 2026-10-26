@@ -49,10 +49,11 @@
 #' @examples
 #' pool <- proto_pool()
 #' # Three FieldDescriptorProto messages, one per row.
+#' type <- "google.protobuf.FieldDescriptorProto"
 #' msgs <- lapply(c("id", "name", "when"), function(name) {
-#'   proto_encode(list(name = name, number = 1L), "google.protobuf.FieldDescriptorProto", pool)
+#'   proto_encode(list(name = name, number = 1L), type, pool)
 #' })
-#' df <- proto_decode_df(msgs, "google.protobuf.FieldDescriptorProto", pool)
+#' df <- proto_decode_df(msgs, type, pool)
 #' df[c("name", "number")]
 proto_decode_df <- function(
   x,
@@ -308,25 +309,25 @@ df_options <- function(
   check_type(type, call = call)
   int64 <- zpb_match_arg(
     int64,
-    c("double", "character", "integer64"),
+    zpb_choices$int64,
     "int64",
     call
   )
   check_int64_mode(int64, call)
   enums <- zpb_match_arg(
     enums,
-    c("factor", "integer", "character"),
+    zpb_choices$enums,
     "enums",
     call
   )
-  bytes <- zpb_match_arg(bytes, c("raw", "base64"), "bytes", call)
+  bytes <- zpb_match_arg(bytes, zpb_choices$bytes, "bytes", call)
   check_flag(defaults, "defaults", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
   check_limit(max_depth, "max_depth", 1, 1000, call)
   check_limit(max_rows, "max_rows", 1, 2^31 - 1, call)
   list(
-    int64 = match(int64, c("double", "character", "integer64")) - 1L,
-    enums = match(enums, c("factor", "integer", "character")) - 1L,
+    int64 = match(int64, zpb_choices$int64) - 1L,
+    enums = match(enums, zpb_choices$enums) - 1L,
     defaults = as.integer(defaults),
     bytes_base64 = as.integer(bytes == "base64"),
     max_depth = as.integer(max_depth),

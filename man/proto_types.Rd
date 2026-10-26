@@ -12,7 +12,8 @@ proto_fields(pool, type)
 \arguments{
 \item{pool}{A pool from \code{\link[=proto_pool]{proto_pool()}}.}
 
-\item{type}{A message type's full name, such as \code{"google.protobuf.Timestamp"}.}
+\item{type}{A message type's full name, such as
+\code{"google.protobuf.Timestamp"}.}
 }
 \value{
 \code{proto_types()}: a data frame with columns \code{name} (full name),

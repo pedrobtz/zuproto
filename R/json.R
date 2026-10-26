@@ -11,8 +11,9 @@
 #'
 #' `Any` messages convert only when the type they pack is in the pool.
 #'
-#' JSON meets R values through [zujson](https://CRAN.R-project.org/package=zujson),
-#' which must be installed for it: `proto_to_json(parse = TRUE)` returns
+#' JSON meets R values through
+#' [zujson](https://CRAN.R-project.org/package=zujson), which must be
+#' installed for it: `proto_to_json(parse = TRUE)` returns
 #' [zujson::json_parse()]'s R value, and `proto_from_json()` takes an R value
 #' as well as JSON text, written with [zujson::json_write()]. There, a
 #' length-1 vector is a JSON scalar: give a repeated field of one element as
@@ -108,7 +109,7 @@ json_options <- function(
 ) {
   check_flag(emit_defaults, "emit_defaults", call)
   check_flag(proto_names, "proto_names", call)
-  enums <- zpb_match_arg(enums, c("name", "integer"), "enums", call)
+  enums <- zpb_match_arg(enums, zpb_choices$json_enums, "enums", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
   check_limit(max_depth, "max_depth", 1, 1000, call)
   list(

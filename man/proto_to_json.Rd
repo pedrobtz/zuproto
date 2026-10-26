@@ -80,8 +80,9 @@ types take their special JSON forms (\code{Timestamp} as an RFC 3339 string,
 \details{
 \code{Any} messages convert only when the type they pack is in the pool.
 
-JSON meets R values through \href{https://CRAN.R-project.org/package=zujson}{zujson},
-which must be installed for it: \code{proto_to_json(parse = TRUE)} returns
+JSON meets R values through
+\href{https://CRAN.R-project.org/package=zujson}{zujson}, which must be
+installed for it: \code{proto_to_json(parse = TRUE)} returns
 \code{\link[zujson:json_parse]{zujson::json_parse()}}'s R value, and \code{proto_from_json()} takes an R value
 as well as JSON text, written with \code{\link[zujson:json_write]{zujson::json_write()}}. There, a
 length-1 vector is a JSON scalar: give a repeated field of one element as

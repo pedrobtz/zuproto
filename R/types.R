@@ -9,7 +9,8 @@
 #' Decoded messages use the same names.
 #'
 #' @param pool A pool from [proto_pool()].
-#' @param type A message type's full name, such as `"google.protobuf.Timestamp"`.
+#' @param type A message type's full name, such as
+#'   `"google.protobuf.Timestamp"`.
 #' @return `proto_types()`: a data frame with columns `name` (full name),
 #'   `file` (the `.proto` file declaring it) and `fields` (the number of
 #'   fields), sorted by name. Map entry types are left out.

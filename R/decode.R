@@ -13,7 +13,8 @@ zpb_choices <- list(
   int64 = c("double", "character", "integer64"),
   enums = c("factor", "integer", "character"),
   unknown = c("drop", "keep"),
-  bytes = c("raw", "base64")
+  bytes = c("raw", "base64"),
+  json_enums = c("name", "integer")
 )
 
 #' Decode one Protocol Buffers message
