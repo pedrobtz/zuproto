@@ -376,3 +376,38 @@ test_that("proto_to_json() reads a message from a path", {
     proto_to_json(msg_fixture("nested_3"), "zpb.decode.Nested", pool)
   )
 })
+
+test_that("a stream read with `each` fails on its connection as an io error", {
+  # #47: open() and readBin() there gave base R errors.
+  skip_if_not_installed("withr")
+  pool <- decode_pool()
+  path <- withr::local_tempfile(fileext = ".bin")
+  noop <- function(df) NULL
+  expect_error(
+    proto_read_delimited(file(path), "zpb.decode.Nested", pool, each = noop),
+    class = "zuproto_io_error"
+  )
+  writeBin(raw(), path)
+  con <- file(path, "wb")
+  withr::defer(close(con))
+  expect_error(
+    proto_read_delimited(con, "zpb.decode.Nested", pool, each = noop),
+    class = "zuproto_io_error"
+  )
+})
+
+test_that("a directory is named as one, not as missing", {
+  # #49
+  pool <- decode_pool()
+  dir <- tempdir()
+  for (f in list(
+    function() proto_pool(dir),
+    function() proto_decode(dir, "zpb.decode.Nested", pool),
+    function() {
+      proto_read_delimited(dir, "zpb.decode.Nested", pool, each = print)
+    }
+  )) {
+    err <- expect_error(f(), class = "zuproto_io_error")
+    expect_match(conditionMessage(err), "it is a directory", fixed = TRUE)
+  }
+})

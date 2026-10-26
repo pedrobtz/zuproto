@@ -207,7 +207,7 @@ proto_read_delimited <- function(
   } else {
     con <- if (inherits(x, "connection")) x else open_path(x, call)
     if (!isOpen(con)) {
-      open(con, "rb")
+      open_connection(con, call)
       on.exit(close(con), add = TRUE)
     } else if (!inherits(x, "connection")) {
       on.exit(close(con), add = TRUE)
@@ -219,7 +219,7 @@ proto_read_delimited <- function(
   repeat {
     # Read only when the bytes in hand hold no whole chunk of messages.
     if (need_more && !eof) {
-      chunk <- readBin(con, "raw", 1048576L)
+      chunk <- read_chunk(con, 1048576L, call)
       if (length(chunk) == 0L) eof <- TRUE else pending <- c(pending, chunk)
     }
     if (length(pending) == 0L && eof) {
@@ -416,13 +416,7 @@ open_path <- function(x, call) {
       call
     )
   }
-  if (!file.exists(x) || dir.exists(x)) {
-    zpb_abort(
-      "zuproto_io_error",
-      sprintf("Cannot read file '%s': it does not exist.", x),
-      call = call
-    )
-  }
+  check_file(x, call)
   file(x, "rb")
 }
 
