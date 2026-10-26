@@ -56,7 +56,7 @@ test_that("unset fields take defaults, except those with presence", {
   expect_identical(set$f_optional, 0L)
 })
 
-test_that("64-bit and -2^31 values warn when they cannot be exact", {
+test_that("64-bit values past 2^53 and -2^31 warn when decoded as numbers", {
   pool <- decode_pool()
   expect_warning(
     x <- proto_decode(msg_fixture("scalars_big"), "zpb.decode.Scalars", pool),
@@ -65,7 +65,10 @@ test_that("64-bit and -2^31 values warn when they cannot be exact", {
   expect_identical(x$f_int32, NA_integer_)
   expect_identical(x$f_sint32, NA_integer_)
   expect_identical(x$f_int64, 2^63 - 1)
+})
 
+test_that("as character, only the -2^31 values warn", {
+  pool <- decode_pool()
   w <- expect_warning(
     y <- proto_decode(
       msg_fixture("scalars_big"),
@@ -79,7 +82,10 @@ test_that("64-bit and -2^31 values warn when they cannot be exact", {
   expect_identical(y$f_int64, "9223372036854775807")
   expect_identical(y$f_uint64, "18446744073709551615")
   expect_identical(y$f_sfixed64, "0")
+})
 
+test_that("values that are exact do not warn", {
+  pool <- decode_pool()
   expect_no_warning(proto_decode(
     msg_fixture("scalars_set"),
     "zpb.decode.Scalars",

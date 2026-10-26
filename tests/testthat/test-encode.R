@@ -246,12 +246,15 @@ test_that("a name the type does not define is an unknown field, or ignored", {
 
 test_that("values of the wrong form are type mismatches naming the field", {
   pool <- decode_pool()
+  # Each case is labelled with its value, so a failure names the case (#46).
   mismatch <- function(x, type, path) {
+    label <- deparse1(substitute(x))
     err <- expect_error(
       proto_encode(x, type, pool),
-      class = "zuproto_type_mismatch"
+      class = "zuproto_type_mismatch",
+      label = label
     )
-    expect_identical(err$path, path)
+    expect_identical(err$path, path, label = label)
   }
   mismatch(list(f_int32 = "1"), "zpb.decode.Scalars", "f_int32")
   mismatch(list(f_int32 = 1.5), "zpb.decode.Scalars", "f_int32")

@@ -23,7 +23,8 @@ test_that("each row encodes to the same bytes as the single-message decode", {
   }
 })
 
-test_that("columns take the shapes design section 6.2 gives them", {
+# Design section 6.2's column shapes, one test per kind of column (#46).
+test_that("scalar columns are atomic vectors, bytes a list column", {
   pool <- decode_pool()
   df <- proto_decode_df(
     list(msg_fixture("scalars_set"), msg_fixture("scalars_empty")),
@@ -35,7 +36,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
   expect_s3_class(df$f_enum, "factor")
   expect_identical(as.character(df$f_enum), c("HIGH", "LEVEL_UNSPECIFIED"))
   expect_identical(df$f_bytes, list(as.raw(c(0, 1, 2, 255)), raw()))
+})
 
+test_that("defaults = FALSE gives NA for fields not on the wire", {
+  pool <- decode_pool()
   none <- proto_decode_df(
     list(msg_fixture("scalars_empty")),
     "zpb.decode.Scalars",
@@ -43,7 +47,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
     defaults = FALSE
   )
   expect_identical(none$f_int32, NA_integer_)
+})
 
+test_that("repeated fields are list columns, of data frames for messages", {
+  pool <- decode_pool()
   rep <- proto_decode_df(
     list(msg_fixture("repeated")),
     "zpb.decode.Repeated",
@@ -53,7 +60,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
   expect_identical(rep$packed[[1]], 1:3)
   expect_s3_class(rep$points[[1]], "data.frame")
   expect_identical(rep$points[[1]]$x, c(1L, 3L))
+})
 
+test_that("well-known types take their R forms as columns", {
+  pool <- decode_pool()
   wk <- proto_decode_df(
     list(msg_fixture("wellknown")),
     "zpb.decode.WellKnown",
@@ -65,7 +75,10 @@ test_that("columns take the shapes design section 6.2 gives them", {
   expect_identical(wk$unset_wrapper, NA_integer_)
   expect_type(wk$meta, "list")
   expect_s3_class(wk$times[[1]], "POSIXct")
+})
 
+test_that("maps are list columns of named vectors", {
+  pool <- decode_pool()
   maps <- proto_decode_df(list(msg_fixture("maps")), "zpb.decode.Maps", pool)
   expect_identical(maps$by_string[[1]], c(a = 1L, b = 2L))
 })
