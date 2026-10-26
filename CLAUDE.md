@@ -199,7 +199,7 @@ stage establishes it.
   (Python's protobuf), with provenance and SHA-256 in
   `fixtures/DESCRIPTORS.tsv` and `fixtures/msg/MANIFEST.tsv`.
 - **Keep the suite inside the CRAN time budget.** The design's target is
-  under 15 s; it ran in 9.1 s installed when last measured (2026-10-26).
+  under 15 s; it ran in 9.3 s installed when last measured (2026-10-26).
 
 ## Definition of done
 
