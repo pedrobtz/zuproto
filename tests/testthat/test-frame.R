@@ -183,6 +183,7 @@ test_that("warnings are counted across rows", {
 })
 
 test_that("a delimited stream round-trips through a data frame", {
+  skip_if_not_installed("withr")
   pool <- decode_pool()
   msgs <- lapply(c("choice_text", "choice_point", "choice_none"), msg_fixture)
   df <- proto_decode_df(msgs, "zpb.decode.Choice", pool)
@@ -210,6 +211,7 @@ test_that("a delimited stream round-trips through a data frame", {
 })
 
 test_that("each is called once per chunk of chunk_rows messages", {
+  skip_if_not_installed("withr")
   pool <- decode_pool()
   raw <- msg_fixture("nested_3")
   stream <- do.call(c, rep(list(c(varint(length(raw)), raw)), 5))

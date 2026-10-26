@@ -1,5 +1,5 @@
 Package: zuproto
-Title: Protocol Buffers Decoding and Encoding with 'upb'
+Title: 'Protocol Buffers' Decoding and Encoding with 'upb'
 Version: 0.0.0.9000
 Authors@R: c(
     person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
@@ -8,7 +8,7 @@ Authors@R: c(
            comment = "upb and utf8_range, bundled in src/vendor"),
     person("Yibo", "Cai", role = "cph",
            comment = "utf8_range, bundled in src/vendor/utf8_range"))
-Description: Decodes and encodes Protocol Buffers messages from
+Description: Decodes and encodes 'Protocol Buffers' messages from
     descriptor sets rather than generated code. One message becomes a
     named list; many messages become a data frame built column by
     column. Uses a bundled copy of the 'upb' runtime
