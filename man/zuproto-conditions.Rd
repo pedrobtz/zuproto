@@ -35,7 +35,9 @@ may be. Carries \code{field}, the field's full name.}
 \item{\code{zuproto_type_mismatch}}{\code{\link[=proto_encode]{proto_encode()}} was given a value of
 the wrong form for its field: the wrong R type, a number out of
 range or not whole, a name that is not a value of the enum, \code{NA}
-inside a repeated field, a second member of a oneof, or a map key
+inside a repeated field, a string that is not valid UTF-8 text, a
+date or time where a number is expected (or a \code{Date} for a
+\code{Timestamp}), a second member of a oneof, or a field or map key
 given twice. Carries \code{path}, the field at fault, such as
 \code{"points[2].x"}.}
 \item{\code{zuproto_unknown_field}}{\code{\link[=proto_encode]{proto_encode()}} was given a name the

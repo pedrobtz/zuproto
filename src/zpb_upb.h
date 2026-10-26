@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "upb/ruby-upb.h"
+#include "utf8_range.h"
 
 typedef upb_Arena zpb_arena;
 typedef upb_DefPool zpb_defpool;
@@ -642,6 +643,12 @@ enum {
     ZPB_ENCODE_MEMORY,
     ZPB_ENCODE_OTHER
 };
+
+/* Whether s[0, n) is valid UTF-8, by the validator upb itself uses. */
+static inline bool zpb_utf8_valid(const char *s, size_t n)
+{
+    return utf8_range_IsValid(s, n);
+}
 
 /* The deepest nesting zuproto encodes: the most max_depth (1000) lets
  * proto_decode() accept (design section 12), so whatever decodes

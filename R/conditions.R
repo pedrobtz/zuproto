@@ -33,7 +33,9 @@
 #'   \item{`zuproto_type_mismatch`}{[proto_encode()] was given a value of
 #'     the wrong form for its field: the wrong R type, a number out of
 #'     range or not whole, a name that is not a value of the enum, `NA`
-#'     inside a repeated field, a second member of a oneof, or a map key
+#'     inside a repeated field, a string that is not valid UTF-8 text, a
+#'     date or time where a number is expected (or a `Date` for a
+#'     `Timestamp`), a second member of a oneof, or a field or map key
 #'     given twice. Carries `path`, the field at fault, such as
 #'     `"points[2].x"`.}
 #'   \item{`zuproto_unknown_field`}{[proto_encode()] was given a name the

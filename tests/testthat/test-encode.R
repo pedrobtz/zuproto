@@ -422,3 +422,102 @@ test_that("an error code R does not map is a zuproto_internal_error", {
   )
   expect_match(conditionMessage(err), "out of memory")
 })
+
+test_that("strings that are not valid UTF-8 text are type mismatches", {
+  # #29: invalid UTF-8 was written as R's "<ff><fe>" escapes, and a string
+  # marked as bytes raised a bare error.
+  pool <- decode_pool()
+  bad <- "\xff\xfe"
+  Encoding(bad) <- "UTF-8"
+  bytes <- "abc\xff" # R marks only non-ASCII strings as bytes
+  Encoding(bytes) <- "bytes"
+  cases <- list(
+    list(list(f_string = bad), "zpb.decode.Scalars", "f_string"),
+    list(list(f_string = bytes), "zpb.decode.Scalars", "f_string"),
+    list(
+      list(by_string = stats::setNames(1L, bad)),
+      "zpb.decode.Maps",
+      "by_string"
+    ),
+    list(
+      list(meta = stats::setNames(list(1), bad)),
+      "zpb.decode.WellKnown",
+      "meta"
+    ),
+    list(list(value = bad), "zpb.decode.WellKnown", "value"),
+    list(stats::setNames(list("x"), bad), "zpb.decode.Scalars", "")
+  )
+  for (case in cases) {
+    err <- expect_error(
+      proto_encode(case[[1]], case[[2]], pool),
+      class = "zuproto_type_mismatch"
+    )
+    expect_identical(err$path, case[[3]])
+  }
+  latin1 <- "caf\xe9"
+  Encoding(latin1) <- "latin1"
+  raw <- proto_encode(list(f_string = latin1), "zpb.decode.Scalars", pool)
+  expect_identical(
+    proto_decode(raw, "zpb.decode.Scalars", pool)$f_string,
+    "café"
+  )
+})
+
+test_that("dates and times go only where a Timestamp or Duration is", {
+  # #30: a Date was taken as seconds since the epoch.
+  pool <- proto_pool()
+  date <- as.Date("2026-10-26")
+  expect_error(
+    proto_encode(date, "google.protobuf.Timestamp", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(
+      as.difftime(1, units = "secs"),
+      "google.protobuf.Timestamp",
+      pool
+    ),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(Sys.time(), "google.protobuf.Duration", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(date, "google.protobuf.DoubleValue", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(list(f_double = date), "zpb.decode.Scalars", decode_pool()),
+    class = "zuproto_type_mismatch"
+  )
+  when <- as.POSIXct(date, tz = "UTC")
+  raw <- proto_encode(when, "google.protobuf.Timestamp", pool)
+  expect_equal(proto_decode(raw, "google.protobuf.Timestamp", pool), when)
+})
+
+test_that("a field given twice is a type mismatch", {
+  # #31: the last value won, or a repeated field's values were appended.
+  pool <- decode_pool()
+  err <- expect_error(
+    proto_encode(
+      list(f_string = "a", f_string = "b"),
+      "zpb.decode.Scalars",
+      pool
+    ),
+    class = "zuproto_type_mismatch"
+  )
+  expect_identical(err$path, "f_string")
+  expect_error(
+    proto_encode(list(packed = 1:2, packed = 3L), "zpb.decode.Repeated", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_error(
+    proto_encode(
+      list(f_int32 = NULL, f_int32 = 1L),
+      "zpb.decode.Scalars",
+      pool
+    ),
+    class = "zuproto_type_mismatch"
+  )
+})
