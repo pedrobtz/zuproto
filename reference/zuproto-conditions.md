@@ -40,6 +40,16 @@ Every class below inherits from `zuproto_error`.
   tag, a length beyond the input, or the wrong wire type. Carries
   `status`.
 
+- In a batch or stream:
+
+  An error about one message of
+  [`proto_decode_df()`](https://pedrobtz.github.io/zuproto/reference/proto_decode_df.md),
+  [`proto_read_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
+  or
+  [`proto_write_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
+  also carries `index`, the message's position, as a double (a stream
+  can hold more than 2^31 - 1).
+
 - `zuproto_invalid_utf8`:
 
   A subclass of `zuproto_parse_error`: a `string` field is not valid
@@ -56,9 +66,10 @@ Every class below inherits from `zuproto_error`.
   [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
   was given a value of the wrong form for its field: the wrong R type, a
   number out of range or not whole, a name that is not a value of the
-  enum, `NA` inside a repeated field, a second member of a oneof, or a
-  map key given twice. Carries `path`, the field at fault, such as
-  `"points[2].x"`.
+  enum, `NA` inside a repeated field, a string that is not valid UTF-8
+  text, a date or time where a number is expected (or a `Date` for a
+  `Timestamp`), a second member of a oneof, or a field or map key given
+  twice. Carries `path`, the field at fault, such as `"points[2].x"`.
 
 - `zuproto_unknown_field`:
 
@@ -85,6 +96,16 @@ Every class below inherits from `zuproto_error`.
   `zuproto_depth_limit` (messages nest deeper than `max_depth`) and
   `zuproto_row_limit` (more rows than `max_rows`) name which. Carries
   `limit`, the argument's name, and `limit_value`.
+  [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
+  raises `zuproto_depth_limit` for messages nested deeper than 1000
+  levels, the most `max_depth` lets
+  [`proto_decode()`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md)
+  accept.
+
+- `zuproto_internal_error`:
+
+  Memory ran out, or upb reported a status zuproto does not expect.
+  Carries `code`.
 
 Warnings inherit `zuproto_warning`:
 

@@ -140,9 +140,9 @@
 <li>
 <strong>Borrow a conformance suite before writing one.</strong> Mainstream implementations in Python, Java, Go or Node usually ship a test corpus. Use it as an oracle rather than inventing cases by hand. Here that is protobuf’s <code>conformance_test_runner</code>, run against an R testee in CI only, with an expected-failure list that may only shrink; fixtures come from Python’s <code>protobuf</code> and <code>protoc --encode</code>, never by hand.</li>
 <li>
-<strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> None yet.</li>
+<strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-fixtures.R</code> loads the committed fixtures (<code>fixture()</code>, <code>msg_fixture()</code>, <code>decode_pool()</code>, <code>varint()</code>); <code>helper-entry-points.R</code> has the table of entry points the shared argument tests walk. Fixtures come from <code>tools/make-test-descriptors</code> (protoc) and <code>tools/make-fixtures.py</code> (Python’s protobuf), with provenance and SHA-256 in <code>fixtures/DESCRIPTORS.tsv</code> and <code>fixtures/msg/MANIFEST.tsv</code>.</li>
 <li>
-<strong>Keep the suite inside the CRAN time budget.</strong> The design’s target is under 15 s; there is no suite yet.</li>
+<strong>Keep the suite inside the CRAN time budget.</strong> The design’s target is under 15 s; it ran in 9.3 s installed when last measured (2026-10-26).</li>
 </ul></div>
 <div class="section level2">
 <h2 id="definition-of-done">Definition of done<a class="anchor" aria-label="anchor" href="#definition-of-done"></a></h2>

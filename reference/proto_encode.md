@@ -75,8 +75,12 @@ gives them, and also:
 - enums: factors, value names, or numbers (a closed enum accepts only
   the numbers it defines);
 
-- `Timestamp`: `POSIXct` or seconds since the epoch; `Duration`:
+- `Timestamp`: `POSIXct` or seconds since the epoch (not a `Date`, whose
+  number is days: convert it with
+  [`as.POSIXct()`](https://rdrr.io/r/base/as.POSIXlt.html)); `Duration`:
   `difftime` or seconds; a wrapper: its value;
+
+- strings: valid UTF-8, or in an encoding R translates to it;
 
 - `Value`: `NULL`, a logical, number or string, a named list (a
   `Struct`), or an unnamed list or vector (a `ListValue`).

@@ -76,7 +76,8 @@ proto_decode_df(
 - max_size:
 
   The largest input accepted, in bytes. upb's memory for the decode is
-  capped at four times this.
+  also capped, at a multiple of the input's size that the message type
+  sets: the most a message of that type could legitimately need.
 
 - max_depth:
 
@@ -136,10 +137,11 @@ for length-delimited streams.
 ``` r
 pool <- proto_pool()
 # Three FieldDescriptorProto messages, one per row.
+type <- "google.protobuf.FieldDescriptorProto"
 msgs <- lapply(c("id", "name", "when"), function(name) {
-  proto_encode(list(name = name, number = 1L), "google.protobuf.FieldDescriptorProto", pool)
+  proto_encode(list(name = name, number = 1L), type, pool)
 })
-df <- proto_decode_df(msgs, "google.protobuf.FieldDescriptorProto", pool)
+df <- proto_decode_df(msgs, type, pool)
 df[c("name", "number")]
 #>   name number
 #> 1   id      1

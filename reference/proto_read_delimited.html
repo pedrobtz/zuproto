@@ -130,7 +130,9 @@ defaults (<code>TRUE</code>) or are left out (<code>FALSE</code>).</p></dd>
 
 <dt id="arg-max-size">max_size<a class="anchor" aria-label="anchor" href="#arg-max-size"></a></dt>
 <dd><p>The largest input accepted, in bytes. upb's memory for
-the decode is capped at four times this.</p></dd>
+the decode is also capped, at a multiple of the input's size that the
+message type sets: the most a message of that type could legitimately
+need.</p></dd>
 
 
 <dt id="arg-max-depth">max_depth<a class="anchor" aria-label="anchor" href="#arg-max-depth"></a></dt>
@@ -143,7 +145,9 @@ exhaust the C stack.</p></dd>
 
 
 <dt id="arg-max-rows">max_rows<a class="anchor" aria-label="anchor" href="#arg-max-rows"></a></dt>
-<dd><p>The largest number of rows accepted.</p></dd>
+<dd><p>The largest number of rows accepted. With <code>each</code>, it
+bounds each chunk, not the whole stream, which is read a chunk at a
+time and never held whole.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>

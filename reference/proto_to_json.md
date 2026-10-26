@@ -70,7 +70,8 @@ proto_from_json(
 - max_size:
 
   The largest input accepted, in bytes. upb's memory for the decode is
-  capped at four times this.
+  also capped, at a multiple of the input's size that the message type
+  sets: the most a message of that type could legitimately need.
 
 - max_depth:
 

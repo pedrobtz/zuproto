@@ -110,7 +110,9 @@ their <code>json_name</code>s.</p></dd>
 
 <dt id="arg-max-size">max_size<a class="anchor" aria-label="anchor" href="#arg-max-size"></a></dt>
 <dd><p>The largest input accepted, in bytes. upb's memory for
-the decode is capped at four times this.</p></dd>
+the decode is also capped, at a multiple of the input's size that the
+message type sets: the most a message of that type could legitimately
+need.</p></dd>
 
 
 <dt id="arg-max-depth">max_depth<a class="anchor" aria-label="anchor" href="#arg-max-depth"></a></dt>
@@ -146,8 +148,9 @@ deterministically.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><code>Any</code> messages convert only when the type they pack is in the pool.</p>
-<p>JSON meets R values through <a href="https://CRAN.R-project.org/package=zujson" class="external-link">zujson</a>,
-which must be installed for it: <code>proto_to_json(parse = TRUE)</code> returns
+<p>JSON meets R values through
+<a href="https://CRAN.R-project.org/package=zujson" class="external-link">zujson</a>, which must be
+installed for it: <code>proto_to_json(parse = TRUE)</code> returns
 <code><a href="https://pedrobtz.github.io/zujson/reference/json_parse.html" class="external-link">zujson::json_parse()</a></code>'s R value, and <code>proto_from_json()</code> takes an R value
 as well as JSON text, written with <code><a href="https://pedrobtz.github.io/zujson/reference/json_write.html" class="external-link">zujson::json_write()</a></code>. There, a
 length-1 vector is a JSON scalar: give a repeated field of one element as

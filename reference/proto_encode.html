@@ -106,8 +106,10 @@ forms <code><a href="proto_decode.html">proto_decode()</a></code> gives them, an
 kinds also decimal strings, which are exact;</p></li>
 <li><p>enums: factors, value names, or numbers (a closed enum accepts only
 the numbers it defines);</p></li>
-<li><p><code>Timestamp</code>: <code>POSIXct</code> or seconds since the epoch; <code>Duration</code>:
+<li><p><code>Timestamp</code>: <code>POSIXct</code> or seconds since the epoch (not a <code>Date</code>,
+whose number is days: convert it with <code><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct()</a></code>); <code>Duration</code>:
 <code>difftime</code> or seconds; a wrapper: its value;</p></li>
+<li><p>strings: valid UTF-8, or in an encoding R translates to it;</p></li>
 <li><p><code>Value</code>: <code>NULL</code>, a logical, number or string, a named list (a
 <code>Struct</code>), or an unnamed list or vector (a <code>ListValue</code>).</p></li>
 </ul><p><code>bytes</code> fields take raw vectors (a list of them when repeated).</p>

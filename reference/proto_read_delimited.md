@@ -87,7 +87,8 @@ proto_write_delimited(x, type, pool, path = NULL, ...)
 - max_size:
 
   The largest input accepted, in bytes. upb's memory for the decode is
-  capped at four times this.
+  also capped, at a multiple of the input's size that the message type
+  sets: the most a message of that type could legitimately need.
 
 - max_depth:
 
@@ -100,7 +101,9 @@ proto_write_delimited(x, type, pool, path = NULL, ...)
 
 - max_rows:
 
-  The largest number of rows accepted.
+  The largest number of rows accepted. With `each`, it bounds each
+  chunk, not the whole stream, which is read a chunk at a time and never
+  held whole.
 
 - path:
 

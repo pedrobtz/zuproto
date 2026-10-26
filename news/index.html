@@ -51,6 +51,9 @@
 <li>
 <code><a href="../reference/proto_decode.html">proto_decode()</a></code>, <code><a href="../reference/proto_encode.html">proto_encode()</a></code> and <code><a href="../reference/proto_to_json.html">proto_to_json()</a></code> skip checking arguments left at their defaults: a small message decodes in about a third of the time.</li>
 <li>Decoding gives <code>NaN</code>, never <code>NA</code>, for a NaN on the wire, and warns (<code>zuproto_precision_loss</code>) for Timestamp and Duration seconds beyond 2^53.</li>
+<li>The memory a decode may use is bounded by what a message of its type can need, so valid input, such as a batch of thousands of small messages, is never refused for it. <code><a href="../reference/proto_to_json.html">proto_to_json()</a></code> bounds every <code>Any</code> it writes by <code>max_depth</code>.</li>
+<li>
+<code><a href="../reference/proto_encode.html">proto_encode()</a></code> nests as deep as <code><a href="../reference/proto_decode.html">proto_decode()</a></code> accepts (1000 levels), and refuses strings that are not valid UTF-8, a <code>Date</code> for a <code>Timestamp</code>, and a field given twice. <code><a href="../reference/proto_read_delimited.html">proto_write_delimited()</a></code> writes back frames whose nested messages hold oneofs. Failures that are no user error are a <code>zuproto_internal_error</code>.</li>
 </ul></div>
   </main></div>
 

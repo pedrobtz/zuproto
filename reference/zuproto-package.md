@@ -1,6 +1,6 @@
-# zuproto: Protocol Buffers Decoding and Encoding with 'upb'
+# zuproto: 'Protocol Buffers' Decoding and Encoding with 'upb'
 
-Decodes and encodes Protocol Buffers messages from descriptor sets
+Decodes and encodes 'Protocol Buffers' messages from descriptor sets
 rather than generated code. One message becomes a named list; many
 messages become a data frame built column by column. Uses a bundled copy
 of the 'upb' runtime (<https://github.com/protocolbuffers/protobuf>), so
