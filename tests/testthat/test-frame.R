@@ -10,15 +10,16 @@ test_that("each row encodes to the same bytes as the single-message decode", {
       int64 = "character"
     )
     expect_identical(nrow(df), 2L)
+    # Through public functions only (#44): writing the frame gives the
+    # single decode's encoding, framed, once per row.
     single <- proto_decode(raw, types[[name]], pool, int64 = "character")
     expected <- proto_encode(single, types[[name]], pool)
-    for (row in zuproto:::frame_rows(df, pool, types[[name]])) {
-      expect_identical(
-        proto_encode(row, types[[name]], pool),
-        expected,
-        label = name
-      )
-    }
+    framed <- c(varint(length(expected)), expected)
+    expect_identical(
+      proto_write_delimited(df, types[[name]], pool),
+      c(framed, framed),
+      label = name
+    )
   }
 })
 
