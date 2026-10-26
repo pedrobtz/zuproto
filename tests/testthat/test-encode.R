@@ -535,11 +535,13 @@ test_that("every scalar kind of the mapping round-trips its edge values", {
       -Inf,
       -.Machine$double.xmax,
       -0,
-      5e-324,
+      2^-1074,
       .Machine$double.xmax,
       Inf
     ),
-    f_float = c(-Inf, -3.4028234663852886e38, 1.401298464324817e-45, 0.25, Inf),
+    # Exact powers of two: R's parser does not round long decimal
+    # literals the same way on every platform (macOS arm64 differs).
+    f_float = c(-Inf, -(2 - 2^-23) * 2^127, 2^-149, 0.25, Inf),
     f_int32 = c(-imax, -1L, 0L, imax),
     f_sint32 = c(-imax, -1L, 1L, imax),
     f_sfixed32 = c(-imax, -1L, imax),

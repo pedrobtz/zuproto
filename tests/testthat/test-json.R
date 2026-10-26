@@ -210,7 +210,12 @@ test_that("integer64 values encode exactly", {
 test_that("Timestamp and Duration nanos out of range are refused in JSON", {
   pool <- proto_pool()
   # Duration{nanos = -2^31} and Timestamp{nanos = -1}, which binary allows.
-  dur <- c(as.raw(0x10), varint(2^64 - 2^31))
+  # -2^31 as a 10-byte varint, written out: varint() works in doubles and
+  # warns at 2^64 on some platforms.
+  dur <- c(
+    as.raw(0x10),
+    as.raw(c(0x80, 0x80, 0x80, 0x80, 0xf8, rep(0xff, 4), 0x01))
+  )
   ts <- c(as.raw(0x10), as.raw(c(rep(0xff, 9), 0x01))) # -1 as a 10-byte varint
   expect_error(
     proto_to_json(dur, "google.protobuf.Duration", pool),
