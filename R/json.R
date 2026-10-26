@@ -66,7 +66,9 @@ proto_to_json <- function(
   }
   if (!missing(parse)) {
     check_flag(parse, "parse", sys.call())
-    if (parse) require_zujson("parse", sys.call())
+    if (parse) {
+      require_zujson("parse", sys.call())
+    }
   }
   opts <- if (
     missing(emit_defaults) &&

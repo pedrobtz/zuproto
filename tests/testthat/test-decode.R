@@ -303,7 +303,7 @@ test_that("input can be a path or a connection", {
   expected <- proto_decode(msg_fixture("nested_3"), "zpb.decode.Nested", pool)
   expect_identical(proto_decode(path, "zpb.decode.Nested", pool), expected)
   con <- file(path, "rb")
-  on.exit(close(con))
+  withr::defer(close(con))
   expect_identical(proto_decode(con, "zpb.decode.Nested", pool), expected)
 })
 
@@ -325,7 +325,7 @@ test_that("input beyond max_size is refused before decoding", {
     class = "zuproto_size_limit"
   )
   con <- rawConnection(raw)
-  on.exit(close(con))
+  withr::defer(close(con))
   expect_error(
     proto_decode(con, "zpb.decode.Scalars", pool, max_size = 10),
     class = "zuproto_size_limit"

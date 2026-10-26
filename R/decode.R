@@ -3,8 +3,6 @@
 # codes and warning counts into classed conditions.
 
 # Default limits, design section 5. zuproto_info() reports these.
-zpb_default_limits <- function() zpb_limits
-
 zpb_limits <- list(max_size = 64 * 1024^2, max_depth = 100L)
 
 # The choices of the decode arguments, built once rather than per call:
@@ -317,7 +315,7 @@ plural <- function(n, what) {
 
 # Input for one message, refused beyond max_size before upb sees it.
 read_message <- function(x, max_size, call) {
-  too_big <- function(n) {
+  abort_too_big <- function(n) {
     zpb_abort(
       c("zuproto_size_limit", "zuproto_limit_error"),
       sprintf(
@@ -332,7 +330,7 @@ read_message <- function(x, max_size, call) {
   }
   if (is.raw(x)) {
     if (length(x) > max_size) {
-      too_big(length(x))
+      abort_too_big(length(x))
     }
     return(x)
   }
@@ -344,11 +342,13 @@ read_message <- function(x, max_size, call) {
       !dir.exists(x)
   ) {
     size <- file.size(x)
-    if (size > max_size) too_big(size)
+    if (size > max_size) {
+      abort_too_big(size)
+    }
   }
   raw <- read_input(x, "x", call, limit = max_size + 1)
   if (length(raw) > max_size) {
-    too_big(NA_real_)
+    abort_too_big(NA_real_)
   }
   raw
 }

@@ -325,6 +325,10 @@ typedef struct {
     zpb_value val;
 } map_entry;
 
+/* The key type cmp_entry() compares, set just before each qsort(): qsort
+ * passes no context and qsort_r() is not portable. Safe because nothing
+ * sorts again until the sort returns (building the values, which can
+ * recurse into another map, comes after). */
 static int map_key_ctype;
 
 static int cmp_entry(const void *a, const void *b)

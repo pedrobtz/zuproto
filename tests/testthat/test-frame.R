@@ -217,7 +217,7 @@ test_that("a delimited stream round-trips through a data frame", {
   )
   expect_identical(proto_read_delimited(path, "zpb.decode.Choice", pool), df)
   con <- file(path, "rb")
-  on.exit(close(con))
+  withr::defer(close(con))
   expect_identical(proto_read_delimited(con, "zpb.decode.Choice", pool), df)
 })
 

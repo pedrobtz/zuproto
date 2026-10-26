@@ -182,6 +182,7 @@ read_connection <- function(con, call = NULL, limit = Inf) {
   unlist(chunks, use.names = FALSE) %||% raw()
 }
 
+# Base R has %||% from 4.4 only; zuproto supports 4.1.
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
 # Check the whole set before adding any of it, so a set that fails leaves

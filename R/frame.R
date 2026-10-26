@@ -90,7 +90,7 @@ proto_decode_df <- function(
       )
     }
     if (length(x) > max_rows) {
-      row_limit(max_rows, call)
+      abort_row_limit(max_rows, call)
     }
     sizes <- lengths(x)
     big <- which(sizes > max_size)
@@ -196,7 +196,7 @@ proto_read_delimited <- function(
     res <- .Call(zpb_decode_df, pool$ptr, type, buf, opts)
     df <- df_finish(res, type, NULL, max_size, max_depth, max_rows, call)
     if (res$consumed < length(buf)) {
-      truncated(length(buf) - res$consumed, call)
+      abort_truncated(length(buf) - res$consumed, call)
     }
     return(df)
   }
@@ -221,7 +221,11 @@ proto_read_delimited <- function(
     # Read only when the bytes in hand hold no whole chunk of messages.
     if (need_more && !eof) {
       chunk <- read_chunk(con, 1048576L, call)
-      if (length(chunk) == 0L) eof <- TRUE else pending <- c(pending, chunk)
+      if (length(chunk) == 0L) {
+        eof <- TRUE
+      } else {
+        pending <- c(pending, chunk)
+      }
     }
     if (length(pending) == 0L && eof) {
       break
@@ -233,7 +237,7 @@ proto_read_delimited <- function(
     }
     used <- res$consumed
     if (used == 0 && eof) {
-      truncated(length(pending), call)
+      abort_truncated(length(pending), call)
     }
     pending <- pending[seq_len(length(pending) - used) + used]
     need_more <- nrow(df) < chunk_rows
@@ -351,7 +355,7 @@ df_finish <- function(res, type, field, max_size, max_depth, max_rows, call) {
         ),
         call
       ),
-      max_rows = row_limit(max_rows, call),
+      max_rows = abort_row_limit(max_rows, call),
       max_size = zpb_abort(
         c("zuproto_size_limit", "zuproto_limit_error"),
         sprintf(
@@ -384,7 +388,7 @@ df_finish <- function(res, type, field, max_size, max_depth, max_rows, call) {
   res$value
 }
 
-row_limit <- function(max_rows, call) {
+abort_row_limit <- function(max_rows, call) {
   zpb_abort(
     c("zuproto_row_limit", "zuproto_limit_error"),
     sprintf(
@@ -397,7 +401,7 @@ row_limit <- function(max_rows, call) {
   )
 }
 
-truncated <- function(remaining, call) {
+abort_truncated <- function(remaining, call) {
   zpb_abort(
     "zuproto_parse_error",
     sprintf(

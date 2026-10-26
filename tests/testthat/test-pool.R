@@ -39,12 +39,13 @@ test_that("a new pool holds every well-known type", {
 })
 
 test_that("a schema's set loads from raw, a path and a connection", {
+  skip_if_not_installed("withr")
   path <- test_path("fixtures", "schema.binpb")
 
   from_raw <- proto_pool(fixture("schema"))
   from_path <- proto_pool(path)
   con <- file(path, "rb")
-  on.exit(close(con))
+  withr::defer(close(con))
   from_con <- proto_pool(con)
 
   for (pool in list(from_raw, from_path, from_con)) {
