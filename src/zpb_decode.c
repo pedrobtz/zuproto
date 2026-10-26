@@ -465,6 +465,7 @@ SEXP zpb_from_json(SEXP ptr, SEXP type, SEXP json, SEXP opts)
                                      h->arena, &n, &status);
     if (bytes == NULL) {
         const char *code = status == ZPB_ENCODE_MISSING_REQUIRED ? "missing_required"
+                           : status == ZPB_ENCODE_DEPTH          ? "max_depth"
                            : h->alloc.exceeded                   ? "arena_limit"
                                                                  : "out_of_memory";
         holder_finalize(hptr);

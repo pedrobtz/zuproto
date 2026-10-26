@@ -542,7 +542,12 @@ with `zuproto_depth_limit`, `zuproto_size_limit`, `zuproto_row_limit`,
   levels below the top-level message, so 100 accepts 101 messages, one
   inside the next (measured in Stage 3); a map entry is a level too.
   `max_depth` is at most 1000: upb's decoder recurses once per level,
-  and the C stack ran out at about 5000 on an 8 MB stack.
+  and the C stack ran out at about 5000 on an 8 MB stack. The encoder
+  takes the same 1000 levels, fixed, so whatever decodes re-encodes
+  (upb's default of 100 had made a deeper message "out of memory",
+  #27); deeper is `zuproto_depth_limit`. upb's JSON parser stops at 64
+  levels on its own, a `zuproto_json_error`, so `proto_from_json()`
+  never reaches the encoder's limit (#48).
 - `max_rows` (1e7) per data frame, and an arena byte ceiling per call,
   enforced by a counting allocator handed to `upb_Arena_Init`, so a small
   input that expands cannot exhaust memory. The ceiling is derived from

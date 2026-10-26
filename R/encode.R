@@ -148,10 +148,21 @@ encode_error <- function(res, type, call) {
       sprintf("Cannot encode as '%s': a required field is not set.", type),
       call = call
     ),
-    zpb_abort(
-      "zuproto_error",
-      sprintf("Cannot encode as '%s': out of memory.", type),
+    max_depth = zpb_abort(
+      c("zuproto_depth_limit", "zuproto_limit_error"),
+      sprintf(
+        "Cannot encode as '%s': messages are nested deeper than %d levels, the most zuproto encodes.",
+        type,
+        zpb_encode_max_depth
+      ),
+      limit = "max_depth",
+      limit_value = zpb_encode_max_depth,
       call = call
-    )
+    ),
+    zpb_internal_error(res$error, sprintf("encode as '%s'", type), call)
   )
 }
+
+# The deepest nesting proto_encode() writes, ZPB_ENCODE_MAX_DEPTH in C: the
+# most `max_depth` lets proto_decode() accept.
+zpb_encode_max_depth <- 1000L

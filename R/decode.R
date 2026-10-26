@@ -270,10 +270,10 @@ decode_error <- function(res, type, max_size, max_depth, call) {
       field = res$field,
       call = call
     ),
-    zpb_abort(
-      "zuproto_error",
-      sprintf("Cannot decode the input as '%s': out of memory.", type),
-      call = call
+    zpb_internal_error(
+      res$error,
+      sprintf("decode the input as '%s'", type),
+      call
     )
   )
 }

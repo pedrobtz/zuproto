@@ -386,3 +386,39 @@ test_that("a Timestamp the binary format allows round-trips, and JSON refuses it
     class = "zuproto_json_error"
   )
 })
+
+test_that("encoding nests as deep as decoding allows, then is a depth limit error", {
+  # #27: upb's encoder stopped at 100 levels and zuproto called it out of
+  # memory. nested(n) is n messages, one inside the next.
+  nested <- function(n) {
+    x <- list(depth = 1L)
+    for (i in seq_len(n - 1)) {
+      x <- list(depth = 1L, child = x)
+    }
+    x
+  }
+  pool <- decode_pool()
+  raw <- proto_encode(nested(1001), "zpb.decode.Nested", pool)
+  x <- proto_decode(raw, "zpb.decode.Nested", pool, max_depth = 1000)
+  expect_identical(proto_encode(x, "zpb.decode.Nested", pool), raw)
+  err <- expect_error(
+    proto_encode(nested(1002), "zpb.decode.Nested", pool),
+    class = "zuproto_depth_limit"
+  )
+  expect_s3_class(err, "zuproto_limit_error")
+  expect_identical(err$limit, "max_depth")
+  expect_identical(err$limit_value, 1000L)
+})
+
+test_that("an error code R does not map is a zuproto_internal_error", {
+  err <- expect_error(
+    encode_error(list(error = "other"), "pkg.M", NULL),
+    class = "zuproto_internal_error"
+  )
+  expect_identical(err$code, "other")
+  err <- expect_error(
+    decode_error(list(error = "out_of_memory"), "pkg.M", 1, 1, NULL),
+    class = "zuproto_internal_error"
+  )
+  expect_match(conditionMessage(err), "out of memory")
+})

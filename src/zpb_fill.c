@@ -718,7 +718,7 @@ static SEXP result(SEXP value, const char *error, const char *path, const char *
 /* Encode R value x as message type `type` of pool. Returns list(value,
  * error, path, detail): value the raw bytes, or error one of
  * "unknown_type", "type_mismatch", "unknown_field", "missing_required",
- * "out_of_memory", "other". opts: deterministic, check_required,
+ * "max_depth", "out_of_memory", "other". opts: deterministic, check_required,
  * write_unknown, ignore_extra (integers). */
 SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts)
 {
@@ -764,6 +764,7 @@ SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts)
         UNPROTECT(1);
         return result(R_NilValue,
                       status == ZPB_ENCODE_MISSING_REQUIRED ? "missing_required"
+                      : status == ZPB_ENCODE_DEPTH         ? "max_depth"
                       : status == ZPB_ENCODE_MEMORY        ? "out_of_memory"
                                                            : "other",
                       NULL, NULL);

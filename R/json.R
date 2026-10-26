@@ -177,6 +177,12 @@ proto_from_json <- function(
   )
   res <- .Call(zpb_from_json, pool$ptr, type, enc2utf8(json), opts)
   if (!is.null(res$error)) {
+    # upb's JSON parser stops at 64 levels (a zuproto_json_error), so the
+    # encoder's limit of 1000 is not reached from JSON; were it, it is the
+    # encoder's error, as proto_encode() raises it.
+    if (identical(res$error, "max_depth")) {
+      encode_error(res, type, call)
+    }
     json_error(res, type, max_size, NA, call)
   }
   res$value

@@ -247,3 +247,17 @@ test_that("nested Anys are bounded by max_depth before upb's JSON encoder sees t
     fixed = TRUE
   )
 })
+
+test_that("JSON nested past upb's parser limit is a JSON error", {
+  # #48: upb's JSON parser stops at 64 levels, below the encoder's 1000, so
+  # proto_from_json() never reaches the encoder's depth limit.
+  pool <- decode_pool()
+  json <- function(n) {
+    paste0(strrep('{"child":', n - 1), '{"depth":1}', strrep("}", n - 1))
+  }
+  expect_type(proto_from_json(json(60), "zpb.decode.Nested", pool), "raw")
+  expect_error(
+    proto_from_json(json(100), "zpb.decode.Nested", pool),
+    class = "zuproto_json_error"
+  )
+})

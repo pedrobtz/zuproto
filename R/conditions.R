@@ -49,7 +49,11 @@
 #'     is too large for `max_size`), `zuproto_depth_limit` (messages nest
 #'     deeper than `max_depth`) and `zuproto_row_limit` (more rows than
 #'     `max_rows`) name which. Carries `limit`, the
-#'     argument's name, and `limit_value`.}
+#'     argument's name, and `limit_value`. [proto_encode()] raises
+#'     `zuproto_depth_limit` for messages nested deeper than 1000 levels,
+#'     the most `max_depth` lets [proto_decode()] accept.}
+#'   \item{`zuproto_internal_error`}{Memory ran out, or upb reported a
+#'     status zuproto does not expect. Carries `code`.}
 #' }
 #'
 #' Warnings inherit `zuproto_warning`:
@@ -83,6 +87,21 @@ zpb_warn <- function(class, message, ..., call = NULL) {
     class = c(class, "zuproto_warning", "warning", "condition"),
     list(message = message, call = call, ...)
   ))
+}
+
+# An error code the C side returned that is no user error: memory ran out,
+# or upb reported a status zuproto does not map.
+zpb_internal_error <- function(code, what, call = NULL) {
+  zpb_abort(
+    "zuproto_internal_error",
+    if (identical(code, "out_of_memory")) {
+      sprintf("Cannot %s: out of memory.", what)
+    } else {
+      sprintf("Cannot %s: internal error '%s'.", what, code)
+    },
+    code = code,
+    call = call
+  )
 }
 
 zpb_invalid_argument <- function(arg, message, call = NULL) {

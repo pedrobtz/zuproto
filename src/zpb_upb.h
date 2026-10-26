@@ -643,13 +643,21 @@ enum {
     ZPB_ENCODE_OTHER
 };
 
+/* The deepest nesting zuproto encodes: the most max_depth (1000) lets
+ * proto_decode() accept (design section 12), so whatever decodes
+ * re-encodes. upb's decoder counts levels below the top message and its
+ * encoder counts messages, so 1000 levels is 1001 here (measured). upb's
+ * own default would be 100. */
+#define ZPB_ENCODE_MAX_DEPTH 1001
+
 /* Encode msg (type m) into arena a; *status says why if NULL. */
 static inline char *zpb_encode_message(const zpb_msg *msg, const zpb_msgdef *m,
                                        bool deterministic, bool check_required,
                                        zpb_arena *a, size_t *len, int *status)
 {
     int options = (deterministic ? kUpb_EncodeOption_Deterministic : 0) |
-                  (check_required ? kUpb_EncodeOption_CheckRequired : 0);
+                  (check_required ? kUpb_EncodeOption_CheckRequired : 0) |
+                  (int) upb_EncodeOptions_MaxDepth(ZPB_ENCODE_MAX_DEPTH);
     char *buf = NULL;
     upb_EncodeStatus st =
         upb_Encode(msg, upb_MessageDef_MiniTable(m), options, a, &buf, len);
