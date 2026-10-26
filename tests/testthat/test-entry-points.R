@@ -1,24 +1,7 @@
 # What every entry point must do alike: refuse a pool or type it cannot
 # use, name a type the pool lacks, and stop at max_depth. Each entry point
 # has its own fast path in R and its own branch in C (#32, #36).
-
-entry_points <- function() {
-  list(
-    proto_decode = function(type, pool) proto_decode(raw(), type, pool),
-    proto_encode = function(type, pool) proto_encode(list(), type, pool),
-    proto_decode_df = function(type, pool) {
-      proto_decode_df(list(raw()), type, pool)
-    },
-    proto_read_delimited = function(type, pool) {
-      proto_read_delimited(as.raw(0), type, pool)
-    },
-    proto_write_delimited = function(type, pool) {
-      proto_write_delimited(list(list()), type, pool)
-    },
-    proto_to_json = function(type, pool) proto_to_json(raw(), type, pool),
-    proto_from_json = function(type, pool) proto_from_json("{}", type, pool)
-  )
-}
+# entry_points() is in helper-entry-points.R.
 
 test_that("every entry point refuses a pool it cannot use", {
   stale <- unserialize(serialize(proto_pool(), NULL)) # its pointer is NULL
