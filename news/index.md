@@ -52,3 +52,6 @@
   [`proto_to_json()`](https://pedrobtz.github.io/zuproto/reference/proto_to_json.md)
   skip checking arguments left at their defaults: a small message
   decodes in about a third of the time.
+- Decoding gives `NaN`, never `NA`, for a NaN on the wire, and warns
+  (`zuproto_precision_loss`) for Timestamp and Duration seconds beyond
+  2^53.
