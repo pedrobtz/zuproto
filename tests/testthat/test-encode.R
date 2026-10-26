@@ -521,3 +521,48 @@ test_that("a field given twice is a type mismatch", {
     class = "zuproto_type_mismatch"
   )
 })
+
+test_that("every scalar kind of the mapping round-trips its edge values", {
+  # #45: one row per kind of design section 6.1, at its edges, built in R.
+  pool <- decode_pool()
+  type <- "zpb.decode.Scalars"
+  imax <- .Machine$integer.max
+  edges <- list(
+    f_double = c(
+      -Inf,
+      -.Machine$double.xmax,
+      -0,
+      5e-324,
+      .Machine$double.xmax,
+      Inf
+    ),
+    f_float = c(-Inf, -3.4028234663852886e38, 1.401298464324817e-45, 0.25, Inf),
+    f_int32 = c(-imax, -1L, 0L, imax),
+    f_sint32 = c(-imax, -1L, 1L, imax),
+    f_sfixed32 = c(-imax, -1L, imax),
+    f_uint32 = c(0, 1, 2^31, 2^32 - 1),
+    f_fixed32 = c(0, 2^31, 2^32 - 1),
+    f_int64 = c("-9223372036854775808", "-1", "9223372036854775807"),
+    f_sint64 = c("-9223372036854775808", "-1", "1", "9223372036854775807"),
+    f_sfixed64 = c("-9223372036854775808", "9223372036854775807"),
+    f_uint64 = c("0", "9223372036854775808", "18446744073709551615"),
+    f_fixed64 = c("0", "18446744073709551615"),
+    f_bool = c(FALSE, TRUE),
+    f_string = c("", "a", "é中\U0001f600"),
+    f_enum = c("LEVEL_UNSPECIFIED", "HIGH")
+  )
+  for (field in names(edges)) {
+    for (v in edges[[field]]) {
+      x <- stats::setNames(list(v), field)
+      raw <- proto_encode(x, type, pool)
+      y <- proto_decode(
+        raw,
+        type,
+        pool,
+        int64 = "character",
+        enums = "character"
+      )
+      expect_identical(y[[field]], v, label = sprintf("%s = %s", field, v))
+    }
+  }
+})
