@@ -148,6 +148,7 @@ test_that("unusable inputs fail with classed errors", {
 })
 
 test_that("a pool restored by readRDS() is an invalid argument, not a crash", {
+  skip_if_not_installed("withr")
   path <- withr::local_tempfile(fileext = ".rds")
   saveRDS(proto_pool(), path)
   stale <- readRDS(path)

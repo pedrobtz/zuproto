@@ -290,6 +290,7 @@ test_that("unknown fields are dropped or kept as raw bytes", {
 })
 
 test_that("input can be a path or a connection", {
+  skip_if_not_installed("withr")
   path <- withr::local_tempfile(fileext = ".binpb")
   writeBin(msg_fixture("nested_3"), path)
   pool <- decode_pool()
@@ -301,6 +302,7 @@ test_that("input can be a path or a connection", {
 })
 
 test_that("input beyond max_size is refused before decoding", {
+  skip_if_not_installed("withr")
   pool <- decode_pool()
   raw <- msg_fixture("scalars_set")
   err <- expect_error(
@@ -587,4 +589,43 @@ test_that("arguments given at their defaults decode as when left out", {
       )
     )
   }
+})
+
+test_that("a wire NaN with R's NA payload decodes as NaN, not NA, and re-encodes", {
+  # Found by fuzz_build: the double 0x7FF00000000007A2 is R's NA_real_.
+  pool <- decode_pool()
+  na_bits <- as.raw(c(0xa2, 0x07, 0, 0, 0, 0, 0xf0, 0x7f))
+  raw <- c(as.raw(0x3a), as.raw(8), na_bits) # Repeated.doubles, packed
+  x <- proto_decode(raw, "zpb.decode.Repeated", pool, defaults = FALSE)
+  expect_true(is.nan(x$doubles))
+  y <- proto_decode(
+    proto_encode(x, "zpb.decode.Repeated", pool),
+    "zpb.decode.Repeated",
+    pool,
+    defaults = FALSE
+  )
+  expect_true(is.nan(y$doubles))
+  single <- proto_decode(
+    c(as.raw(0x09), na_bits),
+    "zpb.decode.Scalars",
+    pool,
+    defaults = FALSE
+  )
+  expect_true(is.nan(single$f_double))
+})
+
+test_that("Timestamp and Duration seconds beyond 2^53 warn of precision loss", {
+  # Found by fuzz_build: such seconds cannot be held by a double.
+  pool <- proto_pool()
+  far <- c(as.raw(0x08), as.raw(c(rep(0xff, 8), 0x7f))) # seconds = 2^63 - 1
+  expect_warning(
+    proto_decode(far, "google.protobuf.Timestamp", pool),
+    class = "zuproto_precision_loss"
+  )
+  expect_warning(
+    proto_decode(far, "google.protobuf.Duration", pool),
+    class = "zuproto_precision_loss"
+  )
+  near <- c(as.raw(0x08), varint(2^53)) # exactly 2^53: no loss
+  expect_no_warning(proto_decode(near, "google.protobuf.Timestamp", pool))
 })
