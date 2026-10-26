@@ -493,6 +493,14 @@ static inline const char *zpb_enum_name_of(const zpb_enumdef *e, int32_t n)
     return v != NULL ? upb_EnumValueDef_Name(v) : NULL;
 }
 
+/* The definition-order index of the value number n names (the first of
+ * its aliases), or -1 if the enum lacks it. */
+static inline int zpb_enum_index_of(const zpb_enumdef *e, int32_t n)
+{
+    const upb_EnumValueDef *v = upb_EnumDef_FindValueByNumber(e, n);
+    return v != NULL ? (int) upb_EnumValueDef_Index(v) : -1;
+}
+
 /* Well-known types (design section 6.3) */
 
 enum {

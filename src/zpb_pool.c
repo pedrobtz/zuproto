@@ -1,3 +1,5 @@
+#include <stdarg.h>
+#include <stdio.h>
 #define R_NO_REMAP
 #include <R.h>
 #include <Rinternals.h>
@@ -35,7 +37,7 @@ static void arena_finalize(SEXP ptr)
 SEXP zpb_arena_xptr(zpb_arena **out)
 {
     zpb_arena *a = zpb_arena_new();
-    if (a == NULL) Rf_error("zuproto: out of memory creating an arena");
+    if (a == NULL) zpb_internal_error("out of memory creating an arena");
     SEXP ptr = PROTECT(R_MakeExternalPtr(a, R_NilValue, R_NilValue));
     R_RegisterCFinalizerEx(ptr, arena_finalize, TRUE);
     UNPROTECT(1);
@@ -48,19 +50,35 @@ void zpb_arena_release(SEXP ptr)
     arena_finalize(ptr);
 }
 
+void zpb_internal_error(const char *fmt, ...)
+{
+    char msg[256];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof msg, fmt, ap);
+    va_end(ap);
+    /* zpb_raise_internal() in R/conditions.R raises the classed error, so
+     * this does not return; Rf_error() is the fallback if it somehow does. */
+    SEXP ns = PROTECT(R_FindNamespace(Rf_mkString("zuproto")));
+    SEXP call = PROTECT(Rf_lang2(Rf_install("zpb_raise_internal"), Rf_mkString(msg)));
+    Rf_eval(call, ns);
+    UNPROTECT(2);
+    Rf_error("zuproto: %s", msg);
+}
+
 const zpb_defpool *zpb_pool_get(SEXP ptr)
 {
     if (TYPEOF(ptr) != EXTPTRSXP || R_ExternalPtrTag(ptr) != Rf_install("zpb_pool"))
-        Rf_error("zuproto: not a pool pointer");
+        zpb_internal_error("not a pool pointer");
     zpb_defpool *p = (zpb_defpool *) R_ExternalPtrAddr(ptr);
-    if (p == NULL) Rf_error("zuproto: the pool's pointer is null");
+    if (p == NULL) zpb_internal_error("the pool's pointer is null");
     return p;
 }
 
 SEXP zpb_pool_new(void)
 {
     zpb_defpool *p = zpb_defpool_new();
-    if (p == NULL) Rf_error("zuproto: out of memory creating a pool");
+    if (p == NULL) zpb_internal_error("out of memory creating a pool");
     SEXP ptr = PROTECT(R_MakeExternalPtr(p, Rf_install("zpb_pool"), R_NilValue));
     R_RegisterCFinalizerEx(ptr, pool_finalize, TRUE);
     UNPROTECT(1);
@@ -116,7 +134,7 @@ SEXP zpb_set_files(SEXP raw)
 
         size_t len = 0;
         char *buf = zpb_fdproto_serialize(f, a, &len);
-        if (buf == NULL) Rf_error("zuproto: out of memory serialising a file");
+        if (buf == NULL) zpb_internal_error("out of memory serialising a file");
         SEXP b = Rf_allocVector(RAWSXP, (R_xlen_t) len);
         SET_VECTOR_ELT(bytes, (R_xlen_t) i, b);
         if (len > 0) memcpy(RAW(b), buf, len);
@@ -134,7 +152,7 @@ SEXP zpb_pool_add_file(SEXP ptr, SEXP raw)
     zpb_defpool *p = (zpb_defpool *) zpb_pool_get(ptr);
     char err[1024];
     zpb_arena *a = zpb_arena_new();
-    if (a == NULL) Rf_error("zuproto: out of memory creating an arena");
+    if (a == NULL) zpb_internal_error("out of memory creating an arena");
     const zpb_filedef *def = zpb_defpool_add_file(
         p, (const char *) RAW(raw), (size_t) XLENGTH(raw), a, err, sizeof err);
     zpb_arena_free(a);
@@ -217,12 +235,12 @@ SEXP zpb_pool_fields(SEXP ptr, SEXP type)
 
     int nf = zpb_msgdef_field_count(m);
     ptrdiff_t ne = zpb_defpool_extensions(p, m, NULL, 0);
-    if (ne < 0) Rf_error("zuproto: out of memory listing extensions");
+    if (ne < 0) zpb_internal_error("out of memory listing extensions");
     const zpb_fielddef **ext = NULL;
     if (ne > 0) {
         ext = (const zpb_fielddef **) R_alloc((size_t) ne, sizeof *ext);
         ne = zpb_defpool_extensions(p, m, ext, (size_t) ne);
-        if (ne < 0) Rf_error("zuproto: out of memory listing extensions");
+        if (ne < 0) zpb_internal_error("out of memory listing extensions");
     }
     R_xlen_t n = nf + (R_xlen_t) ne;
 

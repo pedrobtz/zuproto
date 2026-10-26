@@ -26,6 +26,40 @@
       Error in `proto_decode()`:
       ! Message type 'no.such.Type' is not in the pool.
 
+# decoding errors read well
+
+    Code
+      proto_decode(as.raw(10), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Scalars': the bytes are not a valid message of that type.
+    Code
+      proto_decode(c(as.raw(114), varint(2), bad), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Scalars': a string field is not valid UTF-8.
+    Code
+      proto_decode(as.raw(c(114, 1, 0)), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Scalars': field 'zpb.decode.Scalars.f_string' holds a string R cannot, one containing a NUL byte.
+    Code
+      proto_decode(c(as.raw(c(8, 1, 18, 6)), nested), "zpb.decode.Nested", pool,
+      max_depth = 1)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Nested': messages are nested deeper than `max_depth` (1).
+    Code
+      proto_decode(msg_fixture("scalars_set"), "zpb.decode.Scalars", pool, max_size = 10)
+    Condition
+      Error in `proto_decode()`:
+      ! The input is larger than `max_size` (10 bytes).
+    Code
+      proto_decode_df(rep(list(nested), 3), "zpb.decode.Nested", pool, max_rows = 2)
+    Condition
+      Error in `proto_decode_df()`:
+      ! There are more than `max_rows` (2) rows.
+
 # encoding errors read well
 
     Code
@@ -64,6 +98,14 @@
       Error:
       ! Cannot decode the input as 'pkg.M': out of memory.
 
+# JSON errors read well
+
+    Code
+      proto_from_json("{\"f_int32\": \"x\"}", "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_from_json()`:
+      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: Error parsing JSON @1:15: Non-number characters in quoted integer.
+
 # warnings read well
 
     Code
@@ -76,46 +118,4 @@
     Condition
       Warning in `proto_decode()`:
       1 enum value in 'zpb.decode.Scalars' named no value of its enum and became NA.
-
-# JSON errors read well
-
-    Code
-      proto_from_json("{\"f_int32\": \"x\"}", "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_from_json()`:
-      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: Error parsing JSON @1:15: Non-number characters in quoted integer.
-
-# decoding errors read well
-
-    Code
-      proto_decode(as.raw(10), "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Scalars': the bytes are not a valid message of that type.
-    Code
-      proto_decode(c(as.raw(114), varint(2), bad), "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Scalars': a string field is not valid UTF-8.
-    Code
-      proto_decode(as.raw(c(114, 1, 0)), "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Scalars': field 'zpb.decode.Scalars.f_string' holds a string R cannot, one containing a NUL byte.
-    Code
-      proto_decode(c(as.raw(c(8, 1, 18, 6)), nested), "zpb.decode.Nested", pool,
-      max_depth = 1)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Nested': messages are nested deeper than `max_depth` (1).
-    Code
-      proto_decode(msg_fixture("scalars_set"), "zpb.decode.Scalars", pool, max_size = 10)
-    Condition
-      Error in `proto_decode()`:
-      ! The input is larger than `max_size` (10 bytes).
-    Code
-      proto_decode_df(rep(list(nested), 3), "zpb.decode.Nested", pool, max_rows = 2)
-    Condition
-      Error in `proto_decode_df()`:
-      ! There are more than `max_rows` (2) rows.
 

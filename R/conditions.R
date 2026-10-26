@@ -106,6 +106,16 @@ zpb_internal_error <- function(code, what, call = NULL) {
   )
 }
 
+# Called from C by zpb_internal_error(): a failure the C side raises
+# directly, such as memory running out or a pointer that is not a pool's.
+zpb_raise_internal <- function(message) {
+  zpb_abort(
+    "zuproto_internal_error",
+    sprintf("zuproto internal error: %s.", message),
+    code = "internal"
+  )
+}
+
 zpb_invalid_argument <- function(arg, message, call = NULL) {
   zpb_abort("zuproto_invalid_argument", message, arg = arg, call = call)
 }

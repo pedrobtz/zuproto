@@ -75,3 +75,12 @@ test_that("every decoding entry point stops at max_depth", {
     expect_identical(err$limit_value, 9, label = name)
   }
 })
+
+test_that("C's own failures are zuproto_internal_error, not bare errors", {
+  # #40: reached only past R's argument checks, so called directly here.
+  err <- expect_error(
+    .Call(zuproto:::zpb_pool_types, NULL, TRUE),
+    class = "zuproto_internal_error"
+  )
+  expect_match(conditionMessage(err), "not a pool pointer")
+})

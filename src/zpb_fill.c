@@ -775,7 +775,7 @@ SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts)
     if (m == NULL) return result(R_NilValue, "unknown_type", NULL, NULL);
 
     zpb_arena *a = zpb_arena_new();
-    if (a == NULL) Rf_error("zuproto: out of memory creating an arena");
+    if (a == NULL) zpb_internal_error("out of memory creating an arena");
     SEXP aptr = PROTECT(R_MakeExternalPtr(a, R_NilValue, R_NilValue));
     R_RegisterCFinalizerEx(aptr, arena_finalize, TRUE);
 

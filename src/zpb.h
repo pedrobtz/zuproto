@@ -20,4 +20,11 @@ SEXP zpb_frame_delimited(SEXP msgs);
 SEXP zpb_to_json(SEXP ptr, SEXP type, SEXP raw, SEXP opts);
 SEXP zpb_from_json(SEXP ptr, SEXP type, SEXP json, SEXP opts);
 
+/* Raise a zuproto_internal_error with the formatted message (zpb_pool.c):
+ * for failures that are no user error, such as memory running out. */
+#ifdef __GNUC__
+__attribute__((noreturn, format(printf, 1, 2)))
+#endif
+void zpb_internal_error(const char *fmt, ...);
+
 #endif

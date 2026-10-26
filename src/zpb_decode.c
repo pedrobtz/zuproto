@@ -45,7 +45,7 @@ static int opt_int(SEXP opts, const char *name)
     for (R_xlen_t i = 0; i < XLENGTH(opts); i++)
         if (strcmp(CHAR(STRING_ELT(names, i)), name) == 0)
             return Rf_asInteger(VECTOR_ELT(opts, i));
-    Rf_error("zuproto: missing decode option '%s'", name);
+    zpb_internal_error("missing decode option '%s'", name);
 }
 
 static double opt_real(SEXP opts, const char *name)
@@ -54,7 +54,7 @@ static double opt_real(SEXP opts, const char *name)
     for (R_xlen_t i = 0; i < XLENGTH(opts); i++)
         if (strcmp(CHAR(STRING_ELT(names, i)), name) == 0)
             return Rf_asReal(VECTOR_ELT(opts, i));
-    Rf_error("zuproto: missing decode option '%s'", name);
+    zpb_internal_error("missing decode option '%s'", name);
 }
 
 /* A ceiling as a size_t, saturating. */
@@ -69,7 +69,7 @@ static const char *opt_str(SEXP opts, const char *name)
     for (R_xlen_t i = 0; i < XLENGTH(opts); i++)
         if (strcmp(CHAR(STRING_ELT(names, i)), name) == 0)
             return Rf_translateCharUTF8(STRING_ELT(VECTOR_ELT(opts, i), 0));
-    Rf_error("zuproto: missing decode option '%s'", name);
+    zpb_internal_error("missing decode option '%s'", name);
 }
 
 /* Decode raw as message type `type` of pool. Returns list(value, error,
@@ -96,7 +96,7 @@ SEXP zpb_decode(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
     double arena_limit = zpb_arena_ceiling(pool, m, (double) XLENGTH(raw), 1);
 
     decode_holder *h = (decode_holder *) calloc(1, sizeof *h);
-    if (h == NULL) Rf_error("zuproto: out of memory");
+    if (h == NULL) zpb_internal_error("out of memory");
     SEXP hptr = PROTECT(R_MakeExternalPtr(h, R_NilValue, R_NilValue));
     R_RegisterCFinalizerEx(hptr, holder_finalize, TRUE);
     h->arena = zpb_arena_new_limited(&h->alloc, size_cap(arena_limit));
@@ -223,7 +223,7 @@ SEXP zpb_decode_df(SEXP ptr, SEXP type, SEXP x, SEXP opts)
     double arena_limit = zpb_arena_ceiling(pool, m, input, n_msgs);
 
     decode_holder *h = (decode_holder *) calloc(1, sizeof *h);
-    if (h == NULL) Rf_error("zuproto: out of memory");
+    if (h == NULL) zpb_internal_error("out of memory");
     SEXP hptr = PROTECT(R_MakeExternalPtr(h, R_NilValue, R_NilValue));
     R_RegisterCFinalizerEx(hptr, holder_finalize, TRUE);
     h->arena = zpb_arena_new_limited(&h->alloc, size_cap(arena_limit));
@@ -335,7 +335,7 @@ SEXP zpb_frame_delimited(SEXP msgs)
     R_xlen_t n = XLENGTH(msgs);
     double total = 0;
     for (R_xlen_t i = 0; i < n; i++) total += 10 + (double) XLENGTH(VECTOR_ELT(msgs, i));
-    if (total > R_XLEN_T_MAX) Rf_error("zuproto: the stream would be too long for a raw vector");
+    if (total > R_XLEN_T_MAX) zpb_internal_error("the stream would be too long for a raw vector");
     unsigned char *buf = (unsigned char *) R_alloc((size_t) total + 1, 1);
     size_t at = 0;
     for (R_xlen_t i = 0; i < n; i++) {
@@ -373,7 +373,7 @@ static SEXP json_result(SEXP value, const char *error, const char *detail)
 static SEXP new_holder(decode_holder **out, double limit)
 {
     decode_holder *h = (decode_holder *) calloc(1, sizeof *h);
-    if (h == NULL) Rf_error("zuproto: out of memory");
+    if (h == NULL) zpb_internal_error("out of memory");
     SEXP hptr = PROTECT(R_MakeExternalPtr(h, R_NilValue, R_NilValue));
     R_RegisterCFinalizerEx(hptr, holder_finalize, TRUE);
     h->arena = zpb_arena_new_limited(&h->alloc, size_cap(limit));
