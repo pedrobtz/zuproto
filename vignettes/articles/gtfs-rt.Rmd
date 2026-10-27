@@ -47,8 +47,13 @@ library(zuproto)
 ## The schema
 
 The schema is `gtfs-realtime.proto`, from Google's
-[transit](https://github.com/google/transit) repository. `protoc` compiles
-it into a descriptor set, which is what zuproto reads.
+[transit](https://github.com/google/transit) repository. zuproto does not
+read `.proto` files. It reads a *descriptor set*: the schema already
+compiled into protobuf's own binary format. `protoc` makes one with
+`--descriptor_set_out`. `buf build -o gtfs-realtime.binpb` works too.
+
+You only need to do this once. The descriptor set is a small file you can
+keep next to your code and reuse, and only it is needed from then on.
 
 
 ``` r
@@ -73,8 +78,10 @@ system2("protoc", c(
 ))
 ```
 
-A pool holds the message types. The GTFS Realtime types join the
-well-known types every pool starts with.
+`desc` is now the path to `gtfs-realtime.binpb`, a file of about 10 KB.
+`proto_pool()` loads it into a pool, which holds the message types that
+zuproto decodes. The GTFS Realtime types join the well-known types every
+pool starts with.
 
 
 ``` r
