@@ -1,3 +1,31 @@
+# argument and pool errors read well
+
+    Code
+      proto_decode(raw(), "google.protobuf.Empty", "pool")
+    Condition
+      Error in `proto_decode()`:
+      ! `pool` must be a pool from proto_pool().
+    Code
+      proto_pool("no/such/file.binpb")
+    Condition
+      Error in `proto_pool()`:
+      ! Cannot read file 'no/such/file.binpb': it does not exist.
+    Code
+      proto_pool_add(proto_pool(), fixture("uses_dep"))
+    Condition
+      Error in `proto_pool_add()`:
+      ! Cannot add 'uses_dep.proto': it imports 'dep.proto', which is neither in the set nor in the pool. Build the set with `protoc --include_imports`, or add that file first.
+    Code
+      proto_pool_add(proto_pool(fixture("dep")), fixture("dep_v2"))
+    Condition
+      Error in `proto_pool_add()`:
+      ! Cannot add 'dep.proto': a different file of that name is already in the pool.
+    Code
+      proto_decode(raw(), "no.such.Type", proto_pool())
+    Condition
+      Error in `proto_decode()`:
+      ! Message type 'no.such.Type' is not in the pool.
+
 # decoding errors read well
 
     Code
@@ -70,6 +98,14 @@
       Error:
       ! Cannot decode the input as 'pkg.M': out of memory.
 
+# JSON errors read well
+
+    Code
+      proto_from_json("{\"f_int32\": \"x\"}", "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_from_json()`:
+      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: Error parsing JSON @1:15: Non-number characters in quoted integer.
+
 # warnings read well
 
     Code
@@ -82,40 +118,4 @@
     Condition
       Warning in `proto_decode()`:
       1 enum value in 'zpb.decode.Scalars' named no value of its enum and became NA.
-
-# argument and pool errors read well
-
-    Code
-      proto_decode(raw(), "google.protobuf.Empty", "pool")
-    Condition
-      Error in `proto_decode()`:
-      ! `pool` must be a pool from proto_pool().
-    Code
-      proto_pool("no/such/file.binpb")
-    Condition
-      Error in `proto_pool()`:
-      ! Cannot read file 'no/such/file.binpb': it does not exist.
-    Code
-      proto_pool_add(proto_pool(), fixture("uses_dep"))
-    Condition
-      Error in `proto_pool_add()`:
-      ! Cannot add 'uses_dep.proto': it imports 'dep.proto', which is neither in the set nor in the pool. Build the set with `protoc --include_imports`, or add that file first.
-    Code
-      proto_pool_add(proto_pool(fixture("dep")), fixture("dep_v2"))
-    Condition
-      Error in `proto_pool_add()`:
-      ! Cannot add 'dep.proto': a different file of that name is already in the pool.
-    Code
-      proto_decode(raw(), "no.such.Type", proto_pool())
-    Condition
-      Error in `proto_decode()`:
-      ! Message type 'no.such.Type' is not in the pool.
-
-# JSON errors read well
-
-    Code
-      proto_from_json("{\"f_int32\": \"x\"}", "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_from_json()`:
-      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: Error parsing JSON @1:15: Non-number characters in quoted integer.
 
