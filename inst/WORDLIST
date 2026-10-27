@@ -1,9 +1,13 @@
 CMD
 GTFS
+GeoJSON
+Mapbox
 NUL
 Protobuf
+RProtoBuf
 Realtime
 enum's
+gRPC
 lowerCamelCase
 oneof
 oneofs
@@ -11,6 +15,7 @@ proto
 protobuf
 protobuf's
 protoc
+protolite
 runtimes
 upb
 upb's
