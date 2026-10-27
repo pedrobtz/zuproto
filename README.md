@@ -42,7 +42,13 @@ compiled schema, and turns thousands of messages into one data frame.
 
 ## Installation
 
-zuproto is not on CRAN yet. Install the development version from GitHub:
+Install the released version from CRAN:
+
+``` r
+install.packages("zuproto")
+```
+
+Or the development version from GitHub:
 
 ``` r
 # install.packages("pak")
@@ -91,7 +97,7 @@ Protobuf’s JSON mapping goes both ways:
 
 ``` r
 proto_to_json(bytes, "google.protobuf.Struct", pool)
-#> [1] "{\"platform\":7,\"station\":\"Bern\",\"delayed\":true}"
+#> [1] "{\"platform\":7,\"delayed\":true,\"station\":\"Bern\"}"
 ```
 
 Many messages become a data frame. A descriptor set is itself a protobuf
