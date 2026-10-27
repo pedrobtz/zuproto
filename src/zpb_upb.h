@@ -471,6 +471,12 @@ static inline bool zpb_map_next(const zpb_map *m, zpb_value *k, zpb_value *v,
 
 /* Enums */
 
+static inline const zpb_enumdef *zpb_defpool_find_enum(const zpb_defpool *p,
+                                                      const char *name)
+{
+    return upb_DefPool_FindEnumByName(p, name);
+}
+
 static inline int zpb_enum_value_count(const zpb_enumdef *e)
 {
     return upb_EnumDef_ValueCount(e);

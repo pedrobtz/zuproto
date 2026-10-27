@@ -4,6 +4,7 @@ entry_points <- function() {
   list(
     proto_decode = function(type, pool) proto_decode(raw(), type, pool),
     proto_encode = function(type, pool) proto_encode(list(), type, pool),
+    proto_pack_any = function(type, pool) proto_pack_any(list(), type, pool),
     proto_decode_df = function(type, pool) {
       proto_decode_df(list(raw()), type, pool)
     },

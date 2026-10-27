@@ -477,6 +477,13 @@ No new features.
 - A native `.proto` parser: a separate RFC (§21).
 - gRPC server reflection as a descriptor source, and gRPC's 5-byte framing.
 - Text-format output for debugging.
+- From a comparison with Python's protobuf, Ruby, PHP and protobuf-go
+  (2026-10-27): `proto_equal()` (#62), a `default` column in
+  `proto_fields()` (#63), `check_required` on decode (#64),
+  `proto_services()` (#65), writing a pool back out as a
+  `FileDescriptorSet` (#66), and documenting that concatenated messages
+  merge (#67). `proto_pack_any()` (#60) and `proto_enums()` (#61) came
+  into 0.1.0 on 2026-10-27, by the maintainer's decision.
 - Parallel decoding into upb arenas.
 
 ## Open questions

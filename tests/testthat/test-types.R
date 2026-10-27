@@ -81,3 +81,41 @@ test_that("a type that is not a single string is an invalid argument", {
     expect_identical(err$arg, "type")
   }
 })
+
+test_that("proto_enums() lists an enum's values in definition order", {
+  pool <- fixture_pool("schema")
+  e <- proto_enums(pool, "zpb.test.Color")
+  expect_identical(
+    e,
+    data.frame(
+      name = c("COLOR_UNSPECIFIED", "RED", "GREEN"),
+      number = 0:2
+    )
+  )
+  # The enum proto_fields() names for a field.
+  f <- proto_fields(pool, "zpb.test.Scalars")
+  expect_identical(
+    nrow(proto_enums(pool, f$type_name[f$name == "color"])),
+    3L
+  )
+  expect_identical(
+    proto_enums(proto_pool(), "google.protobuf.NullValue")$name,
+    "NULL_VALUE"
+  )
+})
+
+test_that("proto_enums() refuses a name that is not an enum in the pool", {
+  pool <- fixture_pool("schema")
+  err <- expect_error(
+    proto_enums(pool, "zpb.test.Nope"),
+    class = "zuproto_unknown_type"
+  )
+  expect_identical(err$type, "zpb.test.Nope")
+  # A message type is not an enum.
+  expect_error(
+    proto_enums(pool, "zpb.test.Scalars"),
+    class = "zuproto_unknown_type"
+  )
+  expect_error(proto_enums(pool, NA), class = "zuproto_invalid_argument")
+  expect_error(proto_enums(list(), "x"), class = "zuproto_invalid_argument")
+})
