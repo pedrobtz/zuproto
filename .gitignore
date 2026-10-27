@@ -55,3 +55,7 @@ CRAN-SUBMISSION
 
 # A crashing input from tools/fuzz/standalone.c
 crash-input
+
+# Precomputed articles: the .Rmd.orig is the source. A global *.orig
+# ignore would otherwise drop it.
+!vignettes/articles/*.Rmd.orig
