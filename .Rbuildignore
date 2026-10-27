@@ -18,3 +18,4 @@
 ^tools/fuzz$
 ^tools/conformance$
 ^crash-input$
+^\.Renviron$
