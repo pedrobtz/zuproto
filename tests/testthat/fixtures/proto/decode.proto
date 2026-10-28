@@ -111,3 +111,20 @@ message Outer {
   Choice inner = 1;
   repeated Choice items = 2;
 }
+
+// An enum whose numbers have more than one name: the first name wins (#84).
+enum Aliased {
+  option allow_alias = true;
+  ALIASED_UNSPECIFIED = 0;
+  FIRST = 1;
+  SECOND = 1;
+}
+
+message WithAlias {
+  Aliased value = 1;
+}
+
+// Any as a map value, for the JSON check of packed Anys (#83).
+message AnyMap {
+  map<string, google.protobuf.Any> by_name = 1;
+}

@@ -217,6 +217,8 @@ proto_read_delimited <- function(
   }
   eof <- is.null(con)
   need_more <- TRUE
+  # Each chunk counts its messages from 1; errors name the stream position.
+  done <- 0
   repeat {
     # Read only when the bytes in hand hold no whole chunk of messages.
     if (need_more && !eof) {
@@ -231,7 +233,11 @@ proto_read_delimited <- function(
       break
     }
     res <- .Call(zpb_decode_df, pool$ptr, type, pending, opts)
+    if (!is.null(res$error) && isTRUE(res$index > 0)) {
+      res$index <- res$index + done
+    }
     df <- df_finish(res, type, NULL, max_size, max_depth, max_rows, call)
+    done <- done + nrow(df)
     if (nrow(df) > 0L) {
       each(df)
     }

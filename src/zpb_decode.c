@@ -80,6 +80,7 @@ static const char *opt_str(SEXP opts, const char *name)
 SEXP zpb_decode(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
 {
     const zpb_defpool *pool = zpb_pool_get(ptr);
+    zpb_ceilings *ceilings = zpb_pool_ceilings(ptr);
     const zpb_msgdef *m =
         zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
     if (m == NULL) return result(R_NilValue, "unknown_type", NULL, 0, 0);
@@ -93,7 +94,7 @@ SEXP zpb_decode(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
     ctx.bytes_base64 = opt_int(opts, "bytes_base64");
     int max_depth = opt_int(opts, "max_depth");
     /* The ceiling comes from the schema (design section 12). */
-    double arena_limit = zpb_arena_ceiling(pool, m, (double) XLENGTH(raw), 1);
+    double arena_limit = zpb_arena_ceiling(pool, ceilings, m, (double) XLENGTH(raw), 1);
 
     decode_holder *h = (decode_holder *) calloc(1, sizeof *h);
     if (h == NULL) zpb_internal_error("out of memory");
@@ -194,6 +195,7 @@ static int read_varint(const unsigned char *buf, size_t len, size_t *at, uint64_
 SEXP zpb_decode_df(SEXP ptr, SEXP type, SEXP x, SEXP opts)
 {
     const zpb_defpool *pool = zpb_pool_get(ptr);
+    zpb_ceilings *ceilings = zpb_pool_ceilings(ptr);
     const zpb_msgdef *m =
         zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
     if (m == NULL) return df_result(R_NilValue, "unknown_type", NULL, 0, 0, 0, 0);
@@ -220,7 +222,7 @@ SEXP zpb_decode_df(SEXP ptr, SEXP type, SEXP x, SEXP opts)
         input = (double) XLENGTH(x);
         n_msgs = mode == 2 ? input : 1;
     }
-    double arena_limit = zpb_arena_ceiling(pool, m, input, n_msgs);
+    double arena_limit = zpb_arena_ceiling(pool, ceilings, m, input, n_msgs);
 
     decode_holder *h = (decode_holder *) calloc(1, sizeof *h);
     if (h == NULL) zpb_internal_error("out of memory");
@@ -386,12 +388,13 @@ static SEXP new_holder(decode_holder **out, double limit)
 SEXP zpb_to_json(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
 {
     const zpb_defpool *pool = zpb_pool_get(ptr);
+    zpb_ceilings *ceilings = zpb_pool_ceilings(ptr);
     const zpb_msgdef *m =
         zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
     if (m == NULL) return json_result(R_NilValue, "unknown_type", NULL);
 
     decode_holder *h;
-    SEXP hptr = new_holder(&h, zpb_arena_ceiling(pool, m, (double) XLENGTH(raw), 1));
+    SEXP hptr = new_holder(&h, zpb_arena_ceiling(pool, ceilings, m, (double) XLENGTH(raw), 1));
     if (h->arena == NULL) {
         holder_finalize(hptr);
         UNPROTECT(1);
@@ -405,7 +408,7 @@ SEXP zpb_to_json(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
     /* upb's JSON encoder decodes packed Anys itself, unbounded: check them
      * first, within max_depth and the arena (zpb_check_any()). */
     if (msg != NULL) {
-        status = zpb_check_any(pool, m, msg, max_depth, h->arena, &h->alloc);
+        status = zpb_check_any(pool, ceilings, m, msg, max_depth, h->arena, &h->alloc);
         if (status != ZPB_DECODE_OK) msg = NULL;
     }
     if (msg == NULL) {
@@ -436,6 +439,7 @@ SEXP zpb_to_json(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
 SEXP zpb_from_json(SEXP ptr, SEXP type, SEXP json, SEXP opts)
 {
     const zpb_defpool *pool = zpb_pool_get(ptr);
+    zpb_ceilings *ceilings = zpb_pool_ceilings(ptr);
     const zpb_msgdef *m =
         zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
     if (m == NULL) return json_result(R_NilValue, "unknown_type", NULL);
@@ -443,7 +447,7 @@ SEXP zpb_from_json(SEXP ptr, SEXP type, SEXP json, SEXP opts)
     const char *text = Rf_translateCharUTF8(STRING_ELT(json, 0));
     size_t len = strlen(text);
     decode_holder *h;
-    SEXP hptr = new_holder(&h, zpb_arena_ceiling(pool, m, (double) len, 1));
+    SEXP hptr = new_holder(&h, zpb_arena_ceiling(pool, ceilings, m, (double) len, 1));
     zpb_msg *msg = h->arena != NULL ? zpb_msg_new(m, h->arena) : NULL;
     if (msg == NULL) {
         holder_finalize(hptr);

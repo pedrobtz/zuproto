@@ -55,6 +55,30 @@ big <- proto_encode(
 t_pool <- min(vapply(1:5, function(i) system.time(proto_pool(big))[["elapsed"]], numeric(1)))
 cat(sprintf("%-46s %8.3f s  (%.2f MB)\n", "proto_pool(), a descriptor set of", t_pool, length(big) / 1e6))
 
+# One small message of a large schema, decoded many times (#82): 2000 proto2
+# types, each holding the next, each extended by one of them. The arena
+# ceiling walks every reachable type once per pool, not once per call.
+chained <- lapply(seq_len(2000) - 1L, function(i) {
+  next_field <- if (i < 1999L) {
+    list(c(field("next", 1L, "TYPE_MESSAGE"), type_name = sprintf(".chain.M%d", i + 1L)))
+  }
+  list(name = sprintf("M%d", i), field = c(next_field, list(field("v", 2L, "TYPE_INT32"))),
+       extension_range = list(list(start = 100L, end = 200L)))
+})
+exts <- lapply(seq_len(2000) - 1L, function(i) {
+  c(field(sprintf("ext%d", i), 100L, "TYPE_MESSAGE"),
+    type_name = sprintf(".chain.M%d", (7L * i) %% 2000L), extendee = sprintf(".chain.M%d", i))
+})
+chain_pool <- proto_pool(proto_encode(
+  list(file = list(list(name = "chain.proto", package = "chain", syntax = "proto2",
+                        message_type = chained, extension = exts))),
+  "google.protobuf.FileDescriptorSet", pool
+))
+m0 <- as.raw(c(0x10, 0x01))
+reps <- 2e4
+t_chain <- system.time(for (i in seq_len(reps)) proto_decode(m0, "chain.M0", chain_pool))[["elapsed"]]
+cat(sprintf("%-46s %8.1f us\n", "proto_decode(), 2000 types + extensions, each", t_chain / reps * 1e6))
+
 cat(sprintf("zuproto %s, upb from protobuf %s, R %s, n = %s\n",
             zuproto_info()$version, zuproto_info()$protobuf,
             getRversion(), format(n, big.mark = ",")))
