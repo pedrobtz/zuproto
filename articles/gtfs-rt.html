@@ -95,10 +95,17 @@ and subscribe to the GTFS Realtime API in its API Manager. Put the key
 in <code>.Renviron</code>, so it stays out of your code:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="va">OPENTRANSPORTDATA_API_KEY</span><span class="op">=&lt;</span>your <span class="ex">key</span><span class="op">&gt;</span></span></code></pre></div>
 </li>
-<li><p><strong><code>protoc</code></strong>, the protobuf compiler, to
-turn the schema into a descriptor set. zuproto itself does not need it.
-On macOS, <code>brew install protobuf</code>; on Debian and Ubuntu,
-<code>apt install protobuf-compiler</code>.</p></li>
+<li>
+<p><strong><code>protoc</code></strong>, the <a href="https://protobuf.dev/installation/" class="external-link">Protocol Buffers compiler</a>,
+to turn the schema into a descriptor set. zuproto needs it only for that
+step. Install it with a package manager:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">brew</span> install protobuf              <span class="co"># macOS</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">apt</span> install protobuf-compiler      <span class="co"># Debian, Ubuntu</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="ex">winget</span> install protobuf            <span class="co"># Windows</span></span></code></pre></div>
+<p>Pre-compiled binaries for every system are on protobuf’s <a href="https://github.com/protocolbuffers/protobuf/releases" class="external-link">releases
+page</a>. <a href="https://buf.build/docs/cli/installation/" class="external-link"><code>buf</code></a>
+works instead of <code>protoc</code> too.</p>
+</li>
 </ul>
 </div>
 <div class="section level2">
@@ -112,7 +119,7 @@ set</em>: the schema already compiled into protobuf’s own binary format.
 <p>You only need to do this once. The descriptor set is a small file you
 can keep next to your code and reuse, and only it is needed from then
 on.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"gtfs-rt-"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.create</a></span><span class="op">(</span><span class="va">dir</span><span class="op">)</span></span>
 <span><span class="va">proto</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"gtfs-realtime.proto"</span><span class="op">)</span></span>
@@ -137,7 +144,7 @@ on.</p>
 <code><a href="../reference/proto_pool.html">proto_pool()</a></code> loads it into a pool, which holds the message
 types that zuproto decodes. The GTFS Realtime types join the well-known
 types every pool starts with.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/proto_pool.html">proto_pool</a></span><span class="op">(</span><span class="va">desc</span><span class="op">)</span></span>
 <span><span class="va">pool</span></span>
 <span><span class="co">#&gt; &lt;proto_pool: 12 files, 89 message types&gt;</span></span>
@@ -169,7 +176,7 @@ types every pool starts with.</p>
 </h2>
 <p>The trip updates feed is one <code>FeedMessage</code> covering the
 whole country. The key goes in an <code>Authorization</code> header.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">feed</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"trip-updates.binpb"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/download.file.html" class="external-link">download.file</a></span><span class="op">(</span></span>
 <span>  <span class="st">"https://api.opentransportdata.swiss/la/gtfs-rt"</span>,</span>
@@ -188,7 +195,7 @@ whole country. The key goes in an <code>Authorization</code> header.</p>
 </h2>
 <p><code><a href="../reference/proto_decode.html">proto_decode()</a></code> turns the message into a named list.
 Enums become factors, and fields the feed does not set are left out.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">msg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/proto_decode.html">proto_decode</a></span><span class="op">(</span><span class="va">feed</span>, <span class="st">"transit_realtime.FeedMessage"</span>, <span class="va">pool</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">msg</span><span class="op">$</span><span class="va">header</span><span class="op">)</span></span>
 <span><span class="co">#&gt; List of 4</span></span>
@@ -199,13 +206,13 @@ Enums become factors, and fields the feed does not set are left out.</p>
 <p>The header’s <code>timestamp</code> is POSIX time, as a
 <code>uint64</code>. It is not a well-known <code>Timestamp</code>, so
 zuproto leaves it as a number:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/base-internal.html" class="external-link">.POSIXct</a></span><span class="op">(</span><span class="va">msg</span><span class="op">$</span><span class="va">header</span><span class="op">$</span><span class="va">timestamp</span>, tz <span class="op">=</span> <span class="st">"Europe/Zurich"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "2026-10-27 15:36:18 CET"</span></span></code></pre></div>
 <p><code>feed_version</code> names the GTFS static release that the trip
 and stop IDs refer to.</p>
 <p>Each element of <code>entity</code> is one trip:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">msg</span><span class="op">$</span><span class="va">entity</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 15576</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">msg</span><span class="op">$</span><span class="va">entity</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
@@ -233,7 +240,7 @@ and stop IDs refer to.</p>
 <code><a href="../reference/proto_decode_df.html">proto_decode_df()</a></code> with <code>field = "entity"</code> makes
 the repeated <code>entity</code> field the rows of a data frame. Nested
 messages become data frame columns, built column by column in C.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span></span>
 <span>  <span class="va">entities</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/proto_decode_df.html">proto_decode_df</a></span><span class="op">(</span></span>
 <span>    <span class="va">feed</span>,</span>
@@ -255,7 +262,7 @@ messages become data frame columns, built column by column in C.</p>
 <span><span class="co">#&gt; 6  .ojp-91-71B.1.TA.143.j26 91-71B-j26-1   11:15:00</span></span></code></pre></div>
 <p><code>schedule_relationship</code> is a factor, so counting cancelled
 and added trips is a <code><a href="https://rdrr.io/r/base/table.html" class="external-link">table()</a></code>:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">trips</span><span class="op">$</span><span class="va">trip</span><span class="op">$</span><span class="va">schedule_relationship</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   SCHEDULED       ADDED UNSCHEDULED    CANCELED REPLACEMENT  DUPLICATED </span></span>
@@ -269,7 +276,7 @@ and added trips is a <code><a href="https://rdrr.io/r/base/table.html" class="ex
 <p><code>stop_time_update</code> is a repeated message, so each row
 holds a data frame of that trip’s stops. Swiss stop IDs are mostly
 SLOIDs (<code>ch:1:sloid:…</code>), with some older numeric IDs.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">trips</span><span class="op">$</span><span class="va">stop_time_update</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; 'data.frame':    30 obs. of  7 variables:</span></span>
 <span><span class="co">#&gt;  $ stop_sequence             : num  1 2 3 4 5 6 7 8 9 11 ...</span></span>
@@ -291,7 +298,7 @@ SLOIDs (<code>ch:1:sloid:…</code>), with some older numeric IDs.</p>
 <code>arrival</code> at a first stop, is an all-<code>NA</code> column
 rather than a data frame. A small helper covers both cases when pulling
 out the delays:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">delay</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">stops</span>, <span class="va">event</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">x</span> <span class="op">&lt;-</span> <span class="va">stops</span><span class="op">[[</span><span class="va">event</span><span class="op">]</span><span class="op">]</span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span> <span class="va">x</span><span class="op">$</span><span class="va">delay</span> <span class="kw">else</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA_integer_</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">stops</span><span class="op">)</span><span class="op">)</span></span>
@@ -324,11 +331,11 @@ out the delays:</p>
 <span><span class="co">#&gt; 6           21864</span></span></code></pre></div>
 <p>Delays are in seconds. Most departures are within a minute or two of
 schedule:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">stops</span><span class="op">$</span><span class="va">departure_delay</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.9</span>, <span class="fl">0.99</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; 50% 90% 99% </span></span>
 <span><span class="co">#&gt;  36 162 432</span></span></code></pre></div>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">minutes</span> <span class="op">&lt;-</span> <span class="va">stops</span><span class="op">$</span><span class="va">departure_delay</span> <span class="op">/</span> <span class="fl">60</span></span>
 <span><span class="va">minutes</span> <span class="op">&lt;-</span> <span class="va">minutes</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">minutes</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">minutes</span> <span class="op">&gt;=</span> <span class="op">-</span><span class="fl">2</span> <span class="op">&amp;</span> <span class="va">minutes</span> <span class="op">&lt;=</span> <span class="fl">10</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/hist.html" class="external-link">hist</a></span><span class="op">(</span></span>
@@ -350,13 +357,13 @@ plot of chunk delays
 </h2>
 <p><code><a href="../reference/proto_to_json.html">proto_to_json()</a></code> writes protobuf’s canonical JSON. Here
 is one trip, encoded back to binary from its list form first:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">one</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/proto_encode.html">proto_encode</a></span><span class="op">(</span><span class="va">msg</span><span class="op">$</span><span class="va">entity</span><span class="op">[[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span>, <span class="st">"transit_realtime.FeedEntity"</span>, <span class="va">pool</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/proto_to_json.html">proto_to_json</a></span><span class="op">(</span><span class="va">one</span>, <span class="st">"transit_realtime.FeedEntity"</span>, <span class="va">pool</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; {"id":".ojp-91-71A.1.TA.136.j26|20261027","tripUpdate":{"trip":{"tripId":".ojp-91-71A.1.TA.136.j26","startTime":"06:57:00","startDate":"20261027","scheduleRelationship":"SCHEDULED","routeId":"91-71A-j26-1"},"stopTimeUpdate":[{"stopSequence":1,"departure":{"delay":0},"stopId":"8775605","scheduleRelationship":"SCHEDULED"}]}}</span></span></code></pre></div>
 <p>The same mapping for the whole feed is about three times the size of
 the binary:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nchar</a></span><span class="op">(</span><span class="fu"><a href="../reference/proto_to_json.html">proto_to_json</a></span><span class="op">(</span><span class="va">feed</span>, <span class="st">"transit_realtime.FeedMessage"</span>, <span class="va">pool</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/file.info.html" class="external-link">file.size</a></span><span class="op">(</span><span class="va">feed</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 3.063439</span></span></code></pre></div>

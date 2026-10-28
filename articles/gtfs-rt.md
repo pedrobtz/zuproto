@@ -25,10 +25,21 @@ library(zuproto)
   OPENTRANSPORTDATA_API_KEY=<your key>
   ```
 
-- **`protoc`**, the protobuf compiler, to turn the schema into a
-  descriptor set. zuproto itself does not need it. On macOS,
-  `brew install protobuf`; on Debian and Ubuntu,
-  `apt install protobuf-compiler`.
+- **`protoc`**, the [Protocol Buffers
+  compiler](https://protobuf.dev/installation/), to turn the schema into
+  a descriptor set. zuproto needs it only for that step. Install it with
+  a package manager:
+
+  ``` sh
+  brew install protobuf              # macOS
+  apt install protobuf-compiler      # Debian, Ubuntu
+  winget install protobuf            # Windows
+  ```
+
+  Pre-compiled binaries for every system are on protobuf’s [releases
+  page](https://github.com/protocolbuffers/protobuf/releases).
+  [`buf`](https://buf.build/docs/cli/installation/) works instead of
+  `protoc` too.
 
 ## The schema
 
