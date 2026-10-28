@@ -1,0 +1,261 @@
+---
+title: "Live Swiss trains with GTFS Realtime"
+---
+
+<!--
+This article is precomputed: it needs an API key, protoc and the network,
+which neither CRAN nor CI has. Edit gtfs-rt.Rmd.orig, never gtfs-rt.Rmd, and
+re-knit from the package root with zuproto installed:
+
+  Rscript -e 'setwd("vignettes/articles"); knitr::knit("gtfs-rt.Rmd.orig", "gtfs-rt.Rmd")'
+
+The key is read from OPENTRANSPORTDATA_API_KEY. The feed allows two requests
+a minute per key, and a knit makes one.
+-->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "gtfs-rt-",
+  fig.width = 7,
+  fig.height = 4,
+  dpi = 96
+)
+```
+
+[GTFS Realtime](https://gtfs.org/documentation/realtime/reference/) is the
+format transit agencies use to publish live data: delays, cancellations,
+alerts. It is plain Protocol Buffers. This article reads the live feed of
+all public transport in Switzerland, from
+[opentransportdata.swiss](https://opentransportdata.swiss/), and turns it
+into tables of trips and stop delays.
+
+The output below comes from a run on `r format(Sys.time(), "%e %B %Y at %H:%M %Z", tz = "Europe/Zurich")`.
+The code is not run when the site is built.
+
+```{r}
+library(zuproto)
+```
+
+## What you need
+
+- **An API key.** Register at opentransportdata.swiss and subscribe to the
+  GTFS Realtime API in its API Manager. Put the key in `.Renviron`, so it
+  stays out of your code:
+
+  ```sh
+  OPENTRANSPORTDATA_API_KEY=<your key>
+  ```
+
+- **`protoc`**, the
+  [Protocol Buffers compiler](https://protobuf.dev/installation/), to turn
+  the schema into a descriptor set. zuproto needs it only for that step.
+  Install it with a package manager:
+
+  ```sh
+  brew install protobuf              # macOS
+  apt install protobuf-compiler      # Debian, Ubuntu
+  winget install protobuf            # Windows
+  ```
+
+  Pre-compiled binaries for every system are on protobuf's
+  [releases page](https://github.com/protocolbuffers/protobuf/releases).
+  [`buf`](https://buf.build/docs/cli/installation/) works instead of `protoc`
+  too.
+
+## The schema
+
+The schema is `gtfs-realtime.proto`, from Google's
+[transit](https://github.com/google/transit) repository. zuproto does not
+read `.proto` files. It reads a *descriptor set*: the schema already
+compiled into protobuf's own binary format. `protoc` makes one with
+`--descriptor_set_out`. `buf build -o gtfs-realtime.binpb` works too.
+
+You only need to do this once. The descriptor set is a small file you can
+keep next to your code and reuse, and only it is needed from then on.
+
+```{r}
+dir <- tempfile("gtfs-rt-")
+dir.create(dir)
+proto <- file.path(dir, "gtfs-realtime.proto")
+desc <- file.path(dir, "gtfs-realtime.binpb")
+
+download.file(
+  paste0(
+    "https://raw.githubusercontent.com/google/transit/",
+    "474750a163088673df718838d4a1bb093391f9af/",
+    "gtfs-realtime/proto/gtfs-realtime.proto"
+  ),
+  proto,
+  quiet = TRUE
+)
+system2("protoc", c(
+  paste0("--proto_path=", dir),
+  paste0("--descriptor_set_out=", desc),
+  proto
+))
+```
+
+`desc` is now the path to `gtfs-realtime.binpb`, a file of about 10 KB.
+`proto_pool()` loads it into a pool, which holds the message types that
+zuproto decodes. The GTFS Realtime types join the well-known types every
+pool starts with.
+
+```{r}
+pool <- proto_pool(desc)
+pool
+proto_fields(pool, "transit_realtime.TripUpdate")
+```
+
+## The feed
+
+The trip updates feed is one `FeedMessage` covering the whole country. The
+key goes in an `Authorization` header.
+
+```{r}
+feed <- file.path(dir, "trip-updates.binpb")
+download.file(
+  "https://api.opentransportdata.swiss/la/gtfs-rt",
+  feed,
+  mode = "wb",
+  quiet = TRUE,
+  headers = c(
+    Authorization = paste("Bearer", Sys.getenv("OPENTRANSPORTDATA_API_KEY"))
+  )
+)
+file.size(feed)
+```
+
+## One message as a list
+
+`proto_decode()` turns the message into a named list. Enums become factors,
+and fields the feed does not set are left out.
+
+```{r}
+msg <- proto_decode(feed, "transit_realtime.FeedMessage", pool)
+str(msg$header)
+```
+
+The header's `timestamp` is POSIX time, as a `uint64`. It is not a
+well-known `Timestamp`, so zuproto leaves it as a number:
+
+```{r}
+.POSIXct(msg$header$timestamp, tz = "Europe/Zurich")
+```
+
+`feed_version` names the GTFS static release that the trip and stop IDs
+refer to.
+
+Each element of `entity` is one trip:
+
+```{r}
+length(msg$entity)
+str(msg$entity[[1]])
+```
+
+## Trips as a data frame
+
+A list of 15,000 trips is awkward to work with.
+`proto_decode_df()` with `field = "entity"` makes the repeated `entity`
+field the rows of a data frame. Nested messages become data frame columns,
+built column by column in C.
+
+```{r}
+system.time(
+  entities <- proto_decode_df(
+    feed,
+    "transit_realtime.FeedMessage",
+    pool,
+    field = "entity"
+  )
+)
+trips <- entities$trip_update
+head(trips$trip[c("trip_id", "route_id", "start_time")])
+```
+
+`schedule_relationship` is a factor, so counting cancelled and added trips
+is a `table()`:
+
+```{r}
+table(trips$trip$schedule_relationship)
+```
+
+## Delays at each stop
+
+`stop_time_update` is a repeated message, so each row holds a data frame
+of that trip's stops. Swiss stop IDs are mostly SLOIDs
+(`ch:1:sloid:…`), with some older numeric IDs.
+
+```{r}
+str(trips$stop_time_update[[3]])
+```
+
+A message field that no stop of a trip sets, such as `arrival` at a
+first stop, is an all-`NA` column rather than a data frame. A small helper
+covers both cases when pulling out the delays:
+
+```{r}
+delay <- function(stops, event) {
+  x <- stops[[event]]
+  if (is.data.frame(x)) x$delay else rep(NA_integer_, nrow(stops))
+}
+
+updates <- trips$stop_time_update
+n <- vapply(updates, nrow, integer(1))
+stops <- data.frame(
+  trip_id = rep(trips$trip$trip_id, n),
+  stop_id = unlist(lapply(updates, `[[`, "stop_id")),
+  arrival_delay = unlist(lapply(updates, delay, "arrival")),
+  departure_delay = unlist(lapply(updates, delay, "departure"))
+)
+nrow(stops)
+head(stops)
+```
+
+Delays are in seconds. Most departures are within a minute or two of
+schedule:
+
+```{r}
+quantile(stops$departure_delay, c(0.5, 0.9, 0.99), na.rm = TRUE)
+```
+
+```{r delays, fig.alt = "Histogram of departure delays in minutes across all Swiss stops, from 2 minutes early to 10 minutes late. Most departures are within a minute of schedule."}
+minutes <- stops$departure_delay / 60
+minutes <- minutes[!is.na(minutes) & minutes >= -2 & minutes <= 10]
+hist(
+  minutes,
+  breaks = seq(-2, 10, by = 0.25),
+  main = "Departure delays across Switzerland",
+  xlab = "Minutes late",
+  col = "grey70",
+  border = "white"
+)
+```
+
+## As JSON
+
+`proto_to_json()` writes protobuf's canonical JSON. Here is one trip,
+encoded back to binary from its list form first:
+
+```{r}
+one <- proto_encode(msg$entity[[2]], "transit_realtime.FeedEntity", pool)
+cat(proto_to_json(one, "transit_realtime.FeedEntity", pool))
+```
+
+The same mapping for the whole feed is about three times the size of the
+binary:
+
+```{r}
+nchar(proto_to_json(feed, "transit_realtime.FeedMessage", pool)) /
+  file.size(feed)
+```
+
+## Notes
+
+- The limit is two requests a minute per key. The feed is refreshed every
+  30 seconds, so polling faster gains nothing.
+- Service alerts are a separate feed with a separate subscription. They use
+  the same schema: decode them as `transit_realtime.FeedMessage` too.
+- [transport.opendata.ch](https://transport.opendata.ch/) serves the same
+  timetable data as JSON, if you would rather not handle protobuf.
