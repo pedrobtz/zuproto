@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 const zpb_defpool *zpb_fuzz_pool(void);
+zpb_ceilings *zpb_fuzz_ceilings(void);
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
@@ -16,6 +17,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     FUZZ_CANARY(data, size);
     if (size < 1 || size > (1 << 20)) return 0;
     const zpb_defpool *pool = zpb_fuzz_pool();
+    zpb_ceilings *ceilings = zpb_fuzz_ceilings();
     const zpb_msgdef *m = zpb_defpool_find_message(pool, zpb_fuzz_types[data[0] % ZPB_FUZZ_NTYPES]);
     FUZZ_CHECK(m != NULL);
 
@@ -26,14 +28,15 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if (len) memcpy(buf, data + 1, len);
 
     zpb_counting_alloc ca;
-    zpb_arena *a = zpb_arena_new_limited(&ca, (size_t) zpb_arena_ceiling(pool, m, (double) len, 1));
+    double ceiling = zpb_arena_ceiling(pool, ceilings, m, (double) len, 1);
+    zpb_arena *a = zpb_arena_new_limited(&ca, (size_t) ceiling);
     int status;
     const zpb_msg *msg = a ? zpb_decode_message(pool, m, buf, len, a, 100, &status) : NULL;
     if (msg != NULL) {
         char err[512];
         /* zuproto bounds every Any before upb's JSON encoder sees it (design
          * section 12), so JSON is written only for a message that passes. */
-        size_t n = zpb_check_any(pool, m, msg, 100, a, &ca) == ZPB_DECODE_OK
+        size_t n = zpb_check_any(pool, ceilings, m, msg, 100, a, &ca) == ZPB_DECODE_OK
                        ? zpb_json_encode(msg, m, pool, 0, NULL, 0, err, sizeof err)
                        : (size_t) -1;
         if (n != (size_t) -1) {

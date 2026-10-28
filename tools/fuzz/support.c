@@ -1,5 +1,5 @@
 /* The upb targets' pool, built once from tools/fuzz/data.h through the
- * shim, with no R. */
+ * shim, with no R, and its cache of arena ceilings, as a pool holds one. */
 #include "fuzz.h"
 #include "data.h"
 #include "zpb_upb.h"
@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 const zpb_defpool *zpb_fuzz_pool(void);
+zpb_ceilings *zpb_fuzz_ceilings(void);
 
 const zpb_defpool *zpb_fuzz_pool(void)
 {
@@ -27,4 +28,11 @@ const zpb_defpool *zpb_fuzz_pool(void)
     }
     zpb_arena_free(a);
     return pool;
+}
+
+/* The pool never changes after it is built, so the cache is never cleared. */
+zpb_ceilings *zpb_fuzz_ceilings(void)
+{
+    static zpb_ceilings ceilings;
+    return &ceilings;
 }
