@@ -3,6 +3,10 @@ on:
     branches: [main, master]
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+  # A manual run is always full: the docs-only gate cannot list its changed
+  # files. That is how a release commit, which changes only DESCRIPTION and
+  # Markdown, gets the full profile.
+  workflow_dispatch:
 
 name: native-checks
 
