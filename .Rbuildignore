@@ -19,3 +19,4 @@
 ^tools/conformance$
 ^crash-input$
 ^\.Renviron$
+^README\.Rmd$
