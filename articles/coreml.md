@@ -1,0 +1,263 @@
+# A Core ML model in plain R
+
+[Core ML](https://developer.apple.com/documentation/coreml) is how apps
+on Apple devices run machine-learning models. A Core ML model file
+(`.mlmodel`) is one Protocol Buffers message, `Model`, defined in
+`Model.proto` in Apple’s
+[coremltools](https://github.com/apple/coremltools) repository. The
+schema covers neural networks, tree ensembles, linear models, support
+vector machines and pipelines of them.
+
+This article opens a small Core ML classifier, a decision tree for R’s
+`iris` data, and rebuilds its tree as a data frame. With the tree in
+hand, R can make the same predictions Core ML does, with no Apple
+software at all.
+
+The output below comes from a run on 27 October 2026. The code is not
+run when the site is built.
+
+``` r
+
+library(zuproto)
+```
+
+## The schema
+
+`Model.proto` imports one file per kind of model, 33 files in all. This
+helper downloads them from coremltools, following the imports, at one
+release.
+
+``` r
+
+fetch_coreml_protos <- function(dir, ref = "9.0") {
+  base <- paste0(
+    "https://raw.githubusercontent.com/apple/coremltools/",
+    ref,
+    "/mlmodel/format/"
+  )
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  todo <- "Model.proto"
+  done <- character()
+  while (length(todo) > 0) {
+    f <- todo[[1]]
+    todo <- todo[-1]
+    if (f %in% done) {
+      next
+    }
+    download.file(paste0(base, f), file.path(dir, f), quiet = TRUE)
+    imports <- grep("^import ", readLines(file.path(dir, f)), value = TRUE)
+    todo <- c(todo, sub('^import (public )?"(.*)";.*$', "\\2", imports))
+    done <- c(done, f)
+  }
+  done
+}
+
+dir <- tempfile("coreml-")
+protos <- fetch_coreml_protos(file.path(dir, "protos"))
+length(protos)
+#> [1] 33
+```
+
+`protoc`, the protobuf compiler, turns them into one descriptor set.
+zuproto itself does not need `protoc`: on macOS,
+`brew install protobuf`; on Debian and Ubuntu,
+`apt install protobuf-compiler`.
+
+``` r
+
+desc <- file.path(dir, "coreml.binpb")
+system2("protoc", c(
+  paste0("--proto_path=", file.path(dir, "protos")),
+  "--include_imports",
+  paste0("--descriptor_set_out=", desc),
+  file.path(dir, "protos", "Model.proto")
+))
+pool <- proto_pool(desc)
+pool
+#> <proto_pool: 44 files, 400 message types>
+```
+
+## The model
+
+The model was made in Python, by training a scikit-learn decision tree
+on `iris` and converting it with coremltools. R wrote the data first,
+with `write.csv(iris, "iris.csv", row.names = FALSE)`:
+
+``` python
+import sys
+import numpy as np
+import coremltools as ct
+from sklearn.tree import DecisionTreeClassifier
+
+cols = ["Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width"]
+x = np.genfromtxt(sys.argv[1], delimiter=",", skip_header=1, usecols=range(4))
+y = np.genfromtxt(sys.argv[1], delimiter=",", skip_header=1, usecols=4, dtype=str)
+y = np.char.strip(y, '"')
+
+tree = DecisionTreeClassifier(max_depth=3, random_state=1).fit(x, y)
+model = ct.converters.sklearn.convert(tree, cols, "Species")
+model.short_description = "A decision tree for iris species"
+model.save(sys.argv[2])
+```
+
+The file is under a kilobyte.
+
+``` r
+
+file.size("iris-tree.mlmodel")
+#> [1] 912
+m <- proto_decode(
+  "iris-tree.mlmodel",
+  "CoreML.Specification.Model",
+  pool,
+  defaults = FALSE
+)
+names(m)
+#> [1] "specificationVersion" "description"          "pipelineClassifier"
+```
+
+A `Model` holds a description of its inputs and outputs, and exactly one
+kind of model, a `oneof` in the schema. This one is a
+`pipelineClassifier`. The description is what Xcode shows for a model.
+
+``` r
+
+str(m$description$metadata)
+#> List of 2
+#>  $ shortDescription: chr "A decision tree for iris species"
+#>  $ userDefined     : Named chr [1:2] "scikit-learn==1.5.1" "9.0"
+#>   ..- attr(*, "names")= chr [1:2] "com.github.apple.coremltools.source" "com.github.apple.coremltools.version"
+vapply(m$description$input, \(f) f$name, "")
+#> [1] "Sepal.Length" "Sepal.Width"  "Petal.Length" "Petal.Width"
+vapply(m$description$output, \(f) names(f$type), "")
+#> [1] "stringType"     "dictionaryType"
+```
+
+## The pipeline
+
+The pipeline has two models: a `featureVectorizer` that puts the four
+inputs into one vector, and the tree itself, a `treeEnsembleClassifier`.
+
+``` r
+
+steps <- m$pipelineClassifier$pipeline$models
+vapply(steps, \(s) setdiff(names(s), c("specificationVersion", "description")), "")
+#> [1] "featureVectorizer"      "treeEnsembleClassifier"
+classifier <- steps[[2]]$treeEnsembleClassifier
+classes <- classifier$stringClassLabels$vector
+classes
+#> [1] "setosa"     "versicolor" "virginica"
+```
+
+## The tree as a table
+
+The tree is a list of nodes. Decoding again with the defaults kept fills
+in every field, so each node has the same shape and the list becomes a
+data frame. `nodeBehavior` is an enum, so it decodes to a factor.
+
+``` r
+
+full <- proto_decode("iris-tree.mlmodel", "CoreML.Specification.Model", pool)
+nodes <- full$pipelineClassifier$pipeline$models[[2]]$
+  treeEnsembleClassifier$treeEnsemble$nodes
+
+tree <- data.frame(
+  id = vapply(nodes, \(n) n$nodeId, 0),
+  behavior = vapply(nodes, \(n) as.character(n$nodeBehavior), ""),
+  feature = vapply(nodes, \(n) n$branchFeatureIndex, 0) + 1,
+  threshold = vapply(nodes, \(n) n$branchFeatureValue, 0),
+  if_true = vapply(nodes, \(n) n$trueChildNodeId, 0),
+  if_false = vapply(nodes, \(n) n$falseChildNodeId, 0)
+)
+inputs <- vapply(m$description$input, \(f) f$name, "")
+tree$feature <- inputs[tree$feature]
+leaf <- tree$behavior == "LeafNode"
+tree[leaf, c("feature", "threshold", "if_true", "if_false")] <- NA
+tree
+#>   id                   behavior      feature threshold if_true if_false
+#> 1  0 BranchOnValueLessThanEqual  Petal.Width      0.80       1        2
+#> 2  1                   LeafNode         <NA>        NA      NA       NA
+#> 3  2 BranchOnValueLessThanEqual  Petal.Width      1.75       3        6
+#> 4  3 BranchOnValueLessThanEqual Petal.Length      4.95       4        5
+#> 5  4                   LeafNode         <NA>        NA      NA       NA
+#> 6  5                   LeafNode         <NA>        NA      NA       NA
+#> 7  6 BranchOnValueLessThanEqual Petal.Length      4.85       7        8
+#> 8  7                   LeafNode         <NA>        NA      NA       NA
+#> 9  8                   LeafNode         <NA>        NA      NA       NA
+```
+
+A leaf’s `evaluationInfo` gives the probability of each class there.
+
+``` r
+
+leaf_probs <- t(vapply(
+  Filter(\(n) n$nodeBehavior == "LeafNode", nodes),
+  \(n) {
+    p <- numeric(length(classes))
+    for (e in n$evaluationInfo) p[e$evaluationIndex + 1] <- e$evaluationValue
+    p
+  },
+  numeric(length(classes))
+))
+dimnames(leaf_probs) <- list(tree$id[leaf], classes)
+round(leaf_probs, 3)
+#>   setosa versicolor virginica
+#> 1      1      0.000     0.000
+#> 4      0      0.979     0.021
+#> 5      0      0.333     0.667
+#> 7      0      0.333     0.667
+#> 8      0      0.000     1.000
+```
+
+## Predicting in R
+
+Walking the tree from its root, taking the true child whenever a
+flower’s measurement is at or below the node’s threshold, gives Core
+ML’s answer.
+
+``` r
+
+predict_tree <- function(x) {
+  node <- tree[tree$id == 0, ]
+  while (node$behavior != "LeafNode") {
+    go_true <- x[[node$feature]] <= node$threshold
+    node <- tree[tree$id == if (go_true) node$if_true else node$if_false, ]
+  }
+  classes[which.max(leaf_probs[as.character(node$id), ])]
+}
+
+predicted <- vapply(seq_len(nrow(iris)), \(i) predict_tree(iris[i, ]), "")
+table(predicted = predicted, actual = iris$Species)
+#>             actual
+#> predicted    setosa versicolor virginica
+#>   setosa         50          0         0
+#>   versicolor      0         47         1
+#>   virginica       0          3        49
+```
+
+The tree gets 146 of the 150 flowers right. These predictions match what
+Core ML returns for the same model, checked on a Mac with
+`MLModel.predict()` in coremltools.
+
+## Writing a model back
+
+[`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
+writes the message back. Here the model gets an author and a licence in
+its metadata, the fields Xcode shows, and is saved as a new model file.
+Core ML loads it and makes the same predictions.
+
+``` r
+
+m$description$metadata$author <- "zuproto article"
+m$description$metadata$license <- "CC0"
+out <- file.path(dir, "iris-tree-annotated.mlmodel")
+writeBin(proto_encode(m, "CoreML.Specification.Model", pool), out)
+proto_decode(out, "CoreML.Specification.Model", pool)$description$metadata[
+  c("author", "license")
+]
+#> $author
+#> [1] "zuproto article"
+#> 
+#> $license
+#> [1] "CC0"
+```
