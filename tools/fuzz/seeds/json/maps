@@ -1,1 +1,1 @@
-{"byString":{"a":1,"b":2},"byInt32":{"10":"ten","2":"two","-1":"minus"},"byInt64":{"9007199254740993":"big","1":"one"},"byBool":{"false":"f","true":"t"},"points":{"7":{"x":7}},"levels":{"z":"LOW","y":"HIGH"}}
+{"byString":{"b":2,"a":1},"byInt32":{"10":"ten","2":"two","-1":"minus"},"byInt64":{"9007199254740993":"big","1":"one"},"byBool":{"false":"f","true":"t"},"points":{"7":{"x":7}},"levels":{"y":"HIGH","z":"LOW"}}

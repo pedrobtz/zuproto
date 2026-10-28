@@ -104,6 +104,36 @@ test_that("proto_enums() lists an enum's values in definition order", {
   )
 })
 
+test_that("an aliased enum lists every name and decodes to the first", {
+  pool <- decode_pool()
+  expect_identical(
+    proto_enums(pool, "zpb.decode.Aliased"),
+    data.frame(
+      name = c("ALIASED_UNSPECIFIED", "FIRST", "SECOND"),
+      number = c(0L, 1L, 1L)
+    )
+  )
+  raw <- as.raw(c(0x08, 0x01))
+  type <- "zpb.decode.WithAlias"
+  msg <- proto_decode(raw, type, pool)
+  expect_identical(as.character(msg$value), "FIRST")
+  expect_identical(
+    levels(msg$value),
+    proto_enums(pool, "zpb.decode.Aliased")$name
+  )
+  expect_identical(
+    proto_decode(raw, type, pool, enums = "character")$value,
+    "FIRST"
+  )
+  expect_identical(
+    as.character(proto_decode_df(list(raw), type, pool)$value),
+    "FIRST"
+  )
+  for (name in c("FIRST", "SECOND")) {
+    expect_identical(proto_encode(list(value = name), type, pool), raw)
+  }
+})
+
 test_that("proto_enums() refuses a name that is not an enum in the pool", {
   pool <- fixture_pool("schema")
   err <- expect_error(
