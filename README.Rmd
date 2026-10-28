@@ -39,7 +39,8 @@ compiled schema, and turns thousands of messages into one data frame.
 * **No system library.** zuproto bundles
   [upb](https://github.com/protocolbuffers/protobuf/tree/main/upb), the
   small C runtime under protobuf's Python, Ruby and PHP implementations. It
-  needs no `libprotobuf`, `protoc` or Abseil, and no other R package.
+  needs no `libprotobuf`, Abseil or other R package to install or run.
+  `protoc` or `buf` is needed only once, to compile your schema.
 * **R types where they fit.** Enums are factors, `Timestamp` is `POSIXct`,
   `Duration` is `difftime`, and 64-bit integers can stay exact.
 * **Careful with untrusted bytes.** Input size, nesting depth, memory and
