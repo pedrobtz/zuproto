@@ -1,4 +1,4 @@
-# zuproto 0.0.0.9000
+# zuproto 0.1.0
 
 * Initial CRAN submission.
 * Bundles the upb runtime and utf8_range from Protocol Buffers v36.2, so
