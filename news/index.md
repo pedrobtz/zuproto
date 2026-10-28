@@ -12,7 +12,10 @@
   [`proto_types()`](https://pedrobtz.github.io/zuproto/reference/proto_types.md)
   and
   [`proto_fields()`](https://pedrobtz.github.io/zuproto/reference/proto_types.md)
-  list what a pool holds, extensions included;
+  list what a pool holds, extensions included, and
+  [`proto_enums()`](https://pedrobtz.github.io/zuproto/reference/proto_enums.md)
+  an enum’s values
+  ([\#61](https://github.com/pedrobtz/zuproto/issues/61));
   [`zuproto_info()`](https://pedrobtz.github.io/zuproto/reference/zuproto_info.md)
   reports the bundled protobuf release.
 - [`proto_decode()`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md)
@@ -37,8 +40,10 @@
   convert to and from protobuf’s canonical JSON mapping through upb, and
   to and from R values through zujson when it is installed.
   [`proto_unpack_any()`](https://pedrobtz.github.io/zuproto/reference/proto_unpack_any.md)
-  decodes an `Any`. `int64 = "integer64"` decodes 64-bit fields as bit64
-  vectors.
+  decodes an `Any`, and
+  [`proto_pack_any()`](https://pedrobtz.github.io/zuproto/reference/proto_unpack_any.md)
+  builds one ([\#60](https://github.com/pedrobtz/zuproto/issues/60)).
+  `int64 = "integer64"` decodes 64-bit fields as bit64 vectors.
 - Encoding accepts NaN in `double` and `float` fields, writes `NULL` in
   a `Value` field as JSON null, and takes any `Timestamp` or `Duration`
   the binary format allows; the JSON mapping’s narrower ranges are

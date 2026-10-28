@@ -4,7 +4,8 @@ Decodes and encodes 'Protocol Buffers' messages from descriptor sets
 rather than generated code. One message becomes a named list; many
 messages become a data frame built column by column. Uses a bundled copy
 of the 'upb' runtime (<https://github.com/protocolbuffers/protobuf>), so
-no system 'protobuf' library or 'protoc' compiler is required.
+no system 'protobuf' library is required. Schemas are compiled into
+descriptor sets beforehand, with 'protoc' or 'buf'.
 
 ## See also
 
