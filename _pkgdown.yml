@@ -2,3 +2,29 @@ url: https://pedrobtz.github.io/zuproto/
 template:
   bootstrap: 5
 
+
+reference:
+- title: Pools
+  desc: Load descriptor sets and see the types they hold.
+  contents:
+  - proto_pool
+  - proto_types
+- title: One message
+  desc: Decode and encode a single message.
+  contents:
+  - proto_decode
+  - proto_encode
+  - proto_unpack_any
+- title: Many messages
+  desc: Data frames from many messages, a repeated field or a stream.
+  contents:
+  - proto_decode_df
+  - proto_read_delimited
+- title: JSON
+  contents:
+  - proto_to_json
+- title: Package
+  contents:
+  - zuproto_info
+  - zuproto-conditions
+  - zuproto-package
