@@ -33,4 +33,8 @@ jobs:
          {"os": "windows-latest", "r": "devel"},
          {"os": "ubuntu-latest", "r": "release"},
          {"os": "ubuntu-latest", "r": "oldrel-1"}]
+      # CRAN's NOSUGGESTS and NOLD flavors, full profile only: bit64 and
+      # zujson must stay optional, and JSON reads and writes doubles.
+      nosuggests: true
+      nold: true
       profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}
