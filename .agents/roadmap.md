@@ -24,7 +24,7 @@ documentation and release, and `Full CI` goes in before the release.
 | 6 | [JSON, Any and 64-bit integers](#stage-6--json-any-and-64-bit-integers) | quick | [#8](https://github.com/pedrobtz/zuproto/issues/8) | [#20](https://github.com/pedrobtz/zuproto/pull/20) | 2026-10-25 |
 | 7 | [Conformance, fuzzing and hostile inputs](#stage-7--conformance-fuzzing-and-hostile-inputs) | quick | [#9](https://github.com/pedrobtz/zuproto/issues/9) | [#21](https://github.com/pedrobtz/zuproto/pull/21) | 2026-10-25 |
 | 8 | [Documentation](#stage-8--documentation) | quick | [#10](https://github.com/pedrobtz/zuproto/issues/10) | [#76](https://github.com/pedrobtz/zuproto/pull/76) | 2026-10-28 |
-| 9 | [Full CI](#stage-9--full-ci) | full | [#11](https://github.com/pedrobtz/zuproto/issues/11) | | |
+| 9 | [Full CI](#stage-9--full-ci) | full | [#11](https://github.com/pedrobtz/zuproto/issues/11) | [#79](https://github.com/pedrobtz/zuproto/pull/79) | |
 | 10 | [v0.1.0 readiness](#stage-10--v010-readiness) | full | [#12](https://github.com/pedrobtz/zuproto/issues/12) | | |
 
 ## Stage 0 — Package identity
