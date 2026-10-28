@@ -57,22 +57,121 @@
 </h1></div>
 <!-- badges: start -->
 
-<p>The goal of zuproto is to …</p>
+<div class="section level2">
+<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
+</h2>
+<p><a href="https://protobuf.dev/" class="external-link">Protocol Buffers</a> is a binary format for structured data. gRPC APIs, Kafka topics, transit feeds, telemetry pipelines and machine-learning datasets all use it. Its bytes mean nothing without the schema that describes them, and reading them in R has meant installing the C++ protobuf library and handling each message as its own object.</p>
+<p>zuproto reads and writes any protobuf message in R. It works from the compiled schema, and turns thousands of messages into one data frame.</p>
+<ul>
+<li>
+<strong>Any message type, no generated code.</strong> Give zuproto a descriptor set, the schema as <code>protoc --descriptor_set_out</code> or <code>buf build</code> writes it, and it decodes and encodes every type in it.</li>
+<li>
+<strong>Many messages are columns.</strong> A list of messages, a length-delimited stream, or a message’s repeated field becomes a data frame, filled column by column in C.</li>
+<li>
+<strong>No system library.</strong> zuproto bundles <a href="https://github.com/protocolbuffers/protobuf/tree/main/upb" class="external-link">upb</a>, the small C runtime under protobuf’s Python, Ruby and PHP implementations. It needs no <code>libprotobuf</code>, <code>protoc</code> or Abseil, and no other R package.</li>
+<li>
+<strong>R types where they fit.</strong> Enums are factors, <code>Timestamp</code> is <code>POSIXct</code>, <code>Duration</code> is <code>difftime</code>, and 64-bit integers can stay exact.</li>
+<li>
+<strong>Careful with untrusted bytes.</strong> Input size, nesting depth, memory and rows are all capped, strings are checked as UTF-8, and an interrupted decode frees its memory.</li>
+</ul>
+</div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version of zuproto from <a href="https://github.com/" class="external-link">GitHub</a> with:</p>
+<p>Install the released version from CRAN:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"zuproto"</span><span class="op">)</span></span></code></pre></div>
+<p>Or the development version from GitHub:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"pedrobtz/zuproto"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
+<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
-<p>This is a basic example which shows you how to solve a common problem:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/pedrobtz/zuproto" class="external-link">zuproto</a></span><span class="op">)</span></span>
-<span><span class="co">## basic example code</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/pedrobtz/zuproto" class="external-link">zuproto</a></span><span class="op">)</span></span></code></pre></div>
+<p>A pool holds the message types zuproto knows. Every pool starts with protobuf’s well-known types:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/proto_pool.html">proto_pool</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">pool</span></span>
+<span><span class="co">#&gt; &lt;proto_pool: 11 files, 61 message types&gt;</span></span></code></pre></div>
+<p>R values become messages and back. A <code>Timestamp</code> is a <code>POSIXct</code>, and a <code>Struct</code> is a named list:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">when</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="st">"2026-10-27 15:36:18"</span>, tz <span class="op">=</span> <span class="st">"UTC"</span><span class="op">)</span></span>
+<span><span class="va">bytes</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/proto_encode.html">proto_encode</a></span><span class="op">(</span><span class="va">when</span>, <span class="st">"google.protobuf.Timestamp"</span>, <span class="va">pool</span><span class="op">)</span></span>
+<span><span class="va">bytes</span></span>
+<span><span class="co">#&gt; [1] 08 f2 89 83 d7 06</span></span>
+<span><span class="fu"><a href="reference/proto_decode.html">proto_decode</a></span><span class="op">(</span><span class="va">bytes</span>, <span class="st">"google.protobuf.Timestamp"</span>, <span class="va">pool</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "2026-10-27 15:36:18 UTC"</span></span>
+<span></span>
+<span><span class="va">bytes</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/proto_encode.html">proto_encode</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>station <span class="op">=</span> <span class="st">"Bern"</span>, platform <span class="op">=</span> <span class="fl">7</span>, delayed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>  <span class="st">"google.protobuf.Struct"</span>,</span>
+<span>  <span class="va">pool</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="fu"><a href="reference/proto_decode.html">proto_decode</a></span><span class="op">(</span><span class="va">bytes</span>, <span class="st">"google.protobuf.Struct"</span>, <span class="va">pool</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; List of 3</span></span>
+<span><span class="co">#&gt;  $ delayed : logi TRUE</span></span>
+<span><span class="co">#&gt;  $ platform: num 7</span></span>
+<span><span class="co">#&gt;  $ station : chr "Bern"</span></span></code></pre></div>
+<p>Protobuf’s JSON mapping goes both ways:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/proto_to_json.html">proto_to_json</a></span><span class="op">(</span><span class="va">bytes</span>, <span class="st">"google.protobuf.Struct"</span>, <span class="va">pool</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "{\"platform\":7,\"delayed\":true,\"station\":\"Bern\"}"</span></span></code></pre></div>
+<p>Many messages become a data frame. A descriptor set is itself a protobuf message, a <code>FileDescriptorSet</code>, so the one zuproto ships for the well-known types can be read as a table. Each row is a <code>.proto</code> file, with the number of message types it defines at the top level:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">wkt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"descriptors"</span>, <span class="st">"wkt.binpb"</span>, package <span class="op">=</span> <span class="st">"zuproto"</span><span class="op">)</span></span>
+<span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/proto_decode_df.html">proto_decode_df</a></span><span class="op">(</span></span>
+<span>  <span class="va">wkt</span>,</span>
+<span>  <span class="st">"google.protobuf.FileDescriptorSet"</span>,</span>
+<span>  <span class="va">pool</span>,</span>
+<span>  field <span class="op">=</span> <span class="st">"file"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  name <span class="op">=</span> <span class="va">files</span><span class="op">$</span><span class="va">name</span>,</span>
+<span>  messages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">files</span><span class="op">$</span><span class="va">message_type</span>, <span class="va">NROW</span>, <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">integer</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;                                    name messages</span></span>
+<span><span class="co">#&gt; 1             google/protobuf/any.proto        1</span></span>
+<span><span class="co">#&gt; 2  google/protobuf/source_context.proto        1</span></span>
+<span><span class="co">#&gt; 3            google/protobuf/type.proto        5</span></span>
+<span><span class="co">#&gt; 4             google/protobuf/api.proto        3</span></span>
+<span><span class="co">#&gt; 5      google/protobuf/descriptor.proto       23</span></span>
+<span><span class="co">#&gt; 6        google/protobuf/duration.proto        1</span></span>
+<span><span class="co">#&gt; 7           google/protobuf/empty.proto        1</span></span>
+<span><span class="co">#&gt; 8      google/protobuf/field_mask.proto        1</span></span>
+<span><span class="co">#&gt; 9          google/protobuf/struct.proto        3</span></span>
+<span><span class="co">#&gt; 10      google/protobuf/timestamp.proto        1</span></span>
+<span><span class="co">#&gt; 11       google/protobuf/wrappers.proto        9</span></span></code></pre></div>
+<p>Your own schema goes in the same way. Compile it once with <code>protoc</code> or <code>buf</code>, then load the descriptor set. Here it is with the live trip updates for Switzerland’s public transport, in the GTFS Realtime format. The code is not run here; the output is from 27 October 2026:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/proto_pool.html">proto_pool</a></span><span class="op">(</span><span class="st">"gtfs-realtime.binpb"</span><span class="op">)</span></span>
+<span><span class="va">trips</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/proto_decode_df.html">proto_decode_df</a></span><span class="op">(</span></span>
+<span>  <span class="st">"trip-updates.binpb"</span>,</span>
+<span>  <span class="st">"transit_realtime.FeedMessage"</span>,</span>
+<span>  <span class="va">pool</span>,</span>
+<span>  field <span class="op">=</span> <span class="st">"entity"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">trips</span><span class="op">$</span><span class="va">trip_update</span><span class="op">$</span><span class="va">trip</span><span class="op">$</span><span class="va">schedule_relationship</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span>
+<span><span class="co">#&gt;</span></span>
+<span><span class="co">#&gt;   SCHEDULED       ADDED UNSCHEDULED    CANCELED</span></span>
+<span><span class="co">#&gt;       15187         245           0         144</span></span></code></pre></div>
+<p>Every function that converts a message takes the value, the message type’s full name and the pool, in that order.</p>
+</div>
+<div class="section level2">
+<h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
+</h2>
+<ul>
+<li>
+<a href="https://pedrobtz.github.io/zuproto/articles/gtfs-rt.html">Live Swiss trains with GTFS Realtime</a> works through a real feed: compiling the schema, fetching the data, and turning trips and stop delays into tables.</li>
+<li>The <a href="https://pedrobtz.github.io/zuproto/reference/">reference index</a> lists every function. <code><a href="reference/proto_decode.html">?proto_decode</a></code> maps protobuf types to R types, <code><a href="reference/proto_decode_df.html">?proto_decode_df</a></code> says how fields become columns, and <code>?zuproto-conditions</code> lists the errors and warnings.</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="related-work">Related work<a class="anchor" aria-label="anchor" href="#related-work"></a>
+</h2>
+<p>zuproto bundles upb and <code>utf8_range</code> from <a href="https://github.com/protocolbuffers/protobuf" class="external-link">protobuf</a> <code>v36.2</code>. Its CI runs protobuf’s conformance test suite, with the tests zuproto is expected to fail listed and explained, and the test fixtures come from Python’s <code>protobuf</code>. <a href="https://CRAN.R-project.org/package=RProtoBuf" class="external-link">RProtoBuf</a> binds the C++ protobuf library and handles each message as an object. <a href="https://CRAN.R-project.org/package=protolite" class="external-link">protolite</a> serialises a fixed set of schemas: R objects, GeoJSON and Mapbox vector tiles.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -110,6 +209,7 @@
 <div class="dev-status">
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
 <li><a href="https://github.com/pedrobtz/zuproto/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/pedrobtz/zuproto/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
 <li><a href="https://github.com/pedrobtz/zuproto/actions/workflows/coverage.yaml" class="external-link"><img src="https://raw.githubusercontent.com/pedrobtz/zuproto/gh-pages/badges/coverage.svg" alt="coverage"></a></li>
 </ul>
