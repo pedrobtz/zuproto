@@ -241,6 +241,36 @@ test_that("each is called once per chunk of chunk_rows messages", {
   }
 })
 
+test_that("a message that fails names its index in the whole stream", {
+  pool <- decode_pool()
+  raw <- msg_fixture("nested_3")
+  good <- c(varint(length(raw)), raw)
+  bad <- c(varint(1), as.raw(0xff))
+  big <- c(varint(64), as.raw(rep(0x00, 64)))
+  for (case in list(
+    list(bad, "zuproto_parse_error"),
+    list(big, "zuproto_size_limit")
+  )) {
+    stream <- c(rep(good, 5), case[[1]], good)
+    read <- function(...) {
+      proto_read_delimited(
+        stream,
+        "zpb.decode.Nested",
+        pool,
+        max_size = 32,
+        ...
+      )
+    }
+    err <- expect_error(read(), class = case[[2]])
+    expect_identical(err$index, 6, label = case[[2]])
+    err <- expect_error(
+      read(each = function(df) NULL, chunk_rows = 2),
+      class = case[[2]]
+    )
+    expect_identical(err$index, 6, label = case[[2]])
+  }
+})
+
 test_that("a stream ending inside a varint or a message is a parse error", {
   pool <- decode_pool()
   raw <- msg_fixture("nested_3")
