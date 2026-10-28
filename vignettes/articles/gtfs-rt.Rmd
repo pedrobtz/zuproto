@@ -40,15 +40,32 @@ library(zuproto)
   OPENTRANSPORTDATA_API_KEY=<your key>
   ```
 
-- **`protoc`**, the protobuf compiler, to turn the schema into a descriptor
-  set. zuproto itself does not need it. On macOS, `brew install protobuf`;
-  on Debian and Ubuntu, `apt install protobuf-compiler`.
+- **`protoc`**, the
+  [Protocol Buffers compiler](https://protobuf.dev/installation/), to turn
+  the schema into a descriptor set. zuproto needs it only for that step.
+  Install it with a package manager:
+
+  ```sh
+  brew install protobuf              # macOS
+  apt install protobuf-compiler      # Debian, Ubuntu
+  winget install protobuf            # Windows
+  ```
+
+  Pre-compiled binaries for every system are on protobuf's
+  [releases page](https://github.com/protocolbuffers/protobuf/releases).
+  [`buf`](https://buf.build/docs/cli/installation/) works instead of `protoc`
+  too.
 
 ## The schema
 
 The schema is `gtfs-realtime.proto`, from Google's
-[transit](https://github.com/google/transit) repository. `protoc` compiles
-it into a descriptor set, which is what zuproto reads.
+[transit](https://github.com/google/transit) repository. zuproto does not
+read `.proto` files. It reads a *descriptor set*: the schema already
+compiled into protobuf's own binary format. `protoc` makes one with
+`--descriptor_set_out`. `buf build -o gtfs-realtime.binpb` works too.
+
+You only need to do this once. The descriptor set is a small file you can
+keep next to your code and reuse, and only it is needed from then on.
 
 
 ``` r
@@ -73,8 +90,10 @@ system2("protoc", c(
 ))
 ```
 
-A pool holds the message types. The GTFS Realtime types join the
-well-known types every pool starts with.
+`desc` is now the path to `gtfs-realtime.binpb`, a file of about 10 KB.
+`proto_pool()` loads it into a pool, which holds the message types that
+zuproto decodes. The GTFS Realtime types join the well-known types every
+pool starts with.
 
 
 ``` r

@@ -13,7 +13,8 @@ Description: Decodes and encodes 'Protocol Buffers' messages from
     named list; many messages become a data frame built column by
     column. Uses a bundled copy of the 'upb' runtime
     (<https://github.com/protocolbuffers/protobuf>), so no system
-    'protobuf' library or 'protoc' compiler is required.
+    'protobuf' library is required. Schemas are compiled into descriptor
+    sets beforehand, with 'protoc' or 'buf'.
 License: MIT + file LICENSE
 Copyright: See inst/COPYRIGHTS and src/vendor/PROVENANCE.
 URL: https://github.com/pedrobtz/zuproto,
