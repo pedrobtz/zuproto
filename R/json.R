@@ -212,24 +212,28 @@ json_error <- function(res, type, max_size, max_depth, call) {
   )
 }
 
-#' Unpack an Any
+#' Pack and unpack an Any
 #'
-#' Decodes the message a `google.protobuf.Any` packs, as [proto_decode()]
-#' decodes any message. The type is the part of `type_url` after its last
-#' `/`, and must be in the pool.
+#' `proto_unpack_any()` decodes the message a `google.protobuf.Any` packs,
+#' as [proto_decode()] decodes any message. The type is the part of
+#' `type_url` after its last `/`, and must be in the pool.
+#' `proto_pack_any()` is the inverse: it encodes a message with
+#' [proto_encode()] and names its type, giving a value to set an `Any`
+#' field to.
 #'
-#' @param x An `Any` as [proto_decode()] returns it: a list of `type_url`
-#'   and `value` (the packed bytes).
+#' @param x For `proto_unpack_any()`, an `Any` as [proto_decode()] returns
+#'   it: a list of `type_url` and `value` (the packed bytes). For
+#'   `proto_pack_any()`, the message, as [proto_encode()] takes it.
 #' @param pool A pool from [proto_pool()] holding the packed type.
-#' @param ... Passed to [proto_decode()].
-#' @return The packed message, as [proto_decode()] returns it.
+#' @param ... Passed to [proto_decode()] or [proto_encode()].
+#' @return `proto_unpack_any()`: the packed message, as [proto_decode()]
+#'   returns it. `proto_pack_any()`: an `Any`, a list of `type_url` and
+#'   `value`.
 #' @export
 #' @examples
 #' pool <- proto_pool()
-#' any <- list(
-#'   type_url = "type.googleapis.com/google.protobuf.Int32Value",
-#'   value = proto_encode(42L, "google.protobuf.Int32Value", pool)
-#' )
+#' any <- proto_pack_any(42L, "google.protobuf.Int32Value", pool)
+#' any$type_url
 #' proto_unpack_any(any, pool)
 proto_unpack_any <- function(x, pool, ...) {
   call <- sys.call()
@@ -261,6 +265,26 @@ proto_unpack_any <- function(x, pool, ...) {
     )
   }
   proto_decode(x$value, type, pool, ...)
+}
+
+#' @rdname proto_unpack_any
+#' @param type The message type's full name.
+#' @param prefix The `type_url` before the type name. Protobuf's JSON
+#'   mapping and most runtimes expect the default.
+#' @export
+proto_pack_any <- function(
+  x,
+  type,
+  pool,
+  prefix = "type.googleapis.com/",
+  ...
+) {
+  call <- sys.call()
+  if (!(is.character(prefix) && length(prefix) == 1L && !is.na(prefix))) {
+    zpb_invalid_argument("prefix", "`prefix` must be a single string.", call)
+  }
+  value <- proto_encode(x, type, pool, ...)
+  list(type_url = paste0(prefix, type), value = value)
 }
 
 require_zujson <- function(arg, call = NULL) {

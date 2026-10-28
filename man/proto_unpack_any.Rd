@@ -2,31 +2,43 @@
 % Please edit documentation in R/json.R
 \name{proto_unpack_any}
 \alias{proto_unpack_any}
-\title{Unpack an Any}
+\alias{proto_pack_any}
+\title{Pack and unpack an Any}
 \usage{
 proto_unpack_any(x, pool, ...)
+
+proto_pack_any(x, type, pool, prefix = "type.googleapis.com/", ...)
 }
 \arguments{
-\item{x}{An \code{Any} as \code{\link[=proto_decode]{proto_decode()}} returns it: a list of \code{type_url}
-and \code{value} (the packed bytes).}
+\item{x}{For \code{proto_unpack_any()}, an \code{Any} as \code{\link[=proto_decode]{proto_decode()}} returns
+it: a list of \code{type_url} and \code{value} (the packed bytes). For
+\code{proto_pack_any()}, the message, as \code{\link[=proto_encode]{proto_encode()}} takes it.}
 
 \item{pool}{A pool from \code{\link[=proto_pool]{proto_pool()}} holding the packed type.}
 
-\item{...}{Passed to \code{\link[=proto_decode]{proto_decode()}}.}
+\item{...}{Passed to \code{\link[=proto_decode]{proto_decode()}} or \code{\link[=proto_encode]{proto_encode()}}.}
+
+\item{type}{The message type's full name.}
+
+\item{prefix}{The \code{type_url} before the type name. Protobuf's JSON
+mapping and most runtimes expect the default.}
 }
 \value{
-The packed message, as \code{\link[=proto_decode]{proto_decode()}} returns it.
+\code{proto_unpack_any()}: the packed message, as \code{\link[=proto_decode]{proto_decode()}}
+returns it. \code{proto_pack_any()}: an \code{Any}, a list of \code{type_url} and
+\code{value}.
 }
 \description{
-Decodes the message a \code{google.protobuf.Any} packs, as \code{\link[=proto_decode]{proto_decode()}}
-decodes any message. The type is the part of \code{type_url} after its last
-\code{/}, and must be in the pool.
+\code{proto_unpack_any()} decodes the message a \code{google.protobuf.Any} packs,
+as \code{\link[=proto_decode]{proto_decode()}} decodes any message. The type is the part of
+\code{type_url} after its last \code{/}, and must be in the pool.
+\code{proto_pack_any()} is the inverse: it encodes a message with
+\code{\link[=proto_encode]{proto_encode()}} and names its type, giving a value to set an \code{Any}
+field to.
 }
 \examples{
 pool <- proto_pool()
-any <- list(
-  type_url = "type.googleapis.com/google.protobuf.Int32Value",
-  value = proto_encode(42L, "google.protobuf.Int32Value", pool)
-)
+any <- proto_pack_any(42L, "google.protobuf.Int32Value", pool)
+any$type_url
 proto_unpack_any(any, pool)
 }

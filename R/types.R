@@ -59,6 +59,37 @@ proto_fields <- function(pool, type) {
   as.data.frame(cols)
 }
 
+#' Enum values
+#'
+#' Lists the values of one enum type in a pool: the levels a decoded enum
+#' field takes as a factor, with their numbers.
+#'
+#' @inheritParams proto_types
+#' @param type An enum type's full name, such as
+#'   `"google.protobuf.NullValue"`. [proto_fields()] gives it as a field's
+#'   `type_name`.
+#' @return A data frame with one row per value, in definition order, and
+#'   columns `name` and `number`. An alias (`allow_alias`) is a row of its
+#'   own with the number it shares.
+#' @export
+#' @examples
+#' pool <- proto_pool()
+#' proto_enums(pool, "google.protobuf.Field.Kind")
+proto_enums <- function(pool, type) {
+  check_pool(pool, call = sys.call())
+  check_type(type, call = sys.call())
+  cols <- .Call(zpb_pool_enums, pool$ptr, type)
+  if (is.null(cols)) {
+    zpb_abort(
+      "zuproto_unknown_type",
+      sprintf("Enum type '%s' is not in the pool.", type),
+      type = type,
+      call = sys.call()
+    )
+  }
+  as.data.frame(cols)
+}
+
 check_type <- function(type, arg = "type", call = NULL) {
   if (
     !is.character(type) || length(type) != 1L || is.na(type) || !nzchar(type)

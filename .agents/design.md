@@ -197,6 +197,7 @@ pool <- proto_pool("schema.binpb")       # plus a FileDescriptorSet
 proto_pool_add(pool, raw_or_path)
 proto_types(pool)                        # data frame of message types
 proto_fields(pool, "pkg.Msg")            # data frame of fields
+proto_enums(pool, "pkg.Enum")            # data frame of enum values
 
 # one message
 proto_decode(raw, "pkg.Msg", pool)       # named list
@@ -210,6 +211,10 @@ proto_write_delimited(df_or_list, "pkg.Msg", pool, path = NULL)
 # protobuf JSON
 proto_to_json(raw, "pkg.Msg", pool)
 proto_from_json(json, "pkg.Msg", pool)   # raw vector
+
+# Any
+proto_pack_any(x, "pkg.Msg", pool)       # list(type_url, value)
+proto_unpack_any(any, pool)              # the packed message
 
 zuproto_info()
 ```
@@ -289,7 +294,7 @@ values of those types, become vectors rather than lists.
 | `Duration` | `difftime` in seconds |
 | wrappers (`Int32Value` …) | the scalar; unset: left out, `NA` in data frames |
 | `Struct`, `Value`, `ListValue` | named list, scalar, list, as JSON |
-| `Any` | list(`type_url`, `value` raw); `proto_unpack_any()` decodes it |
+| `Any` | list(`type_url`, `value` raw); `proto_unpack_any()` decodes it, `proto_pack_any()` builds it |
 | `FieldMask` | character vector of paths |
 | `Empty` | `list()` |
 

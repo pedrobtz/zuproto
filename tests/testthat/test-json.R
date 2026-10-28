@@ -276,3 +276,54 @@ test_that("JSON nested past upb's parser limit is a JSON error", {
     class = "zuproto_json_error"
   )
 })
+
+test_that("proto_pack_any() is the inverse of proto_unpack_any()", {
+  pool <- decode_pool()
+  any <- proto_pack_any(list(x = 1L, y = 2L), "zpb.decode.Point", pool)
+  expect_identical(
+    any,
+    list(
+      type_url = "type.googleapis.com/zpb.decode.Point",
+      value = proto_encode(list(x = 1L, y = 2L), "zpb.decode.Point", pool)
+    )
+  )
+  expect_identical(proto_unpack_any(any, pool), list(x = 1L, y = 2L))
+
+  # It sets an Any field: the same bytes as Python's fixture.
+  wk <- proto_decode(msg_fixture("wellknown"), "zpb.decode.WellKnown", pool)
+  expect_identical(
+    proto_pack_any(proto_unpack_any(wk$any, pool), "zpb.decode.Point", pool),
+    wk$any
+  )
+  raw <- proto_encode(
+    list(any = proto_pack_any(list(x = 1L), "zpb.decode.Point", pool)),
+    "zpb.decode.WellKnown",
+    pool
+  )
+  expect_match(
+    proto_to_json(raw, "zpb.decode.WellKnown", pool),
+    '"any":{"@type":"type.googleapis.com/zpb.decode.Point","x":1}',
+    fixed = TRUE
+  )
+})
+
+test_that("proto_pack_any() checks its arguments as proto_encode() does", {
+  pool <- decode_pool()
+  expect_error(
+    proto_pack_any(list(), "no.Such", pool),
+    class = "zuproto_unknown_type"
+  )
+  expect_error(
+    proto_pack_any(list(nope = 1), "zpb.decode.Point", pool),
+    class = "zuproto_unknown_field"
+  )
+  err <- expect_error(
+    proto_pack_any(list(), "zpb.decode.Point", pool, prefix = NA),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "prefix")
+  expect_identical(
+    proto_pack_any(list(), "zpb.decode.Point", pool, prefix = "x.io/")$type_url,
+    "x.io/zpb.decode.Point"
+  )
+})

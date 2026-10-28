@@ -290,3 +290,27 @@ SEXP zpb_pool_fields(SEXP ptr, SEXP type)
     UNPROTECT(1);
     return out;
 }
+
+/* The values of one enum type, in definition order, aliases included, as
+ * columns. NULL if the enum is not in the pool. */
+SEXP zpb_pool_enums(SEXP ptr, SEXP type)
+{
+    const zpb_defpool *p = zpb_pool_get(ptr);
+    const zpb_enumdef *e =
+        zpb_defpool_find_enum(p, Rf_translateCharUTF8(STRING_ELT(type, 0)));
+    if (e == NULL) return R_NilValue;
+
+    int n = zpb_enum_value_count(e);
+    const char *names[] = {"name", "number", ""};
+    SEXP out = PROTECT(Rf_mkNamed(VECSXP, names));
+    SEXP name = Rf_allocVector(STRSXP, n);
+    SET_VECTOR_ELT(out, 0, name);
+    SEXP number = Rf_allocVector(INTSXP, n);
+    SET_VECTOR_ELT(out, 1, number);
+    for (int i = 0; i < n; i++) {
+        SET_STRING_ELT(name, i, Rf_mkCharCE(zpb_enum_value_name(e, i), CE_UTF8));
+        INTEGER(number)[i] = (int) zpb_enum_value_number(e, i);
+    }
+    UNPROTECT(1);
+    return out;
+}
