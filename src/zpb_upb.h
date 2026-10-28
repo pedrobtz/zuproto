@@ -823,11 +823,90 @@ static inline size_t zpb_msgdef_max_struct(const zpb_defpool *p, const zpb_msgde
     return best;
 }
 
-/* The ceiling for decoding `bytes` of input holding `n` messages of type m. */
-static inline double zpb_arena_ceiling(const zpb_defpool *p, const zpb_msgdef *m, double bytes,
-                                       double n)
+/* zpb_msgdef_max_struct() per message type, cached for one pool: it depends
+ * only on the schema, and walking it on every decode is slow for a large
+ * one (#82). An open-addressing table keyed by the type; adding a file to
+ * the pool clears it, since a new extension can make more types reachable. */
+typedef struct {
+    const zpb_msgdef **key;
+    size_t *val;
+    size_t cap, n;
+} zpb_ceilings;
+
+static inline void zpb_ceilings_clear(zpb_ceilings *c)
 {
-    double s_max = (double) zpb_msgdef_max_struct(p, m);
+    if (c == NULL || c->key == NULL) return;
+    memset((void *) c->key, 0, c->cap * sizeof *c->key);
+    c->n = 0;
+}
+
+static inline void zpb_ceilings_free(zpb_ceilings *c)
+{
+    if (c == NULL) return;
+    free((void *) c->key);
+    free(c->val);
+    free(c);
+}
+
+static inline size_t zpb_ceilings_slot(const zpb_ceilings *c, const zpb_msgdef *m)
+{
+    size_t i = (size_t) (((uint64_t) (uintptr_t) m >> 4) * 11400714819323198485ull);
+    i &= c->cap - 1;
+    while (c->key[i] != NULL && c->key[i] != m) i = (i + 1) & (c->cap - 1);
+    return i;
+}
+
+/* Grows the table to hold one more type; false if out of memory. */
+static inline bool zpb_ceilings_reserve(zpb_ceilings *c)
+{
+    if (c->key != NULL && 2 * (c->n + 1) <= c->cap) return true;
+    zpb_ceilings old = *c;
+    c->cap = old.cap ? 2 * old.cap : 64;
+    c->key = (const zpb_msgdef **) calloc(c->cap, sizeof *c->key);
+    c->val = (size_t *) malloc(c->cap * sizeof *c->val);
+    if (c->key == NULL || c->val == NULL) {
+        free((void *) c->key);
+        free(c->val);
+        *c = old;
+        return false;
+    }
+    c->n = 0;
+    for (size_t i = 0; i < old.cap; i++) {
+        if (old.key[i] == NULL) continue;
+        size_t j = zpb_ceilings_slot(c, old.key[i]);
+        c->key[j] = old.key[i];
+        c->val[j] = old.val[i];
+        c->n++;
+    }
+    free((void *) old.key);
+    free(old.val);
+    return true;
+}
+
+/* zpb_msgdef_max_struct(p, m), from c when it holds m; c may be NULL. */
+static inline size_t zpb_ceilings_max_struct(zpb_ceilings *c, const zpb_defpool *p,
+                                             const zpb_msgdef *m)
+{
+    if (c != NULL && c->key != NULL) {
+        size_t i = zpb_ceilings_slot(c, m);
+        if (c->key[i] == m) return c->val[i];
+    }
+    size_t s = zpb_msgdef_max_struct(p, m);
+    /* 0 is out of memory: not cached, so a later call can do better. */
+    if (c != NULL && s > 0 && zpb_ceilings_reserve(c)) {
+        size_t i = zpb_ceilings_slot(c, m);
+        c->key[i] = m;
+        c->val[i] = s;
+        c->n++;
+    }
+    return s;
+}
+
+/* The ceiling for decoding `bytes` of input holding `n` messages of type m. */
+static inline double zpb_arena_ceiling(const zpb_defpool *p, zpb_ceilings *c,
+                                       const zpb_msgdef *m, double bytes, double n)
+{
+    double s_max = (double) zpb_ceilings_max_struct(c, p, m);
     double per_byte = s_max + 64 > 64 ? s_max + 64 : 64;
     return bytes * per_byte + n * ((double) zpb_msgdef_struct_size(m) + 256) + 1048576.0;
 }
@@ -848,8 +927,9 @@ static inline bool zpb_msg_next(const zpb_msg *msg, const zpb_msgdef *m, const z
  * arena, whose limit each Any raises by its own bytes' ceiling. A message
  * that passes cannot take upb's encoder past those bounds. Returns a
  * ZPB_DECODE_* status. */
-static inline int zpb_check_any(const zpb_defpool *p, const zpb_msgdef *m, const zpb_msg *msg,
-                                int depth, zpb_arena *a, zpb_counting_alloc *ca)
+static inline int zpb_check_any(const zpb_defpool *p, zpb_ceilings *c, const zpb_msgdef *m,
+                                const zpb_msg *msg, int depth, zpb_arena *a,
+                                zpb_counting_alloc *ca)
 {
     if (depth < 0) return ZPB_DECODE_DEPTH;
     if (upb_MessageDef_WellKnownType(m) == kUpb_WellKnown_Any) {
@@ -862,14 +942,14 @@ static inline int zpb_check_any(const zpb_defpool *p, const zpb_msgdef *m, const
         const upb_MessageDef *packed = upb_DefPool_FindMessageByNameWithSize(
             p, slash + 1, (size_t) (url.data + url.size - (slash + 1)));
         if (packed == NULL) return ZPB_DECODE_OK; /* likewise, before its arena */
-        double grow = zpb_arena_ceiling(p, packed, (double) val.size, 1);
+        double grow = zpb_arena_ceiling(p, c, packed, (double) val.size, 1);
         ca->limit = (double) ca->limit + grow > (double) SIZE_MAX ? SIZE_MAX
                                                                   : ca->limit + (size_t) grow;
         int status;
         const zpb_msg *inner =
             zpb_decode_message(p, packed, val.data, val.size, a, (uint16_t) depth, &status);
         if (inner == NULL) return status;
-        return zpb_check_any(p, packed, inner, depth - 1, a, ca);
+        return zpb_check_any(p, c, packed, inner, depth - 1, a, ca);
     }
     size_t iter = ZPB_MSG_ITER_BEGIN;
     const zpb_fielddef *f;
@@ -885,12 +965,13 @@ static inline int zpb_check_any(const zpb_defpool *p, const zpb_msgdef *m, const
             size_t it = ZPB_MAP_ITER_BEGIN;
             zpb_value k, mv;
             while (st == ZPB_DECODE_OK && zpb_map_next(v.map_val, &k, &mv, &it))
-                st = zpb_check_any(p, vm, mv.msg_val, depth - 1, a, ca);
+                st = zpb_check_any(p, c, vm, mv.msg_val, depth - 1, a, ca);
         } else if (upb_FieldDef_IsRepeated(f)) {
             for (size_t i = 0; st == ZPB_DECODE_OK && i < zpb_array_size(v.array_val); i++)
-                st = zpb_check_any(p, sub, zpb_array_get(v.array_val, i).msg_val, depth - 1, a, ca);
+                st = zpb_check_any(p, c, sub, zpb_array_get(v.array_val, i).msg_val, depth - 1,
+                                   a, ca);
         } else {
-            st = zpb_check_any(p, sub, v.msg_val, depth - 1, a, ca);
+            st = zpb_check_any(p, c, sub, v.msg_val, depth - 1, a, ca);
         }
         if (st != ZPB_DECODE_OK) return st;
     }

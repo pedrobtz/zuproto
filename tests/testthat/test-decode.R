@@ -411,6 +411,62 @@ test_that("inputs that expand a lot decode within the schema's ceiling", {
   expect_length(proto_decode(points, "zpb.decode.Repeated", pool)$points, 1e5)
 })
 
+test_that("adding a file raises the ceiling of the types it extends", {
+  # #82: the ceiling is cached per type; a new extension can make a larger
+  # type reachable, so adding a file must clear the cache.
+  field <- function(name, number, type, label = "LABEL_OPTIONAL", ...) {
+    list(
+      name = name,
+      number = number,
+      label = label,
+      type = type,
+      ...
+    )
+  }
+  file_set <- function(file) {
+    proto_encode(
+      list(file = list(file)),
+      "google.protobuf.FileDescriptorSet",
+      proto_pool()
+    )
+  }
+  a <- list(
+    name = "a.proto",
+    package = "cache",
+    syntax = "proto2",
+    message_type = list(list(
+      name = "A",
+      field = list(field("v", 1L, "TYPE_INT32")),
+      extension_range = list(list(start = 100L, end = 200L))
+    ))
+  )
+  big <- lapply(seq_len(400), function(i) {
+    field(sprintf("f%d", i), i, "TYPE_INT64")
+  })
+  b <- list(
+    name = "b.proto",
+    package = "cache",
+    syntax = "proto2",
+    dependency = "a.proto",
+    message_type = list(list(name = "Big", field = big)),
+    extension = list(field(
+      "big",
+      100L,
+      "TYPE_MESSAGE",
+      label = "LABEL_REPEATED",
+      type_name = ".cache.Big",
+      extendee = ".cache.A"
+    ))
+  )
+  pool <- proto_pool(file_set(a))
+  expect_length(proto_decode(as.raw(c(0x08, 0x01)), "cache.A", pool), 1L)
+  proto_pool_add(pool, file_set(b))
+  # 2000 empty Big messages in field 100: 3 bytes each, a whole Big struct
+  # each once decoded.
+  raw <- rep(as.raw(c(0xa2, 0x06, 0x00)), 2000)
+  expect_length(proto_decode(raw, "cache.A", pool)[["[cache.big]"]], 2000L)
+})
+
 test_that("invalid UTF-8 is an error in proto3 and proto2 strings alike", {
   pool <- decode_pool()
   bad <- as.raw(c(0xff, 0xfe))

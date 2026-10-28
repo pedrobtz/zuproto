@@ -21,6 +21,15 @@ static void pool_finalize(SEXP ptr)
     }
 }
 
+static void ceilings_finalize(SEXP ptr)
+{
+    zpb_ceilings *c = (zpb_ceilings *) R_ExternalPtrAddr(ptr);
+    if (c != NULL) {
+        zpb_ceilings_free(c);
+        R_ClearExternalPtr(ptr);
+    }
+}
+
 static void arena_finalize(SEXP ptr)
 {
     zpb_arena *a = (zpb_arena *) R_ExternalPtrAddr(ptr);
@@ -75,13 +84,26 @@ const zpb_defpool *zpb_pool_get(SEXP ptr)
     return p;
 }
 
+/* The pool's cache of arena ceilings, kept in the pointer's protected
+ * slot; NULL if there is none, and the ceilings are then computed afresh. */
+zpb_ceilings *zpb_pool_ceilings(SEXP ptr)
+{
+    SEXP c = R_ExternalPtrProtected(ptr);
+    return TYPEOF(c) == EXTPTRSXP ? (zpb_ceilings *) R_ExternalPtrAddr(c) : NULL;
+}
+
 SEXP zpb_pool_new(void)
 {
     zpb_defpool *p = zpb_defpool_new();
     if (p == NULL) zpb_internal_error("out of memory creating a pool");
     SEXP ptr = PROTECT(R_MakeExternalPtr(p, Rf_install("zpb_pool"), R_NilValue));
     R_RegisterCFinalizerEx(ptr, pool_finalize, TRUE);
-    UNPROTECT(1);
+    zpb_ceilings *c = (zpb_ceilings *) calloc(1, sizeof *c);
+    if (c == NULL) zpb_internal_error("out of memory creating a pool");
+    SEXP cptr = PROTECT(R_MakeExternalPtr(c, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(cptr, ceilings_finalize, TRUE);
+    R_SetExternalPtrProtected(ptr, cptr);
+    UNPROTECT(2);
     return ptr;
 }
 
@@ -156,6 +178,7 @@ SEXP zpb_pool_add_file(SEXP ptr, SEXP raw)
     const zpb_filedef *def = zpb_defpool_add_file(
         p, (const char *) RAW(raw), (size_t) XLENGTH(raw), a, err, sizeof err);
     zpb_arena_free(a);
+    zpb_ceilings_clear(zpb_pool_ceilings(ptr));
     return def != NULL ? R_NilValue : Rf_mkString(err);
 }
 

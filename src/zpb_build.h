@@ -30,6 +30,9 @@ typedef struct {
 /* The symbol table behind a pool's external pointer (zpb_pool.c). */
 const zpb_defpool *zpb_pool_get(SEXP ptr);
 
+/* Its cache of arena ceilings, or NULL (zpb_pool.c). */
+zpb_ceilings *zpb_pool_ceilings(SEXP ptr);
+
 /* m's message msg as an R value, or NULL with ctx->err set. */
 SEXP zpb_build(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg *msg);
 
