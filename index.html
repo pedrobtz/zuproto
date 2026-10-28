@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Protocol Buffers Decoding and Encoding with upb">
-<meta name="description" content="Decodes and encodes Protocol Buffers messages from descriptor sets rather than generated code. One message becomes a named list; many messages become a data frame built column by column. Uses a bundled copy of the upb runtime (&lt;https://github.com/protocolbuffers/protobuf&gt;), so no system protobuf library or protoc compiler is required.">
-<meta property="og:description" content="Decodes and encodes Protocol Buffers messages from descriptor sets rather than generated code. One message becomes a named list; many messages become a data frame built column by column. Uses a bundled copy of the upb runtime (&lt;https://github.com/protocolbuffers/protobuf&gt;), so no system protobuf library or protoc compiler is required.">
+<meta name="description" content="Decodes and encodes Protocol Buffers messages from descriptor sets rather than generated code. One message becomes a named list; many messages become a data frame built column by column. Uses a bundled copy of the upb runtime (&lt;https://github.com/protocolbuffers/protobuf&gt;), so no system protobuf library is required. Schemas are compiled into descriptor sets beforehand, with protoc or buf.">
+<meta property="og:description" content="Decodes and encodes Protocol Buffers messages from descriptor sets rather than generated code. One message becomes a named list; many messages become a data frame built column by column. Uses a bundled copy of the upb runtime (&lt;https://github.com/protocolbuffers/protobuf&gt;), so no system protobuf library is required. Schemas are compiled into descriptor sets beforehand, with protoc or buf.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -68,7 +68,7 @@
 <li>
 <strong>Many messages are columns.</strong> A list of messages, a length-delimited stream, or a message’s repeated field becomes a data frame, filled column by column in C.</li>
 <li>
-<strong>No system library.</strong> zuproto bundles <a href="https://github.com/protocolbuffers/protobuf/tree/main/upb" class="external-link">upb</a>, the small C runtime under protobuf’s Python, Ruby and PHP implementations. It needs no <code>libprotobuf</code>, <code>protoc</code> or Abseil, and no other R package.</li>
+<strong>No system library.</strong> zuproto bundles <a href="https://github.com/protocolbuffers/protobuf/tree/main/upb" class="external-link">upb</a>, the small C runtime under protobuf’s Python, Ruby and PHP implementations. It needs no <code>libprotobuf</code>, Abseil or other R package to install or run. <code>protoc</code> or <code>buf</code> is needed only once, to compile your schema.</li>
 <li>
 <strong>R types where they fit.</strong> Enums are factors, <code>Timestamp</code> is <code>POSIXct</code>, <code>Duration</code> is <code>difftime</code>, and 64-bit integers can stay exact.</li>
 <li>
@@ -118,7 +118,7 @@
 <p>Protobuf’s JSON mapping goes both ways:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/proto_to_json.html">proto_to_json</a></span><span class="op">(</span><span class="va">bytes</span>, <span class="st">"google.protobuf.Struct"</span>, <span class="va">pool</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "{\"platform\":7,\"delayed\":true,\"station\":\"Bern\"}"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "{\"delayed\":true,\"platform\":7,\"station\":\"Bern\"}"</span></span></code></pre></div>
 <p>Many messages become a data frame. A descriptor set is itself a protobuf message, a <code>FileDescriptorSet</code>, so the one zuproto ships for the well-known types can be read as a table. Each row is a <code>.proto</code> file, with the number of message types it defines at the top level:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">wkt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"descriptors"</span>, <span class="st">"wkt.binpb"</span>, package <span class="op">=</span> <span class="st">"zuproto"</span><span class="op">)</span></span>

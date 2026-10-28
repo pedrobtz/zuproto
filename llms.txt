@@ -21,7 +21,8 @@ compiled schema, and turns thousands of messages into one data frame.
 - **No system library.** zuproto bundles
   [upb](https://github.com/protocolbuffers/protobuf/tree/main/upb), the
   small C runtime under protobuf’s Python, Ruby and PHP implementations.
-  It needs no `libprotobuf`, `protoc` or Abseil, and no other R package.
+  It needs no `libprotobuf`, Abseil or other R package to install or
+  run. `protoc` or `buf` is needed only once, to compile your schema.
 - **R types where they fit.** Enums are factors, `Timestamp` is
   `POSIXct`, `Duration` is `difftime`, and 64-bit integers can stay
   exact.
@@ -92,7 +93,7 @@ Protobuf’s JSON mapping goes both ways:
 ``` r
 
 proto_to_json(bytes, "google.protobuf.Struct", pool)
-#> [1] "{\"platform\":7,\"delayed\":true,\"station\":\"Bern\"}"
+#> [1] "{\"delayed\":true,\"platform\":7,\"station\":\"Bern\"}"
 ```
 
 Many messages become a data frame. A descriptor set is itself a protobuf
