@@ -9,6 +9,7 @@ reference:
   contents:
   - proto_pool
   - proto_types
+  - proto_enums
 - title: One message
   desc: Decode and encode a single message.
   contents:
