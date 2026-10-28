@@ -49,13 +49,13 @@ compiled schema, and turns thousands of messages into one data frame.
 
 ## Installation
 
-Install the released version from CRAN:
+zuproto is not on CRAN yet. Once it is, install it with:
 
 ``` r
 install.packages("zuproto")
 ```
 
-Or the development version from GitHub:
+Until then, install the development version from GitHub:
 
 ``` r
 # install.packages("pak")
@@ -93,10 +93,21 @@ bytes <- proto_encode(
 str(proto_decode(bytes, "google.protobuf.Struct", pool))
 ```
 
-Protobuf's JSON mapping goes both ways:
+Protobuf's JSON mapping goes both ways. A `Timestamp` is an RFC 3339
+string in JSON:
 
 ```{r}
-proto_to_json(bytes, "google.protobuf.Struct", pool)
+json <- proto_to_json(
+  proto_encode(when, "google.protobuf.Timestamp", pool),
+  "google.protobuf.Timestamp",
+  pool
+)
+json
+proto_decode(
+  proto_from_json(json, "google.protobuf.Timestamp", pool),
+  "google.protobuf.Timestamp",
+  pool
+)
 ```
 
 Many messages become a data frame. A descriptor set is itself a protobuf
@@ -145,6 +156,14 @@ full name and the pool, in that order.
 * [Live Swiss trains with GTFS Realtime](https://pedrobtz.github.io/zuproto/articles/gtfs-rt.html)
   works through a real feed: compiling the schema, fetching the data, and
   turning trips and stop delays into tables.
+* Three articles open machine-learning files without the library that
+  wrote them:
+  [an ONNX model](https://pedrobtz.github.io/zuproto/articles/onnx.html),
+  its layers and trained weights;
+  [TensorFlow files](https://pedrobtz.github.io/zuproto/articles/tensorflow.html),
+  a SavedModel, TFRecord training data and TensorBoard logs;
+  and [a Core ML model](https://pedrobtz.github.io/zuproto/articles/coreml.html),
+  a decision tree read as a table.
 * The [reference index](https://pedrobtz.github.io/zuproto/reference/) lists
   every function. `?proto_decode` maps protobuf types to R types,
   `?proto_decode_df` says how fields become columns, and
