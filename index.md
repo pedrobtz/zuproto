@@ -32,14 +32,14 @@ compiled schema, and turns thousands of messages into one data frame.
 
 ## Installation
 
-Install the released version from CRAN:
+zuproto is not on CRAN yet. Once it is, install it with:
 
 ``` r
 
 install.packages("zuproto")
 ```
 
-Or the development version from GitHub:
+Until then, install the development version from GitHub:
 
 ``` r
 
@@ -88,12 +88,24 @@ str(proto_decode(bytes, "google.protobuf.Struct", pool))
 #>  $ station : chr "Bern"
 ```
 
-Protobuf’s JSON mapping goes both ways:
+Protobuf’s JSON mapping goes both ways. A `Timestamp` is an RFC 3339
+string in JSON:
 
 ``` r
 
-proto_to_json(bytes, "google.protobuf.Struct", pool)
-#> [1] "{\"delayed\":true,\"platform\":7,\"station\":\"Bern\"}"
+json <- proto_to_json(
+  proto_encode(when, "google.protobuf.Timestamp", pool),
+  "google.protobuf.Timestamp",
+  pool
+)
+json
+#> [1] "\"2026-10-27T15:36:18Z\""
+proto_decode(
+  proto_from_json(json, "google.protobuf.Timestamp", pool),
+  "google.protobuf.Timestamp",
+  pool
+)
+#> [1] "2026-10-27 15:36:18 UTC"
 ```
 
 Many messages become a data frame. A descriptor set is itself a protobuf
@@ -157,6 +169,14 @@ type’s full name and the pool, in that order.
   Realtime](https://pedrobtz.github.io/zuproto/articles/gtfs-rt.html)
   works through a real feed: compiling the schema, fetching the data,
   and turning trips and stop delays into tables.
+- Three articles open machine-learning files without the library that
+  wrote them: [an ONNX
+  model](https://pedrobtz.github.io/zuproto/articles/onnx.html), its
+  layers and trained weights; [TensorFlow
+  files](https://pedrobtz.github.io/zuproto/articles/tensorflow.html), a
+  SavedModel, TFRecord training data and TensorBoard logs; and [a Core
+  ML model](https://pedrobtz.github.io/zuproto/articles/coreml.html), a
+  decision tree read as a table.
 - The [reference index](https://pedrobtz.github.io/zuproto/reference/)
   lists every function.
   [`?proto_decode`](https://pedrobtz.github.io/zuproto/reference/proto_decode.md)
