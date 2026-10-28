@@ -263,6 +263,72 @@ test_that("nested Anys are bounded by max_depth before upb's JSON encoder sees t
   )
 })
 
+test_that("every Any is checked before upb's JSON encoder sees it", {
+  # #83: Anys in repeated fields and map values, and packed payloads that
+  # fail to decode, are caught like a chain of singular Anys.
+  pool <- decode_pool()
+  field <- function(tag, value) c(as.raw(tag), varint(length(value)), value)
+  any <- function(url, value) {
+    c(field(0x0a, charToRaw(url)), field(0x12, value))
+  }
+  wkt <- function(type) paste0("type.googleapis.com/google.protobuf.", type)
+  chain <- function(n) {
+    out <- any(wkt("Duration"), as.raw(c(0x08, 0x01)))
+    for (i in seq_len(n)) {
+      out <- any(wkt("Any"), out)
+    }
+    out
+  }
+  # google.protobuf.Type: repeated Option options = 4; Option.value is an Any.
+  in_repeated <- field(0x22, field(0x12, chain(2000)))
+  expect_error(
+    proto_to_json(in_repeated, "google.protobuf.Type", pool),
+    class = "zuproto_depth_limit"
+  )
+  in_map <- field(
+    0x0a,
+    c(field(0x0a, charToRaw("k")), field(0x12, chain(2000)))
+  )
+  expect_error(
+    proto_to_json(in_map, "zpb.decode.AnyMap", pool),
+    class = "zuproto_depth_limit"
+  )
+  expect_error(
+    proto_to_json(
+      any(wkt("Duration"), as.raw(0x0a)),
+      "google.protobuf.Any",
+      pool
+    ),
+    class = "zuproto_parse_error"
+  )
+  bad_utf8 <- field(0x0a, as.raw(c(0xc3, 0x28)))
+  expect_error(
+    proto_to_json(
+      any(wkt("StringValue"), bad_utf8),
+      "google.protobuf.Any",
+      pool
+    ),
+    class = "zuproto_invalid_utf8"
+  )
+  for (url in c("noslash", "type.googleapis.com/zpb.decode.Nope")) {
+    expect_error(
+      proto_to_json(any(url, raw()), "google.protobuf.Any", pool),
+      class = "zuproto_json_error",
+      label = url
+    )
+  }
+  # Each Any is one level: with max_depth = 5, four nested Anys around the
+  # Duration fit and five do not.
+  expect_type(
+    proto_to_json(chain(4), "google.protobuf.Any", pool, max_depth = 5),
+    "character"
+  )
+  expect_error(
+    proto_to_json(chain(5), "google.protobuf.Any", pool, max_depth = 5),
+    class = "zuproto_depth_limit"
+  )
+})
+
 test_that("JSON nested past upb's parser limit is a JSON error", {
   # #48: upb's JSON parser stops at 64 levels, below the encoder's 1000, so
   # proto_from_json() never reaches the encoder's depth limit.
