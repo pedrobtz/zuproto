@@ -707,4 +707,20 @@ test_that("Timestamp and Duration seconds beyond 2^53 warn of precision loss", {
   )
   near <- c(as.raw(0x08), varint(2^53)) # exactly 2^53: no loss
   expect_no_warning(proto_decode(near, "google.protobuf.Timestamp", pool))
+  # #91: and below -2^53. A negative int64 is its two's complement as an
+  # unsigned varint: -2^63 is 2^63, and -2^53 is 2^64 - 2^53.
+  far_neg <- c(as.raw(0x08), varint(2^63))
+  for (type in c("google.protobuf.Timestamp", "google.protobuf.Duration")) {
+    expect_warning(
+      proto_decode(far_neg, type, pool),
+      class = "zuproto_precision_loss",
+      label = type
+    )
+  }
+  near_neg <- c(as.raw(0x08), varint(2^64 - 2^53))
+  expect_no_warning(proto_decode(near_neg, "google.protobuf.Duration", pool))
+  expect_identical(
+    as.numeric(proto_decode(near_neg, "google.protobuf.Duration", pool)),
+    -2^53
+  )
 })
