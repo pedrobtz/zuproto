@@ -390,6 +390,29 @@ test_that("a Timestamp the binary format allows round-trips, and JSON refuses it
   )
 })
 
+test_that("a value nested far past the limit is a depth limit, not a C stack error", {
+  # #88: the R value is walked before upb's encoder counts levels, so the
+  # walk stops at the limit itself.
+  pool <- decode_pool()
+  nested <- list(depth = 1L)
+  for (i in seq_len(50000)) {
+    nested <- list(child = nested)
+  }
+  err <- expect_error(
+    proto_encode(nested, "zpb.decode.Nested", pool),
+    class = "zuproto_depth_limit"
+  )
+  expect_identical(err$limit, "max_depth")
+  value <- 1
+  for (i in seq_len(50000)) {
+    value <- list(value)
+  }
+  expect_error(
+    proto_encode(value, "google.protobuf.Value", pool),
+    class = "zuproto_depth_limit"
+  )
+})
+
 test_that("encoding nests as deep as decoding allows, then is a depth limit error", {
   # #27: upb's encoder stopped at 100 levels and zuproto called it out of
   # memory. nested(n) is n messages, one inside the next.
