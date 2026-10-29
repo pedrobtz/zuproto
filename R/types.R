@@ -45,15 +45,16 @@ proto_types <- function(pool) {
 #' @rdname proto_types
 #' @export
 proto_fields <- function(pool, type) {
-  check_pool(pool, call = sys.call())
-  check_type(type, call = sys.call())
+  call <- sys.call()
+  check_pool(pool, call = call)
+  check_type(type, call = call)
   cols <- .Call(zpb_pool_fields, pool$ptr, type)
   if (is.null(cols)) {
     zpb_abort(
       "zuproto_unknown_type",
       sprintf("Message type '%s' is not in the pool.", type),
       type = type,
-      call = sys.call()
+      call = call
     )
   }
   as.data.frame(cols)
@@ -70,21 +71,37 @@ proto_fields <- function(pool, type) {
 #'   `type_name`.
 #' @return A data frame with one row per value, in definition order, and
 #'   columns `name` and `number`. An alias (`allow_alias`) is a row of its
-#'   own with the number it shares.
+#'   own with the number it shares. R has no integer for -2^31, so that
+#'   number is `NA`, with a `zuproto_precision_loss` warning.
 #' @export
 #' @examples
 #' pool <- proto_pool()
 #' proto_enums(pool, "google.protobuf.Field.Kind")
 proto_enums <- function(pool, type) {
-  check_pool(pool, call = sys.call())
-  check_type(type, call = sys.call())
+  call <- sys.call()
+  check_pool(pool, call = call)
+  check_type(type, call = call)
   cols <- .Call(zpb_pool_enums, pool$ptr, type)
   if (is.null(cols)) {
     zpb_abort(
       "zuproto_unknown_type",
       sprintf("Enum type '%s' is not in the pool.", type),
       type = type,
-      call = sys.call()
+      call = call
+    )
+  }
+  # An enum number is never NA, but -2^31 is NA_integer_ in R.
+  n <- as.double(sum(is.na(cols$number)))
+  if (n > 0) {
+    zpb_warn(
+      "zuproto_precision_loss",
+      sprintf(
+        "%s in '%s' could not be represented: -2^31 became NA.",
+        plural(n, "enum number"),
+        type
+      ),
+      n = n,
+      call = call
     )
   }
   as.data.frame(cols)

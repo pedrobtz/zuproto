@@ -45,9 +45,8 @@ their \code{json_name}s.}
 \code{\link[zujson:json_parse]{zujson::json_parse()}} rather than as text.}
 
 \item{max_size}{The largest input accepted, in bytes. upb's memory for
-the decode is also capped, at a multiple of the input's size that the
-message type sets: the most a message of that type could legitimately
-need.}
+the decode is also capped. The cap is a multiple of the input's size,
+set by the message type: the most a message of that type could need.}
 
 \item{max_depth}{The deepest nesting accepted: how many levels of
 messages within messages, the top-level message being level 0. A
@@ -79,6 +78,10 @@ types take their special JSON forms (\code{Timestamp} as an RFC 3339 string,
 }
 \details{
 \code{Any} messages convert only when the type they pack is in the pool.
+
+The entries of a map field, and so the keys of a \code{Struct}, are written
+in no fixed order: it can differ between R sessions. Compare JSON as
+parsed values, not as text.
 
 JSON meets R values through
 \href{https://CRAN.R-project.org/package=zujson}{zujson}, which must be

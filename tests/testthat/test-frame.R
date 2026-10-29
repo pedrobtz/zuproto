@@ -271,6 +271,24 @@ test_that("a message that fails names its index in the whole stream", {
   }
 })
 
+test_that("max_rows bounds a stream, or each chunk of it with each", {
+  # #92: R/frame.R documents that with `each`, max_rows bounds a chunk.
+  pool <- decode_pool()
+  raw <- msg_fixture("nested_3")
+  stream <- rep(c(varint(length(raw)), raw), 5)
+  read <- function(...) {
+    proto_read_delimited(stream, "zpb.decode.Nested", pool, max_rows = 2, ...)
+  }
+  expect_error(read(), class = "zuproto_row_limit")
+  rows <- 0L
+  read(each = function(df) rows <<- rows + nrow(df), chunk_rows = 2)
+  expect_identical(rows, 5L)
+  expect_error(
+    read(each = function(df) NULL, chunk_rows = 3),
+    class = "zuproto_row_limit"
+  )
+})
+
 test_that("a stream ending inside a varint or a message is a parse error", {
   pool <- decode_pool()
   raw <- msg_fixture("nested_3")
@@ -368,6 +386,57 @@ test_that("a decoded frame with nested oneofs writes back as it was read", {
   expect_identical(
     stream,
     c(varint(length(raw)), raw, varint(length(raw)), raw)
+  )
+})
+
+test_that("an extension holding a oneof writes back as it was read", {
+  # #99: proto_fields() names an extension "[name]" already, and
+  # frame_type() bracketed it again, so its <oneof>_case was taken for a
+  # field.
+  field <- function(name, number, type, label = "LABEL_OPTIONAL", ...) {
+    list(name = name, number = number, label = label, type = type, ...)
+  }
+  host <- list(
+    name = "Host",
+    field = list(field("id", 1L, "TYPE_INT32")),
+    extension_range = list(list(start = 100L, end = 200L))
+  )
+  payload <- list(
+    name = "Payload",
+    field = list(
+      field("a", 1L, "TYPE_INT32", oneof_index = 0L),
+      field("b", 2L, "TYPE_STRING", oneof_index = 0L)
+    ),
+    oneof_decl = list(list(name = "kind"))
+  )
+  file <- list(
+    name = "ext.proto",
+    package = "ext",
+    syntax = "proto2",
+    message_type = list(host, payload),
+    extension = list(field(
+      "payload",
+      100L,
+      "TYPE_MESSAGE",
+      type_name = ".ext.Payload",
+      extendee = ".ext.Host"
+    ))
+  )
+  pool <- proto_pool(proto_encode(
+    list(file = list(file)),
+    "google.protobuf.FileDescriptorSet",
+    proto_pool()
+  ))
+  raw <- proto_encode(
+    list(id = 1L, "[ext.payload]" = list(a = 7L)),
+    "ext.Host",
+    pool
+  )
+  df <- proto_decode_df(list(raw), "ext.Host", pool)
+  expect_identical(df[["[ext.payload]"]]$kind_case, "a")
+  expect_identical(
+    proto_write_delimited(df, "ext.Host", pool),
+    c(varint(length(raw)), raw)
   )
 })
 

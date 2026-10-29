@@ -333,7 +333,7 @@ df_options <- function(
   bytes <- zpb_match_arg(bytes, zpb_choices$bytes, "bytes", call)
   check_flag(defaults, "defaults", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
-  check_limit(max_depth, "max_depth", 1, 1000, call)
+  check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)
   check_limit(max_rows, "max_rows", 1, 2^31 - 1, call)
   list(
     int64 = match(int64, zpb_choices$int64) - 1L,
@@ -434,18 +434,20 @@ open_path <- function(x, call) {
 # What frame_rows() needs of a message type, looked up once per type and
 # kept in `cache`: the names of its `<oneof>_case` columns, which encoding
 # skips, and the type of each message field, by column name, for the
-# columns nested inside it. NULL for a type the pool lacks.
+# columns nested inside it. NULL for a NULL type; a type the pool lacks is
+# proto_fields()'s zuproto_unknown_type.
 frame_type <- function(pool, type, cache) {
   if (is.null(type)) {
     return(NULL)
   }
   if (is.null(cache[[type]])) {
     f <- proto_fields(pool, type)
-    msg <- !is.na(f$type_name)
-    names <- ifelse(f$extension, paste0("[", f$name, "]"), f$name)
+    # Enum fields have a type_name too, but nothing nested.
+    msg <- f$type %in% c("message", "group")
+    # An extension's name is already its column's, "[full.name]".
     cache[[type]] <- list(
       skip = paste0(unique(f$oneof[!is.na(f$oneof)]), "_case"),
-      sub = as.list(stats::setNames(f$type_name[msg], names[msg]))
+      sub = as.list(stats::setNames(f$type_name[msg], f$name[msg]))
     )
   }
   cache[[type]]
@@ -464,16 +466,16 @@ frame_rows <- function(df, pool, type, cache = new.env(parent = emptyenv())) {
 frame_row <- function(cols, i, pool, info, cache) {
   out <- Map(
     function(col, name) {
-      sub <- info$sub[[name]]
+      sub_type <- info$sub[[name]]
       if (is.data.frame(col)) {
-        sub_info <- frame_type(pool, sub, cache)
+        sub_info <- frame_type(pool, sub_type, cache)
         col <- col[setdiff(names(col), sub_info$skip)]
         row <- frame_row(col, i, pool, sub_info, cache)
         if (length(row) == 0L) NULL else row
       } else if (is.list(col)) {
         v <- col[[i]]
         # A repeated message field's cell is a data frame of its elements.
-        if (is.data.frame(v)) frame_rows(v, pool, sub, cache) else v
+        if (is.data.frame(v)) frame_rows(v, pool, sub_type, cache) else v
       } else {
         v <- col[i]
         if (is.na(v)) NULL else v

@@ -390,6 +390,29 @@ test_that("a Timestamp the binary format allows round-trips, and JSON refuses it
   )
 })
 
+test_that("a value nested far past the limit is a depth limit, not a C stack error", {
+  # #88: the R value is walked before upb's encoder counts levels, so the
+  # walk stops at the limit itself.
+  pool <- decode_pool()
+  nested <- list(depth = 1L)
+  for (i in seq_len(50000)) {
+    nested <- list(child = nested)
+  }
+  err <- expect_error(
+    proto_encode(nested, "zpb.decode.Nested", pool),
+    class = "zuproto_depth_limit"
+  )
+  expect_identical(err$limit, "max_depth")
+  value <- 1
+  for (i in seq_len(50000)) {
+    value <- list(value)
+  }
+  expect_error(
+    proto_encode(value, "google.protobuf.Value", pool),
+    class = "zuproto_depth_limit"
+  )
+})
+
 test_that("encoding nests as deep as decoding allows, then is a depth limit error", {
   # #27: upb's encoder stopped at 100 levels and zuproto called it out of
   # memory. nested(n) is n messages, one inside the next.
@@ -448,14 +471,20 @@ test_that("strings that are not valid UTF-8 text are type mismatches", {
       "meta"
     ),
     list(list(value = bad), "zpb.decode.WellKnown", "value"),
-    list(stats::setNames(list("x"), bad), "zpb.decode.Scalars", "")
+    list(stats::setNames(list("x"), bad), "zpb.decode.Scalars", ""),
+    # #89: an enum given as a factor, and a field name marked as bytes.
+    list(list(f_enum = factor(bad)), "zpb.decode.Scalars", "f_enum"),
+    list(stats::setNames(list("x"), bytes), "zpb.decode.Scalars", "")
   )
-  for (case in cases) {
+  for (i in seq_along(cases)) {
+    case <- cases[[i]]
+    label <- sprintf("case %d, %s", i, case[[2]])
     err <- expect_error(
       proto_encode(case[[1]], case[[2]], pool),
-      class = "zuproto_type_mismatch"
+      class = "zuproto_type_mismatch",
+      label = label
     )
-    expect_identical(err$path, case[[3]])
+    expect_identical(err$path, case[[3]], label = label)
   }
   latin1 <- "caf\xe9"
   Encoding(latin1) <- "latin1"
@@ -464,6 +493,20 @@ test_that("strings that are not valid UTF-8 text are type mismatches", {
     proto_decode(raw, "zpb.decode.Scalars", pool)$f_string,
     "café"
   )
+})
+
+test_that("integer64 seconds encode as a Timestamp or Duration", {
+  # #99: bit64's class is let through where other classed numbers are not.
+  skip_if_not_installed("bit64")
+  pool <- proto_pool()
+  s <- bit64::as.integer64(5)
+  for (type in c("google.protobuf.Timestamp", "google.protobuf.Duration")) {
+    expect_identical(
+      proto_encode(s, type, pool),
+      as.raw(c(0x08, 0x05)),
+      label = type
+    )
+  }
 })
 
 test_that("dates and times go only where a Timestamp or Duration is", {

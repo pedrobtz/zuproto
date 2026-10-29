@@ -69,9 +69,10 @@ void zpb_internal_error(const char *fmt, ...)
     /* zpb_raise_internal() in R/conditions.R raises the classed error, so
      * this does not return; Rf_error() is the fallback if it somehow does. */
     SEXP ns = PROTECT(R_FindNamespace(Rf_mkString("zuproto")));
-    SEXP call = PROTECT(Rf_lang2(Rf_install("zpb_raise_internal"), Rf_mkString(msg)));
+    SEXP str = PROTECT(Rf_mkString(msg));
+    SEXP call = PROTECT(Rf_lang2(Rf_install("zpb_raise_internal"), str));
     Rf_eval(call, ns);
-    UNPROTECT(2);
+    UNPROTECT(3);
     Rf_error("zuproto: %s", msg);
 }
 

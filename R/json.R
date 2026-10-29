@@ -11,6 +11,10 @@
 #'
 #' `Any` messages convert only when the type they pack is in the pool.
 #'
+#' The entries of a map field, and so the keys of a `Struct`, are written
+#' in no fixed order: it can differ between R sessions. Compare JSON as
+#' parsed values, not as text.
+#'
 #' JSON meets R values through
 #' [zujson](https://CRAN.R-project.org/package=zujson), which must be
 #' installed for it: `proto_to_json(parse = TRUE)` returns
@@ -113,7 +117,7 @@ json_options <- function(
   check_flag(proto_names, "proto_names", call)
   enums <- zpb_match_arg(enums, zpb_choices$json_enums, "enums", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
-  check_limit(max_depth, "max_depth", 1, 1000, call)
+  check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)
   list(
     max_depth = as.integer(max_depth),
     json_options = as.integer(emit_defaults) +
@@ -180,11 +184,10 @@ proto_from_json <- function(
   )
   res <- .Call(zpb_from_json, pool$ptr, type, enc2utf8(json), opts)
   if (!is.null(res$error)) {
-    # upb's JSON parser stops at 64 levels (a zuproto_json_error), so the
-    # encoder's limit of 1000 is not reached from JSON; were it, it is the
-    # encoder's error, as proto_encode() raises it.
+    # upb's JSON parser stops at 64 levels, below the encoder's 1000. If
+    # that changes, the encoder's limit is raised as proto_encode() does.
     if (identical(res$error, "max_depth")) {
-      encode_error(res, type, call)
+      return(encode_error(res, type, call))
     }
     json_error(res, type, max_size, NA, call)
   }
@@ -244,6 +247,7 @@ proto_unpack_any <- function(x, pool, ...) {
       call
     )
   }
+  check_dots(...names(), ...length(), proto_decode, call)
   ok <- is.list(x) &&
     is.character(x$type_url) &&
     length(x$type_url) == 1L &&
@@ -257,10 +261,13 @@ proto_unpack_any <- function(x, pool, ...) {
     )
   }
   type <- sub(".*/", "", x$type_url)
-  if (!nzchar(type)) {
+  if (!grepl("/", x$type_url, fixed = TRUE) || !nzchar(type)) {
     zpb_invalid_argument(
       "x",
-      sprintf("`x$type_url` ('%s') names no type.", x$type_url),
+      sprintf(
+        "`x$type_url` ('%s') must name a type after its last /.",
+        x$type_url
+      ),
       call
     )
   }
@@ -269,8 +276,8 @@ proto_unpack_any <- function(x, pool, ...) {
 
 #' @rdname proto_unpack_any
 #' @param type The message type's full name.
-#' @param prefix The `type_url` before the type name. Protobuf's JSON
-#'   mapping and most runtimes expect the default.
+#' @param prefix The `type_url` before the type name, ending in `/`.
+#'   Protobuf's JSON mapping and most runtimes expect the default.
 #' @export
 proto_pack_any <- function(
   x,
@@ -280,9 +287,18 @@ proto_pack_any <- function(
   ...
 ) {
   call <- sys.call()
-  if (!(is.character(prefix) && length(prefix) == 1L && !is.na(prefix))) {
-    zpb_invalid_argument("prefix", "`prefix` must be a single string.", call)
+  ok <- is.character(prefix) &&
+    length(prefix) == 1L &&
+    !is.na(prefix) &&
+    endsWith(prefix, "/")
+  if (!ok) {
+    zpb_invalid_argument(
+      "prefix",
+      "`prefix` must be a single string ending in /.",
+      call
+    )
   }
+  check_dots(...names(), ...length(), proto_encode, call)
   value <- proto_encode(x, type, pool, ...)
   list(type_url = paste0(prefix, type), value = value)
 }

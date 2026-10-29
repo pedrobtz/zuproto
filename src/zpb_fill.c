@@ -20,7 +20,8 @@ enum {
     FILL_OK = 0,
     FILL_TYPE,          /* zuproto_type_mismatch */
     FILL_UNKNOWN_FIELD, /* zuproto_unknown_field */
-    FILL_MEMORY
+    FILL_MEMORY,
+    FILL_DEPTH          /* zuproto_depth_limit */
 };
 
 typedef struct {
@@ -32,6 +33,10 @@ typedef struct {
     const char *detail;
     char path[1024];
     size_t path_len;
+    /* Messages entered so far. The walk stops past ZPB_ENCODE_MAX_DEPTH
+     * itself (#88): upb's encoder counts levels only after the whole value
+     * is filled, and a deeper R value would overflow the C stack first. */
+    int depth;
 } fill_ctx;
 
 static int fill_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x);
@@ -443,6 +448,17 @@ static SEXP elt(SEXP x, R_xlen_t i)
     return R_NilValue;
 }
 
+/* A Value inside a Struct or a ListValue: one more level. Counting only
+ * these, and not the Struct or ListValue around them, keeps the count at
+ * or below upb's, so the walk never refuses what upb would encode. */
+static int fill_nested_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
+{
+    if (++ctx->depth > ZPB_ENCODE_MAX_DEPTH) return fail(ctx, FILL_DEPTH, "is nested too deep");
+    int r = fill_value_wkt(ctx, m, msg, x);
+    ctx->depth--;
+    return r;
+}
+
 static int fill_list_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
 {
     switch (TYPEOF(x)) {
@@ -460,7 +476,7 @@ static int fill_list_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEX
         /* An atomic element is a fresh length-1 vector; keep it until the
          * walk below has used it. */
         SEXP e = PROTECT(elt(x, i));
-        int r = fill_value_wkt(ctx, value_def, sub, e);
+        int r = fill_nested_value(ctx, value_def, sub, e);
         UNPROTECT(1);
         if (r < 0) return -1;
         zpb_value v;
@@ -489,7 +505,7 @@ static int fill_struct(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
         size_t at = path_push(ctx, "[\"%s\"]", key, 0);
         zpb_msg *sub = zpb_msg_new(value_def, ctx->arena);
         if (sub == NULL) return fail(ctx, FILL_MEMORY, "out of memory");
-        if (fill_value_wkt(ctx, value_def, sub, VECTOR_ELT(x, i)) < 0) return -1;
+        if (fill_nested_value(ctx, value_def, sub, VECTOR_ELT(x, i)) < 0) return -1;
         zpb_value v;
         memset(&v, 0, sizeof v);
         v.msg_val = sub;
@@ -715,7 +731,7 @@ static int fill_generic(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x
     return 0;
 }
 
-static int fill_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
+static int fill_message_body(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
 {
     R_CheckStack();
     switch (zpb_msgdef_wkt(m)) {
@@ -736,6 +752,14 @@ static int fill_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
         return fail(ctx, FILL_TYPE, "must be list(type_url = <string>, value = <raw>)");
     }
     return fill_generic(ctx, m, msg, x);
+}
+
+static int fill_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
+{
+    if (++ctx->depth > ZPB_ENCODE_MAX_DEPTH) return fail(ctx, FILL_DEPTH, "is nested too deep");
+    int r = fill_message_body(ctx, m, msg, x);
+    ctx->depth--;
+    return r;
 }
 
 /* ---- Entry point ---- */
@@ -795,6 +819,7 @@ SEXP zpb_encode(SEXP ptr, SEXP type, SEXP x, SEXP opts)
     if (fill_value(&ctx, m, msg, x) < 0) {
         const char *err = ctx.err == FILL_TYPE            ? "type_mismatch"
                           : ctx.err == FILL_UNKNOWN_FIELD ? "unknown_field"
+                          : ctx.err == FILL_DEPTH         ? "max_depth"
                                                           : "out_of_memory";
         SEXP out = PROTECT(result(R_NilValue, err, ctx.path, ctx.detail));
         arena_finalize(aptr);

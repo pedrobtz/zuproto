@@ -411,6 +411,22 @@ test_that("inputs that expand a lot decode within the schema's ceiling", {
   expect_length(proto_decode(points, "zpb.decode.Repeated", pool)$points, 1e5)
 })
 
+test_that("the memory ceiling is a size limit no argument raises", {
+  # #94: it is not max_size, so the condition does not say it is.
+  err <- expect_error(
+    zuproto:::decode_error(
+      list(error = "arena_limit"),
+      "pkg.M",
+      1e6,
+      100,
+      NULL
+    ),
+    class = "zuproto_size_limit"
+  )
+  expect_identical(err$limit, "memory")
+  expect_identical(err$limit_value, NA_real_)
+})
+
 test_that("adding a file raises the ceiling of the types it extends", {
   # #82: the ceiling is cached per type; a new extension can make a larger
   # type reachable, so adding a file must clear the cache.
@@ -684,6 +700,13 @@ test_that("a wire NaN with R's NA payload decodes as NaN, not NA, and re-encodes
     defaults = FALSE
   )
   expect_true(is.nan(single$f_double))
+  # #90: and as a google.protobuf.Value's number_value (field 2), which
+  # must not re-encode as null.
+  value <- proto_decode(c(as.raw(0x11), na_bits), "google.protobuf.Value", pool)
+  expect_true(is.nan(value))
+  again <- proto_encode(value, "google.protobuf.Value", pool)
+  expect_identical(again[1], as.raw(0x11))
+  expect_true(is.nan(proto_decode(again, "google.protobuf.Value", pool)))
 })
 
 test_that("Timestamp and Duration seconds beyond 2^53 warn of precision loss", {
@@ -700,4 +723,20 @@ test_that("Timestamp and Duration seconds beyond 2^53 warn of precision loss", {
   )
   near <- c(as.raw(0x08), varint(2^53)) # exactly 2^53: no loss
   expect_no_warning(proto_decode(near, "google.protobuf.Timestamp", pool))
+  # #91: and below -2^53. A negative int64 is its two's complement as an
+  # unsigned varint: -2^63 is 2^63, and -2^53 is 2^64 - 2^53.
+  far_neg <- c(as.raw(0x08), varint(2^63))
+  for (type in c("google.protobuf.Timestamp", "google.protobuf.Duration")) {
+    expect_warning(
+      proto_decode(far_neg, type, pool),
+      class = "zuproto_precision_loss",
+      label = type
+    )
+  }
+  near_neg <- c(as.raw(0x08), varint(2^64 - 2^53))
+  expect_no_warning(proto_decode(near_neg, "google.protobuf.Duration", pool))
+  expect_identical(
+    as.numeric(proto_decode(near_neg, "google.protobuf.Duration", pool)),
+    -2^53
+  )
 })

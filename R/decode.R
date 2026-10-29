@@ -5,6 +5,10 @@
 # Default limits, design section 5. zuproto_info() reports these.
 zpb_limits <- list(max_size = 64 * 1024^2, max_depth = 100L)
 
+# The most `max_depth` accepts, and the deepest nesting proto_encode()
+# writes (ZPB_ENCODE_MAX_DEPTH in C counts the top-level message too).
+zpb_encode_max_depth <- 1000L
+
 # The choices of the decode arguments, built once rather than per call:
 # argument handling is most of a small message's decode time.
 zpb_choices <- list(
@@ -79,9 +83,8 @@ zpb_choices <- list(
 #' @param bytes How `bytes` fields become R values: `"raw"` or `"base64"`
 #'   (strings, as protobuf JSON writes them).
 #' @param max_size The largest input accepted, in bytes. upb's memory for
-#'   the decode is also capped, at a multiple of the input's size that the
-#'   message type sets: the most a message of that type could legitimately
-#'   need.
+#'   the decode is also capped. The cap is a multiple of the input's size,
+#'   set by the message type: the most a message of that type could need.
 #' @param max_depth The deepest nesting accepted: how many levels of
 #'   messages within messages, the top-level message being level 0. A
 #'   message holding a message holding a message is depth 2. A map entry
@@ -183,7 +186,7 @@ decode_options <- function(
   check_limit(max_size, "max_size", 1, 2^53, call)
   # upb's decoder recurses once per level; 1000 stays far below the depth
   # (about 5000) at which the C stack ran out on an 8 MB stack.
-  check_limit(max_depth, "max_depth", 1, 1000, call)
+  check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)
   list(
     int64 = match(int64, zpb_choices$int64) - 1L,
     enums = match(enums, zpb_choices$enums) - 1L,
@@ -249,8 +252,9 @@ decode_error <- function(res, type, max_size, max_depth, call) {
         "Cannot decode the input as '%s': it needs more memory than a message of that type and size can legitimately need.",
         type
       ),
-      limit = "max_size",
-      limit_value = max_size,
+      # No argument sets this ceiling, so a larger `max_size` would not help.
+      limit = "memory",
+      limit_value = NA_real_,
       call = call
     ),
     nul_in_string = ,
@@ -269,7 +273,7 @@ decode_error <- function(res, type, max_size, max_depth, call) {
       field = res$field,
       call = call
     ),
-    zpb_internal_error(
+    abort_internal(
       res$error,
       sprintf("decode the input as '%s'", type),
       call

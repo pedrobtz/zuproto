@@ -25,10 +25,6 @@
 #'   \item{`zuproto_parse_error`}{The input is not a valid message of the
 #'     type: it ends early, has a bad tag, a length beyond the input, or the
 #'     wrong wire type. Carries `status`.}
-#'   \item{In a batch or stream}{An error about one message of
-#'     [proto_decode_df()], [proto_read_delimited()] or
-#'     [proto_write_delimited()] also carries `index`, the message's
-#'     position, as a double (a stream can hold more than 2^31 - 1).}
 #'   \item{`zuproto_invalid_utf8`}{A subclass of `zuproto_parse_error`: a
 #'     `string` field is not valid UTF-8, in proto2 as in proto3.}
 #'   \item{`zuproto_unrepresentable`}{The input is valid but holds a value
@@ -55,12 +51,20 @@
 #'     is too large for `max_size`), `zuproto_depth_limit` (messages nest
 #'     deeper than `max_depth`) and `zuproto_row_limit` (more rows than
 #'     `max_rows`) name which. Carries `limit`, the
-#'     argument's name, and `limit_value`. [proto_encode()] raises
+#'     argument's name, and `limit_value`, its value. A decode that needs
+#'     more memory than any message of its type and size could has `limit`
+#'     `"memory"` and `limit_value` `NA`: no argument raises that ceiling.
+#'     [proto_encode()] raises
 #'     `zuproto_depth_limit` for messages nested deeper than 1000 levels,
 #'     the most `max_depth` lets [proto_decode()] accept.}
 #'   \item{`zuproto_internal_error`}{Memory ran out, or upb reported a
 #'     status zuproto does not expect. Carries `code`.}
 #' }
+#'
+#' An error about one message of [proto_decode_df()],
+#' [proto_read_delimited()] or [proto_write_delimited()] also carries
+#' `index`, the message's position in the batch or stream. It is a double,
+#' since a stream can hold more than 2^31 - 1 messages.
 #'
 #' Warnings inherit `zuproto_warning`:
 #'
@@ -81,6 +85,9 @@
 #' )
 NULL
 
+# Two kinds of error builder: a `*_error()` function maps an error code the
+# C side returned to its condition, and an `abort_*()` function raises one
+# fixed condition.
 zpb_abort <- function(class, message, ..., call = NULL) {
   stop(structure(
     class = c(class, "zuproto_error", "error", "condition"),
@@ -97,7 +104,7 @@ zpb_warn <- function(class, message, ..., call = NULL) {
 
 # An error code the C side returned that is no user error: memory ran out,
 # or upb reported a status zuproto does not map.
-zpb_internal_error <- function(code, what, call = NULL) {
+abort_internal <- function(code, what, call = NULL) {
   zpb_abort(
     "zuproto_internal_error",
     if (identical(code, "out_of_memory")) {
@@ -110,8 +117,9 @@ zpb_internal_error <- function(code, what, call = NULL) {
   )
 }
 
-# Called from C by zpb_internal_error(): a failure the C side raises
-# directly, such as memory running out or a pointer that is not a pool's.
+# Called from C, by zpb_internal_error() in src/zpb_pool.c: a failure the C
+# side raises directly, such as memory running out or a pointer that is not
+# a pool's.
 zpb_raise_internal <- function(message) {
   zpb_abort(
     "zuproto_internal_error",

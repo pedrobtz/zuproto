@@ -134,6 +134,49 @@ test_that("an aliased enum lists every name and decodes to the first", {
   }
 })
 
+test_that("proto_enums() warns when an enum number is -2^31", {
+  # #86: R reserves -2^31 for NA, as decoding with enums = "integer" warns.
+  set <- proto_encode(
+    list(
+      file = list(list(
+        name = "low.proto",
+        package = "low",
+        syntax = "proto3",
+        enum_type = list(list(
+          name = "E",
+          value = list(
+            list(name = "Z", number = 0L),
+            list(name = "LOW", number = -2^31)
+          )
+        ))
+      ))
+    ),
+    "google.protobuf.FileDescriptorSet",
+    proto_pool()
+  )
+  pool <- proto_pool(set)
+  w <- expect_warning(
+    e <- proto_enums(pool, "low.E"),
+    class = "zuproto_precision_loss"
+  )
+  expect_identical(w$n, 1)
+  expect_identical(e$number, c(0L, NA))
+})
+
+test_that("the listing functions refuse a pool whose pointer is gone", {
+  # #99: as the codecs do (test-entry-points.R).
+  stale <- unserialize(serialize(proto_pool(), NULL))
+  calls <- list(
+    function() proto_types(stale),
+    function() proto_fields(stale, "google.protobuf.Empty"),
+    function() proto_enums(stale, "google.protobuf.NullValue")
+  )
+  for (f in calls) {
+    err <- expect_error(f(), class = "zuproto_invalid_argument")
+    expect_identical(err$arg, "pool")
+  }
+})
+
 test_that("proto_enums() refuses a name that is not an enum in the pool", {
   pool <- fixture_pool("schema")
   err <- expect_error(
