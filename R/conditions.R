@@ -97,7 +97,7 @@ zpb_warn <- function(class, message, ..., call = NULL) {
 
 # An error code the C side returned that is no user error: memory ran out,
 # or upb reported a status zuproto does not map.
-zpb_internal_error <- function(code, what, call = NULL) {
+abort_internal <- function(code, what, call = NULL) {
   zpb_abort(
     "zuproto_internal_error",
     if (identical(code, "out_of_memory")) {
@@ -110,8 +110,9 @@ zpb_internal_error <- function(code, what, call = NULL) {
   )
 }
 
-# Called from C by zpb_internal_error(): a failure the C side raises
-# directly, such as memory running out or a pointer that is not a pool's.
+# Called from C, by zpb_internal_error() in src/zpb_pool.c: a failure the C
+# side raises directly, such as memory running out or a pointer that is not
+# a pool's.
 zpb_raise_internal <- function(message) {
   zpb_abort(
     "zuproto_internal_error",

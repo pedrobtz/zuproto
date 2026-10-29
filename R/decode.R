@@ -269,7 +269,7 @@ decode_error <- function(res, type, max_size, max_depth, call) {
       field = res$field,
       call = call
     ),
-    zpb_internal_error(
+    abort_internal(
       res$error,
       sprintf("decode the input as '%s'", type),
       call

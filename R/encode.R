@@ -161,7 +161,7 @@ encode_error <- function(res, type, call) {
       limit_value = zpb_encode_max_depth,
       call = call
     ),
-    zpb_internal_error(res$error, sprintf("encode as '%s'", type), call)
+    abort_internal(res$error, sprintf("encode as '%s'", type), call)
   )
 }
 
