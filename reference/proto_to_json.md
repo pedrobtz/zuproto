@@ -70,8 +70,8 @@ proto_from_json(
 - max_size:
 
   The largest input accepted, in bytes. upb's memory for the decode is
-  also capped, at a multiple of the input's size that the message type
-  sets: the most a message of that type could legitimately need.
+  also capped. The cap is a multiple of the input's size, set by the
+  message type: the most a message of that type could need.
 
 - max_depth:
 
@@ -106,6 +106,10 @@ deterministically.
 ## Details
 
 `Any` messages convert only when the type they pack is in the pool.
+
+The entries of a map field, and so the keys of a `Struct`, are written
+in no fixed order: it can differ between R sessions. Compare JSON as
+parsed values, not as text.
 
 JSON meets R values through
 [zujson](https://CRAN.R-project.org/package=zujson), which must be

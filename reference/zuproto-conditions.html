@@ -83,12 +83,6 @@ Carries <code>type</code>.</p></dd>
 type: it ends early, has a bad tag, a length beyond the input, or the
 wrong wire type. Carries <code>status</code>.</p></dd>
 
-<dt>In a batch or stream</dt>
-<dd><p>An error about one message of
-<code><a href="proto_decode_df.html">proto_decode_df()</a></code>, <code><a href="proto_read_delimited.html">proto_read_delimited()</a></code> or
-<code><a href="proto_read_delimited.html">proto_write_delimited()</a></code> also carries <code>index</code>, the message's
-position, as a double (a stream can hold more than 2^31 - 1).</p></dd>
-
 <dt><code>zuproto_invalid_utf8</code></dt>
 <dd><p>A subclass of <code>zuproto_parse_error</code>: a
 <code>string</code> field is not valid UTF-8, in proto2 as in proto3.</p></dd>
@@ -128,7 +122,10 @@ message (an <code>Any</code> whose packed type is not in the pool). Carries
 is too large for <code>max_size</code>), <code>zuproto_depth_limit</code> (messages nest
 deeper than <code>max_depth</code>) and <code>zuproto_row_limit</code> (more rows than
 <code>max_rows</code>) name which. Carries <code>limit</code>, the
-argument's name, and <code>limit_value</code>. <code><a href="proto_encode.html">proto_encode()</a></code> raises
+argument's name, and <code>limit_value</code>, its value. A decode that needs
+more memory than any message of its type and size could has <code>limit</code>
+<code>"memory"</code> and <code>limit_value</code> <code>NA</code>: no argument raises that ceiling.
+<code><a href="proto_encode.html">proto_encode()</a></code> raises
 <code>zuproto_depth_limit</code> for messages nested deeper than 1000 levels,
 the most <code>max_depth</code> lets <code><a href="proto_decode.html">proto_decode()</a></code> accept.</p></dd>
 
@@ -137,7 +134,11 @@ the most <code>max_depth</code> lets <code><a href="proto_decode.html">proto_dec
 status zuproto does not expect. Carries <code>code</code>.</p></dd>
 
 
-</dl><p>Warnings inherit <code>zuproto_warning</code>:</p>
+</dl><p>An error about one message of <code><a href="proto_decode_df.html">proto_decode_df()</a></code>,
+<code><a href="proto_read_delimited.html">proto_read_delimited()</a></code> or <code><a href="proto_read_delimited.html">proto_write_delimited()</a></code> also carries
+<code>index</code>, the message's position in the batch or stream. It is a double,
+since a stream can hold more than 2^31 - 1 messages.</p>
+<p>Warnings inherit <code>zuproto_warning</code>:</p>
 <dl><dt><code>zuproto_precision_loss</code></dt>
 <dd><p>Values could not be represented
 exactly: 64-bit integers beyond 2^53 decoded as doubles, or a 32-bit

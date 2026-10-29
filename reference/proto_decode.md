@@ -73,8 +73,8 @@ proto_decode(
 - max_size:
 
   The largest input accepted, in bytes. upb's memory for the decode is
-  also capped, at a multiple of the input's size that the message type
-  sets: the most a message of that type could legitimately need.
+  also capped. The cap is a multiple of the input's size, set by the
+  message type: the most a message of that type could need.
 
 - max_depth:
 

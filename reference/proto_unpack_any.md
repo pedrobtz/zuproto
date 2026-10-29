@@ -47,8 +47,8 @@ proto_pack_any(x, type, pool, prefix = "type.googleapis.com/", ...)
 
 - prefix:
 
-  The `type_url` before the type name. Protobuf's JSON mapping and most
-  runtimes expect the default.
+  The `type_url` before the type name, ending in `/`. Protobuf's JSON
+  mapping and most runtimes expect the default.
 
 ## Value
 

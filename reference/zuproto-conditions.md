@@ -40,16 +40,6 @@ Every class below inherits from `zuproto_error`.
   tag, a length beyond the input, or the wrong wire type. Carries
   `status`.
 
-- In a batch or stream:
-
-  An error about one message of
-  [`proto_decode_df()`](https://pedrobtz.github.io/zuproto/reference/proto_decode_df.md),
-  [`proto_read_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
-  or
-  [`proto_write_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
-  also carries `index`, the message's position, as a double (a stream
-  can hold more than 2^31 - 1).
-
 - `zuproto_invalid_utf8`:
 
   A subclass of `zuproto_parse_error`: a `string` field is not valid
@@ -95,7 +85,10 @@ Every class below inherits from `zuproto_error`.
   or the memory decoding it needs, is too large for `max_size`),
   `zuproto_depth_limit` (messages nest deeper than `max_depth`) and
   `zuproto_row_limit` (more rows than `max_rows`) name which. Carries
-  `limit`, the argument's name, and `limit_value`.
+  `limit`, the argument's name, and `limit_value`, its value. A decode
+  that needs more memory than any message of its type and size could has
+  `limit` `"memory"` and `limit_value` `NA`: no argument raises that
+  ceiling.
   [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
   raises `zuproto_depth_limit` for messages nested deeper than 1000
   levels, the most `max_depth` lets
@@ -106,6 +99,14 @@ Every class below inherits from `zuproto_error`.
 
   Memory ran out, or upb reported a status zuproto does not expect.
   Carries `code`.
+
+An error about one message of
+[`proto_decode_df()`](https://pedrobtz.github.io/zuproto/reference/proto_decode_df.md),
+[`proto_read_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
+or
+[`proto_write_delimited()`](https://pedrobtz.github.io/zuproto/reference/proto_read_delimited.md)
+also carries `index`, the message's position in the batch or stream. It
+is a double, since a stream can hold more than 2^31 - 1 messages.
 
 Warnings inherit `zuproto_warning`:
 

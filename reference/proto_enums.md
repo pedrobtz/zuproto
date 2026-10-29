@@ -26,7 +26,8 @@ proto_enums(pool, type)
 
 A data frame with one row per value, in definition order, and columns
 `name` and `number`. An alias (`allow_alias`) is a row of its own with
-the number it shares.
+the number it shares. R has no integer for -2^31, so that number is
+`NA`, with a `zuproto_precision_loss` warning.
 
 ## Examples
 

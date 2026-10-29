@@ -70,7 +70,8 @@ field takes as a factor, with their numbers.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame with one row per value, in definition order, and
 columns <code>name</code> and <code>number</code>. An alias (<code>allow_alias</code>) is a row of its
-own with the number it shares.</p>
+own with the number it shares. R has no integer for -2^31, so that
+number is <code>NA</code>, with a <code>zuproto_precision_loss</code> warning.</p>
     </div>
 
     <div class="section level2">
