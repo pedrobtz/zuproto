@@ -411,6 +411,22 @@ test_that("inputs that expand a lot decode within the schema's ceiling", {
   expect_length(proto_decode(points, "zpb.decode.Repeated", pool)$points, 1e5)
 })
 
+test_that("the memory ceiling is a size limit no argument raises", {
+  # #94: it is not max_size, so the condition does not say it is.
+  err <- expect_error(
+    zuproto:::decode_error(
+      list(error = "arena_limit"),
+      "pkg.M",
+      1e6,
+      100,
+      NULL
+    ),
+    class = "zuproto_size_limit"
+  )
+  expect_identical(err$limit, "memory")
+  expect_identical(err$limit_value, NA_real_)
+})
+
 test_that("adding a file raises the ceiling of the types it extends", {
   # #82: the ceiling is cached per type; a new extension can make a larger
   # type reachable, so adding a file must clear the cache.

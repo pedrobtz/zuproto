@@ -249,8 +249,9 @@ decode_error <- function(res, type, max_size, max_depth, call) {
         "Cannot decode the input as '%s': it needs more memory than a message of that type and size can legitimately need.",
         type
       ),
-      limit = "max_size",
-      limit_value = max_size,
+      # No argument sets this ceiling, so a larger `max_size` would not help.
+      limit = "memory",
+      limit_value = NA_real_,
       call = call
     ),
     nul_in_string = ,

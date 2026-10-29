@@ -57,7 +57,10 @@ message (an \code{Any} whose packed type is not in the pool). Carries
 is too large for \code{max_size}), \code{zuproto_depth_limit} (messages nest
 deeper than \code{max_depth}) and \code{zuproto_row_limit} (more rows than
 \code{max_rows}) name which. Carries \code{limit}, the
-argument's name, and \code{limit_value}. \code{\link[=proto_encode]{proto_encode()}} raises
+argument's name, and \code{limit_value}, its value. A decode that needs
+more memory than any message of its type and size could has \code{limit}
+\code{"memory"} and \code{limit_value} \code{NA}: no argument raises that ceiling.
+\code{\link[=proto_encode]{proto_encode()}} raises
 \code{zuproto_depth_limit} for messages nested deeper than 1000 levels,
 the most \code{max_depth} lets \code{\link[=proto_decode]{proto_decode()}} accept.}
 \item{\code{zuproto_internal_error}}{Memory ran out, or upb reported a

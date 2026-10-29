@@ -55,7 +55,10 @@
 #'     is too large for `max_size`), `zuproto_depth_limit` (messages nest
 #'     deeper than `max_depth`) and `zuproto_row_limit` (more rows than
 #'     `max_rows`) name which. Carries `limit`, the
-#'     argument's name, and `limit_value`. [proto_encode()] raises
+#'     argument's name, and `limit_value`, its value. A decode that needs
+#'     more memory than any message of its type and size could has `limit`
+#'     `"memory"` and `limit_value` `NA`: no argument raises that ceiling.
+#'     [proto_encode()] raises
 #'     `zuproto_depth_limit` for messages nested deeper than 1000 levels,
 #'     the most `max_depth` lets [proto_decode()] accept.}
 #'   \item{`zuproto_internal_error`}{Memory ran out, or upb reported a
