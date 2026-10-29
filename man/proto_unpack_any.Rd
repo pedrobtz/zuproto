@@ -20,8 +20,8 @@ it: a list of \code{type_url} and \code{value} (the packed bytes). For
 
 \item{type}{The message type's full name.}
 
-\item{prefix}{The \code{type_url} before the type name. Protobuf's JSON
-mapping and most runtimes expect the default.}
+\item{prefix}{The \code{type_url} before the type name, ending in \code{/}.
+Protobuf's JSON mapping and most runtimes expect the default.}
 }
 \value{
 \code{proto_unpack_any()}: the packed message, as \code{\link[=proto_decode]{proto_decode()}}

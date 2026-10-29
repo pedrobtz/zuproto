@@ -16,7 +16,8 @@ proto_enums(pool, type)
 \value{
 A data frame with one row per value, in definition order, and
 columns \code{name} and \code{number}. An alias (\code{allow_alias}) is a row of its
-own with the number it shares.
+own with the number it shares. R has no integer for -2^31, so that
+number is \code{NA}, with a \code{zuproto_precision_loss} warning.
 }
 \description{
 Lists the values of one enum type in a pool: the levels a decoded enum
