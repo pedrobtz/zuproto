@@ -79,6 +79,10 @@ types take their special JSON forms (\code{Timestamp} as an RFC 3339 string,
 \details{
 \code{Any} messages convert only when the type they pack is in the pool.
 
+The entries of a map field, and so the keys of a \code{Struct}, are written
+in no fixed order: it can differ between R sessions. Compare JSON as
+parsed values, not as text.
+
 JSON meets R values through
 \href{https://CRAN.R-project.org/package=zujson}{zujson}, which must be
 installed for it: \code{proto_to_json(parse = TRUE)} returns

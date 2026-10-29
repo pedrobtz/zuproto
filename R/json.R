@@ -11,6 +11,10 @@
 #'
 #' `Any` messages convert only when the type they pack is in the pool.
 #'
+#' The entries of a map field, and so the keys of a `Struct`, are written
+#' in no fixed order: it can differ between R sessions. Compare JSON as
+#' parsed values, not as text.
+#'
 #' JSON meets R values through
 #' [zujson](https://CRAN.R-project.org/package=zujson), which must be
 #' installed for it: `proto_to_json(parse = TRUE)` returns
