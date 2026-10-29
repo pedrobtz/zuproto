@@ -143,15 +143,31 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
 # open() and readBin() on a connection, failing as zuproto_io_error.
 open_connection <- function(con, call) {
   # open() warns with the reason ("No such file or directory") before it
-  # fails with a generic error; the reason goes in the error.
-  fail <- function(e) {
+  # fails with a generic error; the reason goes in the error. A warning
+  # from an open() that succeeds is passed on (#96).
+  warnings <- list()
+  res <- tryCatch(
+    withCallingHandlers(
+      open(con, "rb"),
+      warning = function(w) {
+        warnings[[length(warnings) + 1L]] <<- w
+        invokeRestart("muffleWarning")
+      }
+    ),
+    error = function(e) e
+  )
+  if (inherits(res, "error")) {
+    reason <- if (length(warnings) > 0L) warnings[[1L]] else res
     zpb_abort(
       "zuproto_io_error",
-      sprintf("Cannot open connection: %s", conditionMessage(e)),
+      sprintf("Cannot open connection: %s", conditionMessage(reason)),
       call = call
     )
   }
-  tryCatch(open(con, "rb"), warning = fail, error = fail)
+  for (w in warnings) {
+    warning(w)
+  }
+  invisible(con)
 }
 
 read_chunk <- function(con, n, call) {
