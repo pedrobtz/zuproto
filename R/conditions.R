@@ -25,10 +25,6 @@
 #'   \item{`zuproto_parse_error`}{The input is not a valid message of the
 #'     type: it ends early, has a bad tag, a length beyond the input, or the
 #'     wrong wire type. Carries `status`.}
-#'   \item{In a batch or stream}{An error about one message of
-#'     [proto_decode_df()], [proto_read_delimited()] or
-#'     [proto_write_delimited()] also carries `index`, the message's
-#'     position, as a double (a stream can hold more than 2^31 - 1).}
 #'   \item{`zuproto_invalid_utf8`}{A subclass of `zuproto_parse_error`: a
 #'     `string` field is not valid UTF-8, in proto2 as in proto3.}
 #'   \item{`zuproto_unrepresentable`}{The input is valid but holds a value
@@ -64,6 +60,11 @@
 #'   \item{`zuproto_internal_error`}{Memory ran out, or upb reported a
 #'     status zuproto does not expect. Carries `code`.}
 #' }
+#'
+#' An error about one message of [proto_decode_df()],
+#' [proto_read_delimited()] or [proto_write_delimited()] also carries
+#' `index`, the message's position in the batch or stream. It is a double,
+#' since a stream can hold more than 2^31 - 1 messages.
 #'
 #' Warnings inherit `zuproto_warning`:
 #'
