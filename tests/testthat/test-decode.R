@@ -684,6 +684,13 @@ test_that("a wire NaN with R's NA payload decodes as NaN, not NA, and re-encodes
     defaults = FALSE
   )
   expect_true(is.nan(single$f_double))
+  # #90: and as a google.protobuf.Value's number_value (field 2), which
+  # must not re-encode as null.
+  value <- proto_decode(c(as.raw(0x11), na_bits), "google.protobuf.Value", pool)
+  expect_true(is.nan(value))
+  again <- proto_encode(value, "google.protobuf.Value", pool)
+  expect_identical(again[1], as.raw(0x11))
+  expect_true(is.nan(proto_decode(again, "google.protobuf.Value", pool)))
 })
 
 test_that("Timestamp and Duration seconds beyond 2^53 warn of precision loss", {
