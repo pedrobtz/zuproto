@@ -392,4 +392,37 @@ test_that("proto_pack_any() checks its arguments as proto_encode() does", {
     proto_pack_any(list(), "zpb.decode.Point", pool, prefix = "x.io/")$type_url,
     "x.io/zpb.decode.Point"
   )
+  # #85: a type_url needs a / before the type name, or no reader takes it.
+  for (prefix in c("", "x.io")) {
+    err <- expect_error(
+      proto_pack_any(list(), "zpb.decode.Point", pool, prefix = prefix),
+      class = "zuproto_invalid_argument"
+    )
+    expect_identical(err$arg, "prefix")
+  }
+})
+
+test_that("an Any's type_url must have a / before the type name", {
+  pool <- decode_pool()
+  err <- expect_error(
+    proto_unpack_any(list(type_url = "zpb.decode.Point", value = raw()), pool),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "x")
+})
+
+test_that("pack and unpack refuse arguments their codec does not take", {
+  # #87: an unknown or unnamed argument in ... is a classed error.
+  pool <- decode_pool()
+  any <- proto_pack_any(list(x = 1L), "zpb.decode.Point", pool)
+  calls <- list(
+    function() proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1),
+    function() proto_pack_any(list(), "zpb.decode.Point", pool, "x.io/", TRUE),
+    function() proto_unpack_any(any, pool, foo = 1),
+    function() proto_unpack_any(any, pool, "factor")
+  )
+  for (f in calls) {
+    err <- expect_error(f(), class = "zuproto_invalid_argument")
+    expect_identical(err$arg, "...")
+  }
 })

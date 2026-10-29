@@ -244,6 +244,7 @@ proto_unpack_any <- function(x, pool, ...) {
       call
     )
   }
+  check_dots(...names(), ...length(), proto_decode, call)
   ok <- is.list(x) &&
     is.character(x$type_url) &&
     length(x$type_url) == 1L &&
@@ -257,10 +258,13 @@ proto_unpack_any <- function(x, pool, ...) {
     )
   }
   type <- sub(".*/", "", x$type_url)
-  if (!nzchar(type)) {
+  if (!grepl("/", x$type_url, fixed = TRUE) || !nzchar(type)) {
     zpb_invalid_argument(
       "x",
-      sprintf("`x$type_url` ('%s') names no type.", x$type_url),
+      sprintf(
+        "`x$type_url` ('%s') must name a type after its last /.",
+        x$type_url
+      ),
       call
     )
   }
@@ -269,8 +273,8 @@ proto_unpack_any <- function(x, pool, ...) {
 
 #' @rdname proto_unpack_any
 #' @param type The message type's full name.
-#' @param prefix The `type_url` before the type name. Protobuf's JSON
-#'   mapping and most runtimes expect the default.
+#' @param prefix The `type_url` before the type name, ending in `/`.
+#'   Protobuf's JSON mapping and most runtimes expect the default.
 #' @export
 proto_pack_any <- function(
   x,
@@ -280,9 +284,18 @@ proto_pack_any <- function(
   ...
 ) {
   call <- sys.call()
-  if (!(is.character(prefix) && length(prefix) == 1L && !is.na(prefix))) {
-    zpb_invalid_argument("prefix", "`prefix` must be a single string.", call)
+  ok <- is.character(prefix) &&
+    length(prefix) == 1L &&
+    !is.na(prefix) &&
+    endsWith(prefix, "/")
+  if (!ok) {
+    zpb_invalid_argument(
+      "prefix",
+      "`prefix` must be a single string ending in /.",
+      call
+    )
   }
+  check_dots(...names(), ...length(), proto_encode, call)
   value <- proto_encode(x, type, pool, ...)
   list(type_url = paste0(prefix, type), value = value)
 }

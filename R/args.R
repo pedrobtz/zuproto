@@ -61,3 +61,31 @@ check_limit <- function(x, arg, lo, hi, call = NULL) {
   }
   invisible(x)
 }
+
+# The `n` arguments in `...`, named `dots`, that are passed on to `fun`: each named, and named as
+# one of its options, so a typo is a zuproto error rather than R's.
+check_dots <- function(dots, n, fun, call = NULL) {
+  options <- setdiff(names(formals(fun)), c("x", "type", "pool", "..."))
+  # ...names() is NULL when no argument is named, and gives an unnamed one
+  # as "" (NA before R 4.1.3).
+  dots <- if (is.null(dots)) rep("", n) else dots
+  dots[is.na(dots)] <- ""
+  bad <- dots[!dots %in% options]
+  if (length(bad) > 0L) {
+    zpb_invalid_argument(
+      "...",
+      sprintf(
+        "`...` takes only %s's options (%s); not %s.",
+        deparse(substitute(fun)),
+        paste0("`", options, "`", collapse = ", "),
+        if (!nzchar(bad[[1]])) {
+          "an unnamed argument"
+        } else {
+          paste0("`", bad[[1]], "`")
+        }
+      ),
+      call
+    )
+  }
+  invisible(dots)
+}
