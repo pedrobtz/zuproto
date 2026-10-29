@@ -48,7 +48,10 @@ test_that("encoding errors read well", {
   for (i in 1:1001) {
     deep <- list(child = deep)
   }
+  bad <- "\xff\xfe"
+  Encoding(bad) <- "UTF-8"
   expect_snapshot(error = TRUE, {
+    proto_encode(list(f_enum = factor(bad)), "zpb.decode.Scalars", pool)
     proto_encode(list(f_int32 = 1.5), "zpb.decode.Scalars", pool)
     proto_encode(
       list(points = list(list(x = "a"))),
@@ -67,6 +70,9 @@ test_that("JSON errors read well", {
   pool <- decode_pool()
   expect_snapshot(error = TRUE, {
     proto_from_json('{"f_int32": "x"}', "zpb.decode.Scalars", pool)
+    proto_pack_any(list(), "zpb.decode.Point", pool, prefix = "x.io")
+    proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1)
+    proto_unpack_any(list(type_url = "x", value = raw()), pool)
   })
 })
 

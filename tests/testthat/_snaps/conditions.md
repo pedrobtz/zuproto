@@ -63,6 +63,11 @@
 # encoding errors read well
 
     Code
+      proto_encode(list(f_enum = factor(bad)), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_encode()`:
+      ! Cannot encode as 'zpb.decode.Scalars': Field `f_enum` must be valid UTF-8.
+    Code
       proto_encode(list(f_int32 = 1.5), "zpb.decode.Scalars", pool)
     Condition
       Error in `proto_encode()`:
@@ -105,6 +110,21 @@
     Condition
       Error in `proto_from_json()`:
       ! Cannot convert 'zpb.decode.Scalars' to or from JSON: Error parsing JSON @1:15: Non-number characters in quoted integer.
+    Code
+      proto_pack_any(list(), "zpb.decode.Point", pool, prefix = "x.io")
+    Condition
+      Error in `proto_pack_any()`:
+      ! `prefix` must be a single string ending in /.
+    Code
+      proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1)
+    Condition
+      Error in `proto_pack_any()`:
+      ! `...` takes only proto_encode's options (`deterministic`, `unknown`, `check_required`, `extra`); not `foo`.
+    Code
+      proto_unpack_any(list(type_url = "x", value = raw()), pool)
+    Condition
+      Error in `proto_unpack_any()`:
+      ! `x$type_url` ('x') must name a type after its last /.
 
 # warnings read well
 

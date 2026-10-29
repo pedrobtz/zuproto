@@ -471,14 +471,20 @@ test_that("strings that are not valid UTF-8 text are type mismatches", {
       "meta"
     ),
     list(list(value = bad), "zpb.decode.WellKnown", "value"),
-    list(stats::setNames(list("x"), bad), "zpb.decode.Scalars", "")
+    list(stats::setNames(list("x"), bad), "zpb.decode.Scalars", ""),
+    # #89: an enum given as a factor, and a field name marked as bytes.
+    list(list(f_enum = factor(bad)), "zpb.decode.Scalars", "f_enum"),
+    list(stats::setNames(list("x"), bytes), "zpb.decode.Scalars", "")
   )
-  for (case in cases) {
+  for (i in seq_along(cases)) {
+    case <- cases[[i]]
+    label <- sprintf("case %d, %s", i, case[[2]])
     err <- expect_error(
       proto_encode(case[[1]], case[[2]], pool),
-      class = "zuproto_type_mismatch"
+      class = "zuproto_type_mismatch",
+      label = label
     )
-    expect_identical(err$path, case[[3]])
+    expect_identical(err$path, case[[3]], label = label)
   }
   latin1 <- "caf\xe9"
   Encoding(latin1) <- "latin1"
