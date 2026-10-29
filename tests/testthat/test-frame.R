@@ -271,6 +271,24 @@ test_that("a message that fails names its index in the whole stream", {
   }
 })
 
+test_that("max_rows bounds a stream, or each chunk of it with each", {
+  # #92: R/frame.R documents that with `each`, max_rows bounds a chunk.
+  pool <- decode_pool()
+  raw <- msg_fixture("nested_3")
+  stream <- rep(c(varint(length(raw)), raw), 5)
+  read <- function(...) {
+    proto_read_delimited(stream, "zpb.decode.Nested", pool, max_rows = 2, ...)
+  }
+  expect_error(read(), class = "zuproto_row_limit")
+  rows <- 0L
+  read(each = function(df) rows <<- rows + nrow(df), chunk_rows = 2)
+  expect_identical(rows, 5L)
+  expect_error(
+    read(each = function(df) NULL, chunk_rows = 3),
+    class = "zuproto_row_limit"
+  )
+})
+
 test_that("a stream ending inside a varint or a message is a parse error", {
   pool <- decode_pool()
   raw <- msg_fixture("nested_3")
