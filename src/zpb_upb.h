@@ -772,6 +772,8 @@ static inline bool zpb_json_decode(const char *buf, size_t len, zpb_msg *msg,
  * reaches the ceiling, and hostile input cannot go past a factor the schema
  * fixes. */
 
+/* upb's internal field: a re-vendor may rename it, and the shim then fails
+ * to compile rather than misbehave. */
 static inline size_t zpb_msgdef_struct_size(const zpb_msgdef *m)
 {
     return upb_MessageDef_MiniTable(m)->size_dont_copy_me__upb_internal_use_only;
@@ -907,8 +909,10 @@ static inline double zpb_arena_ceiling(const zpb_defpool *p, zpb_ceilings *c,
                                        const zpb_msgdef *m, double bytes, double n)
 {
     double s_max = (double) zpb_ceilings_max_struct(c, p, m);
-    double per_byte = s_max + 64 > 64 ? s_max + 64 : 64;
-    return bytes * per_byte + n * ((double) zpb_msgdef_struct_size(m) + 256) + 1048576.0;
+    /* 0 is out of memory walking the schema: no ceiling, so the decode
+     * reports running out of memory itself rather than a size limit. */
+    if (s_max == 0) return 1e18;
+    return bytes * (s_max + 64) + n * ((double) zpb_msgdef_struct_size(m) + 256) + 1048576.0;
 }
 
 /* Every set field of msg, extensions included, one per call; *iter starts at
@@ -943,7 +947,7 @@ static inline int zpb_check_any(const zpb_defpool *p, zpb_ceilings *c, const zpb
             p, slash + 1, (size_t) (url.data + url.size - (slash + 1)));
         if (packed == NULL) return ZPB_DECODE_OK; /* likewise, before its arena */
         double grow = zpb_arena_ceiling(p, c, packed, (double) val.size, 1);
-        ca->limit = (double) ca->limit + grow > (double) SIZE_MAX ? SIZE_MAX
+        ca->limit = (double) ca->limit + grow >= (double) SIZE_MAX ? SIZE_MAX
                                                                   : ca->limit + (size_t) grow;
         int status;
         const zpb_msg *inner =

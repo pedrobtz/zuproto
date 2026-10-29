@@ -495,6 +495,20 @@ test_that("strings that are not valid UTF-8 text are type mismatches", {
   )
 })
 
+test_that("integer64 seconds encode as a Timestamp or Duration", {
+  # #99: bit64's class is let through where other classed numbers are not.
+  skip_if_not_installed("bit64")
+  pool <- proto_pool()
+  s <- bit64::as.integer64(5)
+  for (type in c("google.protobuf.Timestamp", "google.protobuf.Duration")) {
+    expect_identical(
+      proto_encode(s, type, pool),
+      as.raw(c(0x08, 0x05)),
+      label = type
+    )
+  }
+})
+
 test_that("dates and times go only where a Timestamp or Duration is", {
   # #30: a Date was taken as seconds since the epoch.
   pool <- proto_pool()

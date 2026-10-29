@@ -164,7 +164,3 @@ encode_error <- function(res, type, call) {
     abort_internal(res$error, sprintf("encode as '%s'", type), call)
   )
 }
-
-# The deepest nesting proto_encode() writes, ZPB_ENCODE_MAX_DEPTH in C: the
-# most `max_depth` lets proto_decode() accept.
-zpb_encode_max_depth <- 1000L

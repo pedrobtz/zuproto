@@ -85,6 +85,9 @@
 #' )
 NULL
 
+# Two kinds of error builder: a `*_error()` function maps an error code the
+# C side returned to its condition, and an `abort_*()` function raises one
+# fixed condition.
 zpb_abort <- function(class, message, ..., call = NULL) {
   stop(structure(
     class = c(class, "zuproto_error", "error", "condition"),

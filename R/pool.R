@@ -160,7 +160,7 @@ open_connection <- function(con, call) {
     reason <- if (length(warnings) > 0L) warnings[[1L]] else res
     zpb_abort(
       "zuproto_io_error",
-      sprintf("Cannot open connection: %s", conditionMessage(reason)),
+      sprintf("Cannot open connection: %s.", conditionMessage(reason)),
       call = call
     )
   }
@@ -174,7 +174,7 @@ read_chunk <- function(con, n, call) {
   tryCatch(readBin(con, "raw", n), error = function(e) {
     zpb_abort(
       "zuproto_io_error",
-      sprintf("Cannot read connection: %s", conditionMessage(e)),
+      sprintf("Cannot read connection: %s.", conditionMessage(e)),
       call = call
     )
   })
@@ -305,7 +305,8 @@ pool_add_set <- function(pool, bytes, call = NULL) {
   invisible(pool)
 }
 
-# A path that is a readable file, or a zuproto_io_error saying why not.
+# A path that exists and is not a directory, or a zuproto_io_error saying
+# which.
 check_file <- function(path, call) {
   why <- if (dir.exists(path)) {
     "it is a directory"

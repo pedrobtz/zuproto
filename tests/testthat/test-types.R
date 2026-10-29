@@ -163,6 +163,20 @@ test_that("proto_enums() warns when an enum number is -2^31", {
   expect_identical(e$number, c(0L, NA))
 })
 
+test_that("the listing functions refuse a pool whose pointer is gone", {
+  # #99: as the codecs do (test-entry-points.R).
+  stale <- unserialize(serialize(proto_pool(), NULL))
+  calls <- list(
+    function() proto_types(stale),
+    function() proto_fields(stale, "google.protobuf.Empty"),
+    function() proto_enums(stale, "google.protobuf.NullValue")
+  )
+  for (f in calls) {
+    err <- expect_error(f(), class = "zuproto_invalid_argument")
+    expect_identical(err$arg, "pool")
+  }
+})
+
 test_that("proto_enums() refuses a name that is not an enum in the pool", {
   pool <- fixture_pool("schema")
   err <- expect_error(

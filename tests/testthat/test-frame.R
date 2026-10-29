@@ -389,6 +389,57 @@ test_that("a decoded frame with nested oneofs writes back as it was read", {
   )
 })
 
+test_that("an extension holding a oneof writes back as it was read", {
+  # #99: proto_fields() names an extension "[name]" already, and
+  # frame_type() bracketed it again, so its <oneof>_case was taken for a
+  # field.
+  field <- function(name, number, type, label = "LABEL_OPTIONAL", ...) {
+    list(name = name, number = number, label = label, type = type, ...)
+  }
+  host <- list(
+    name = "Host",
+    field = list(field("id", 1L, "TYPE_INT32")),
+    extension_range = list(list(start = 100L, end = 200L))
+  )
+  payload <- list(
+    name = "Payload",
+    field = list(
+      field("a", 1L, "TYPE_INT32", oneof_index = 0L),
+      field("b", 2L, "TYPE_STRING", oneof_index = 0L)
+    ),
+    oneof_decl = list(list(name = "kind"))
+  )
+  file <- list(
+    name = "ext.proto",
+    package = "ext",
+    syntax = "proto2",
+    message_type = list(host, payload),
+    extension = list(field(
+      "payload",
+      100L,
+      "TYPE_MESSAGE",
+      type_name = ".ext.Payload",
+      extendee = ".ext.Host"
+    ))
+  )
+  pool <- proto_pool(proto_encode(
+    list(file = list(file)),
+    "google.protobuf.FileDescriptorSet",
+    proto_pool()
+  ))
+  raw <- proto_encode(
+    list(id = 1L, "[ext.payload]" = list(a = 7L)),
+    "ext.Host",
+    pool
+  )
+  df <- proto_decode_df(list(raw), "ext.Host", pool)
+  expect_identical(df[["[ext.payload]"]]$kind_case, "a")
+  expect_identical(
+    proto_write_delimited(df, "ext.Host", pool),
+    c(varint(length(raw)), raw)
+  )
+})
+
 test_that("the readers and writers refuse unusable arguments", {
   # #42: argument paths no other test takes.
   pool <- decode_pool()

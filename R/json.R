@@ -113,7 +113,7 @@ json_options <- function(
   check_flag(proto_names, "proto_names", call)
   enums <- zpb_match_arg(enums, zpb_choices$json_enums, "enums", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
-  check_limit(max_depth, "max_depth", 1, 1000, call)
+  check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)
   list(
     max_depth = as.integer(max_depth),
     json_options = as.integer(emit_defaults) +

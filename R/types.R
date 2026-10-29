@@ -45,15 +45,16 @@ proto_types <- function(pool) {
 #' @rdname proto_types
 #' @export
 proto_fields <- function(pool, type) {
-  check_pool(pool, call = sys.call())
-  check_type(type, call = sys.call())
+  call <- sys.call()
+  check_pool(pool, call = call)
+  check_type(type, call = call)
   cols <- .Call(zpb_pool_fields, pool$ptr, type)
   if (is.null(cols)) {
     zpb_abort(
       "zuproto_unknown_type",
       sprintf("Message type '%s' is not in the pool.", type),
       type = type,
-      call = sys.call()
+      call = call
     )
   }
   as.data.frame(cols)
