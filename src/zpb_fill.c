@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -78,25 +79,45 @@ static int fail(fill_ctx *ctx, int err, const char *detail)
 
 /* ---- R values ---- */
 
+/* Converts all of `in` with iconv, from `from` to `to`, into `out`, which
+ * has room for `out_size` bytes. Returns the bytes written, or -1 when a
+ * byte cannot be converted or the output does not fit. */
+static ptrdiff_t iconv_all(const char *to, const char *from, const char *in,
+                           size_t in_left, char *out, size_t out_size)
+{
+    void *cd = Riconv_open(to, from);
+    if (cd == (void *) -1) return -1;
+    char *o = out;
+    size_t out_left = out_size;
+    size_t r = Riconv(cd, &in, &in_left, &o, &out_left);
+    Riconv_close(cd);
+    if (r == (size_t) -1 || in_left != 0) return -1;
+    return o - out;
+}
+
 /* A native string in a locale that is not UTF-8, converted with iconv
  * into memory that lives until the .Call returns. R's own translation
- * would write bytes the locale cannot read as <xx> escapes (#106). */
+ * would write bytes the locale cannot read as <xx> escapes (#106).
+ *
+ * The UTF-8 is converted back and must give the original bytes. Windows'
+ * converter for the C locale (code page 20127) does not fail on a byte
+ * above 0x7f: it clears the high bit, so 0xff would arrive as 0x7f. The
+ * round trip catches that, and any other lossy best-fit mapping. */
 static int native_utf8(SEXP c, const char **s)
 {
-    size_t in_left = (size_t) LENGTH(c);
-    if (in_left > (SIZE_MAX - 1) / 4) return ZPB_TEXT_NATIVE;
+    size_t len = (size_t) LENGTH(c);
+    if (len > (SIZE_MAX - 1) / 4) return ZPB_TEXT_NATIVE;
     /* A character of the native encoding takes at most four UTF-8 bytes
      * and at least one byte of its own. */
-    size_t out_left = 4 * in_left;
-    char *buf = R_alloc(out_left + 1, 1);
-    void *cd = Riconv_open("UTF-8", "");
-    if (cd == (void *) -1) return ZPB_TEXT_NATIVE;
-    const char *in = CHAR(c);
-    char *out = buf;
-    size_t r = Riconv(cd, &in, &in_left, &out, &out_left);
-    Riconv_close(cd);
-    if (r == (size_t) -1 || in_left != 0) return ZPB_TEXT_NATIVE;
-    *out = '\0';
+    char *buf = R_alloc(4 * len + 1, 1);
+    ptrdiff_t n = iconv_all("UTF-8", "", CHAR(c), len, buf, 4 * len);
+    if (n < 0) return ZPB_TEXT_NATIVE;
+    buf[n] = '\0';
+    /* One byte more than the original, so a longer result shows as a
+     * mismatch rather than fitting exactly. */
+    char *back = R_alloc(len + 1, 1);
+    ptrdiff_t m = iconv_all("", "UTF-8", buf, (size_t) n, back, len + 1);
+    if (m != (ptrdiff_t) len || memcmp(back, CHAR(c), len) != 0) return ZPB_TEXT_NATIVE;
     *s = buf;
     return 0;
 }
