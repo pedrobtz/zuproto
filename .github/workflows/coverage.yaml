@@ -1,7 +1,11 @@
 on:
   push:
     branches: [main, master]
+    # A change to CRAN-SUBMISSION alone is a release record: nothing to rebuild.
+    paths-ignore: [CRAN-SUBMISSION]
   pull_request:
+    # A change to CRAN-SUBMISSION alone is a release record: nothing to rebuild.
+    paths-ignore: [CRAN-SUBMISSION]
 
 name: coverage
 
