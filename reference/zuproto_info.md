@@ -28,8 +28,8 @@ A list of class `zuproto_info` with elements:
 ``` r
 zuproto_info()
 #> <zuproto_info>
-#> zuproto:  0.1.0
-#> upb:      protobuf v36.2 (2c74169)
-#> max_size: 67108864 bytes
+#> zuproto:   0.1.0
+#> upb:       protobuf v36.2 (2c74169)
+#> max_size:  67108864 bytes
 #> max_depth: 100
 ```

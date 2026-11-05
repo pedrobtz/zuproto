@@ -64,8 +64,8 @@ whole call, and the condition's <code>index</code> says which one.</p>
 <span>  enums <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"factor"</span>, <span class="st">"integer"</span>, <span class="st">"character"</span><span class="op">)</span>,</span>
 <span>  defaults <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  bytes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"raw"</span>, <span class="st">"base64"</span><span class="op">)</span>,</span>
-<span>  max_size <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_size</span>,</span>
-<span>  max_depth <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_depth</span>,</span>
+<span>  max_size <span class="op">=</span> <span class="fl">64</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">^</span><span class="fl">2</span>,</span>
+<span>  max_depth <span class="op">=</span> <span class="fl">100L</span>,</span>
 <span>  max_rows <span class="op">=</span> <span class="fl">1e+07</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -145,21 +145,22 @@ exhaust the C stack.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>With <code>field</code>, the input is one message instead, and the rows are the
-elements of its repeated message field <code>field</code>. That is how feeds that
-wrap their records in one message become tables, a GTFS Realtime
-<code>FeedMessage</code> and its <code>entity</code> field for one.</p>
+elements of its repeated message field <code>field</code>. That is how a feed that
+wraps its records in one message becomes a table. A GTFS Realtime
+<code>FeedMessage</code> is one, with its records in the <code>entity</code> field.</p>
     </div>
     <div class="section level2">
     <h2 id="columns">Columns<a class="anchor" aria-label="anchor" href="#columns"></a></h2>
 
 <table class="table table"><tr><td>Field</td><td>Column</td></tr><tr><td>scalar, enum, scalar-like well-known type</td><td>atomic vector, as in <code><a href="proto_decode.html">proto_decode()</a></code></td></tr><tr><td><code>bytes</code></td><td>list of raw vectors</td></tr><tr><td>message</td><td>data frame (a column of the frame)</td></tr><tr><td><code>repeated</code> scalar</td><td>list of vectors</td></tr><tr><td><code>repeated</code> message</td><td>list of data frames</td></tr><tr><td><code>map</code></td><td>list of named vectors or lists</td></tr><tr><td><code>Struct</code>, <code>Value</code>, <code>ListValue</code>, <code>Any</code></td><td>list, as in <code><a href="proto_decode.html">proto_decode()</a></code></td></tr><tr><td><code>oneof</code></td><td>a column per member, plus <code>&lt;oneof&gt;_case</code> with the member set</td></tr><tr><td>extension</td><td>a column named <code>[pkg.ext]</code> per extension the pool knows</td></tr></table><p>A field a row does not set is <code>NA</code> (<code>NULL</code> in a list column) when the
-field tracks presence; otherwise it takes its default, or is <code>NA</code> with
-<code>defaults = FALSE</code>. A message field that no row sets is an all-<code>NA</code>
-logical column rather than a data frame, which is also where the columns
-of a recursive type end. A message type with no fields, such as <code>Empty</code>,
-is a list column: <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> where set, <code>NULL</code> where not. A nested message
-that is set but has every field unset reads as unset, since its row is
-all <code>NA</code>.</p>
+field tracks presence. Otherwise it takes its default, or is <code>NA</code> with
+<code>defaults = FALSE</code>. The <code>&lt;oneof&gt;_case</code> column is named <code>&lt;oneof&gt;_case_</code>
+instead when a field has that name. A message field that no row sets is
+an all-<code>NA</code> logical column rather than a data frame, which is also where
+the columns of a recursive type end. A message type with no fields, such
+as <code>Empty</code>, is a list column: <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> where set, <code>NULL</code> where not. A
+nested message that is set but has every field unset reads as unset,
+since its row is all <code>NA</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

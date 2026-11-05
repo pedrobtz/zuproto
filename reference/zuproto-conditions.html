@@ -117,17 +117,17 @@ message (an <code>Any</code> whose packed type is not in the pool). Carries
 <code>detail</code>, upb's description.</p></dd>
 
 <dt><code>zuproto_limit_error</code></dt>
-<dd><p>A limit was reached. The subclasses
-<code>zuproto_size_limit</code> (the input, or the memory decoding it needs,
-is too large for <code>max_size</code>), <code>zuproto_depth_limit</code> (messages nest
-deeper than <code>max_depth</code>) and <code>zuproto_row_limit</code> (more rows than
-<code>max_rows</code>) name which. Carries <code>limit</code>, the
-argument's name, and <code>limit_value</code>, its value. A decode that needs
-more memory than any message of its type and size could has <code>limit</code>
-<code>"memory"</code> and <code>limit_value</code> <code>NA</code>: no argument raises that ceiling.
-<code><a href="proto_encode.html">proto_encode()</a></code> raises
-<code>zuproto_depth_limit</code> for messages nested deeper than 1000 levels,
-the most <code>max_depth</code> lets <code><a href="proto_decode.html">proto_decode()</a></code> accept.</p></dd>
+<dd><p>A limit was reached, and a subclass names
+which. <code>zuproto_size_limit</code>: the input, or the memory decoding it
+needs, is too large for <code>max_size</code>. <code>zuproto_depth_limit</code>: messages
+nest deeper than <code>max_depth</code>. <code>zuproto_row_limit</code>: there are more rows
+than <code>max_rows</code>. It carries <code>limit</code>, the argument's name, and
+<code>limit_value</code>, its value. A decode can need more memory than any
+message of its type and size could. Then <code>limit</code> is <code>"memory"</code> and
+<code>limit_value</code> is <code>NA</code>, since no argument raises that ceiling.
+<code><a href="proto_encode.html">proto_encode()</a></code> raises <code>zuproto_depth_limit</code> for messages nested
+deeper than 1000 levels, the most <code>max_depth</code> lets <code><a href="proto_decode.html">proto_decode()</a></code>
+accept.</p></dd>
 
 <dt><code>zuproto_internal_error</code></dt>
 <dd><p>Memory ran out, or upb reported a

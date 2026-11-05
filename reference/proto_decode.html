@@ -61,8 +61,8 @@ first; R values are built only from a message that decoded completely.</p>
 <span>  defaults <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  unknown <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"drop"</span>, <span class="st">"keep"</span><span class="op">)</span>,</span>
 <span>  bytes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"raw"</span>, <span class="st">"base64"</span><span class="op">)</span>,</span>
-<span>  max_size <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_size</span>,</span>
-<span>  max_depth <span class="op">=</span> <span class="va">zpb_limits</span><span class="op">$</span><span class="va">max_depth</span></span>
+<span>  max_size <span class="op">=</span> <span class="fl">64</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">^</span><span class="fl">2</span>,</span>
+<span>  max_depth <span class="op">=</span> <span class="fl">100L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -148,9 +148,9 @@ Repeated <code>Timestamp</code>, <code>Duration</code> and wrapper fields become
 <p>A field that tracks presence (a message, a oneof member, a proto2 or
 proto3 <code>optional</code> field) is left out when it is not set. A field that
 does not track presence cannot be told apart from its default on the
-wire; with <code>defaults = TRUE</code> it takes its default (<code>0</code>, <code>""</code>, <code>FALSE</code>,
+wire. With <code>defaults = TRUE</code> it takes its default (<code>0</code>, <code>""</code>, <code>FALSE</code>,
 the enum's first value, an empty vector), as other protobuf runtimes
-do; with <code>defaults = FALSE</code> it is left out when it holds its default.</p>
+do. With <code>defaults = FALSE</code> it is left out when it holds its default.</p>
 <p>Required fields are not checked: a proto2 <code>required</code> field missing
 from the input decodes like any unset field.</p>
     </div>

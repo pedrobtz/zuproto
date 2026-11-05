@@ -17,8 +17,8 @@ proto_to_json(
   proto_names = FALSE,
   enums = c("name", "integer"),
   parse = FALSE,
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth
+  max_size = 64 * 1024^2,
+  max_depth = 100L
 )
 
 proto_from_json(
@@ -27,7 +27,7 @@ proto_from_json(
   pool,
   ignore_unknown = FALSE,
   check_required = TRUE,
-  max_size = zpb_limits$max_size
+  max_size = 64 * 1024^2
 )
 ```
 
@@ -113,13 +113,13 @@ parsed values, not as text.
 
 JSON meets R values through
 [zujson](https://CRAN.R-project.org/package=zujson), which must be
-installed for it: `proto_to_json(parse = TRUE)` returns
+installed for it. `proto_to_json(parse = TRUE)` returns
 [`zujson::json_parse()`](https://pedrobtz.github.io/zujson/reference/json_parse.html)'s
-R value, and `proto_from_json()` takes an R value as well as JSON text,
-written with
+R value. `proto_from_json()` takes an R value as well as JSON text, and
+writes it with
 [`zujson::json_write()`](https://pedrobtz.github.io/zujson/reference/json_write.html).
-There, a length-1 vector is a JSON scalar: give a repeated field of one
-element as `I(x)` or `list(x)`.
+There, a length-1 vector is a JSON scalar, so give a repeated field of
+one element as `I(x)` or `list(x)`.
 
 ## Examples
 

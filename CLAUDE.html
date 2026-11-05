@@ -50,7 +50,7 @@
 </div>
 <div class="section level2">
 <h2 id="current-state">Current state<a class="anchor" aria-label="anchor" href="#current-state"></a></h2>
-<p>Scaffolded 2026-10-24 with <code>create-pkg.sh -c</code>; no functionality yet. The roadmap in <code>.agents/roadmap.md</code> takes it to v0.1.0. Stage 0 is a go/no-go: if the upb amalgamation cannot be made CRAN-clean with the design’s two patches, the design goes back to the maintainer before Stage 1.</p>
+<p>Scaffolded 2026-10-24 with <code>create-pkg.sh -c</code>. Every stage of the roadmap in <code>.agents/roadmap.md</code> is merged, and the version is set to 0.1.0. What remains before submission is the critical review’s issues (label <code>review</code>) and <code>pkg-cran-review</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="stage-tracking">Stage tracking<a class="anchor" aria-label="anchor" href="#stage-tracking"></a></h2>
@@ -118,7 +118,7 @@
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
 <p>The design fixes these before any code exists. Add each further one when a stage establishes it.</p>
 <ul><li>
-<strong>All upb calls go through <code>src/zpb_upb.h</code>.</strong> No other file includes the vendored header, and a test enforces it. Otherwise a re-vendor, against upb’s unstable API, means edits all over <code>src/</code>.</li>
+<strong>All upb calls go through <code>src/zpb_upb.h</code>.</strong> No other file includes the vendored header, and <code>tools/verify-vendor</code> enforces it. Otherwise a re-vendor, against upb’s unstable API, means edits all over <code>src/</code>.</li>
 <li>
 <strong>Never call R while upb is on the C stack.</strong> upb uses <code>setjmp</code>/<code>longjmp</code> for decoder errors; an R error unwinding through those frames skips its cleanup. Build R values only after <code>upb_Decode</code> returns <code>kUpb_DecodeStatus_Ok</code>, and never from a partly decoded message.</li>
 <li>
@@ -126,7 +126,7 @@
 <li>
 <strong>Descriptor sets are trusted, message bytes are not.</strong> Every limit (<code>max_size</code>, <code>max_depth</code>, <code>max_rows</code>, the arena byte ceiling) and UTF-8 validation applies to message bytes.</li>
 <li>
-<strong>Vendored patches are only the two in the design (§9.2).</strong> A patch that touches decoder logic is a reason to stop and report upstream.</li>
+<strong>Vendored patches are only those in the design (§9.2).</strong> Each one is listed there with its reason, and each upb bug it works around is reported upstream. A patch that touches decoder logic is a reason to stop and report upstream.</li>
 <li>
 <strong>A builder that fails returns <code>NULL</code> with its PROTECTs undone</strong>, never <code>Rf_error()</code>: the entry point must hand the error back to R to raise with its class. Only out-of-memory and broken internal invariants call <code>Rf_error()</code> directly.</li>
 <li>
@@ -149,7 +149,7 @@
 <li>
 <strong>Helpers live in <code>tests/testthat/helper-*.R</code>.</strong> <code>helper-fixtures.R</code> loads the committed fixtures (<code>fixture()</code>, <code>msg_fixture()</code>, <code>decode_pool()</code>, <code>varint()</code>); <code>helper-entry-points.R</code> has the table of entry points the shared argument tests walk. Fixtures come from <code>tools/make-test-descriptors</code> (protoc) and <code>tools/make-fixtures.py</code> (Python’s protobuf), with provenance and SHA-256 in <code>fixtures/DESCRIPTORS.tsv</code> and <code>fixtures/msg/MANIFEST.tsv</code>.</li>
 <li>
-<strong>Keep the suite inside the CRAN time budget.</strong> The design’s target is under 15 s; it ran in 9.3 s installed when last measured (2026-10-26).</li>
+<strong>Keep the suite inside the CRAN time budget.</strong> The design’s target is under 15 s; it ran in 10.6 s installed when last measured (2026-11-05).</li>
 </ul></div>
 <div class="section level2">
 <h2 id="definition-of-done">Definition of done<a class="anchor" aria-label="anchor" href="#definition-of-done"></a></h2>

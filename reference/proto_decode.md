@@ -16,8 +16,8 @@ proto_decode(
   defaults = TRUE,
   unknown = c("drop", "keep"),
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth
+  max_size = 64 * 1024^2,
+  max_depth = 100L
 )
 ```
 
@@ -121,9 +121,9 @@ character vector of paths; `Empty` an empty list. Repeated `Timestamp`,
 A field that tracks presence (a message, a oneof member, a proto2 or
 proto3 `optional` field) is left out when it is not set. A field that
 does not track presence cannot be told apart from its default on the
-wire; with `defaults = TRUE` it takes its default (`0`, `""`, `FALSE`,
-the enum's first value, an empty vector), as other protobuf runtimes do;
-with `defaults = FALSE` it is left out when it holds its default.
+wire. With `defaults = TRUE` it takes its default (`0`, `""`, `FALSE`,
+the enum's first value, an empty vector), as other protobuf runtimes do.
+With `defaults = FALSE` it is left out when it holds its default.
 
 Required fields are not checked: a proto2 `required` field missing from
 the input decodes like any unset field.

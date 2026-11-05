@@ -17,8 +17,8 @@ proto_decode_df(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e+07
 )
 ```
@@ -99,9 +99,9 @@ A data frame.
 ## Details
 
 With `field`, the input is one message instead, and the rows are the
-elements of its repeated message field `field`. That is how feeds that
-wrap their records in one message become tables, a GTFS Realtime
-`FeedMessage` and its `entity` field for one.
+elements of its repeated message field `field`. That is how a feed that
+wraps its records in one message becomes a table. A GTFS Realtime
+`FeedMessage` is one, with its records in the `entity` field.
 
 ## Columns
 
@@ -119,13 +119,15 @@ wrap their records in one message become tables, a GTFS Realtime
 | extension | a column named `[pkg.ext]` per extension the pool knows |
 
 A field a row does not set is `NA` (`NULL` in a list column) when the
-field tracks presence; otherwise it takes its default, or is `NA` with
-`defaults = FALSE`. A message field that no row sets is an all-`NA`
-logical column rather than a data frame, which is also where the columns
-of a recursive type end. A message type with no fields, such as `Empty`,
-is a list column: [`list()`](https://rdrr.io/r/base/list.html) where
-set, `NULL` where not. A nested message that is set but has every field
-unset reads as unset, since its row is all `NA`.
+field tracks presence. Otherwise it takes its default, or is `NA` with
+`defaults = FALSE`. The `<oneof>_case` column is named `<oneof>_case_`
+instead when a field has that name. A message field that no row sets is
+an all-`NA` logical column rather than a data frame, which is also where
+the columns of a recursive type end. A message type with no fields, such
+as `Empty`, is a list column:
+[`list()`](https://rdrr.io/r/base/list.html) where set, `NULL` where
+not. A nested message that is set but has every field unset reads as
+unset, since its row is all `NA`.
 
 ## See also
 

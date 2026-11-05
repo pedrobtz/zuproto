@@ -1,13 +1,8 @@
 # Length-delimited streams
 
-`proto_read_delimited()` reads a stream of messages, each preceded by
-its length as a varint, as Java's `writeDelimitedTo()`, Python's
-`_VarintBytes` helpers and many `.pb` log files write them, into a data
-frame like
-[`proto_decode_df()`](https://pedrobtz.github.io/zuproto/reference/proto_decode_df.md)
-builds. With `each`, it reads the stream in chunks of `chunk_rows`
-messages and calls `each(df)` on each chunk instead, so a stream larger
-than memory can be processed. `proto_write_delimited()` writes one.
+In a length-delimited stream, each message is preceded by its length as
+a varint. Java's `writeDelimitedTo()` writes such streams, as do
+Python's `_VarintBytes` helpers and many `.pb` log files.
 
 ## Usage
 
@@ -22,8 +17,8 @@ proto_read_delimited(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e+07
 )
 
@@ -125,6 +120,12 @@ the path, invisibly.
 
 ## Details
 
+`proto_read_delimited()` reads a stream into a data frame like
+[`proto_decode_df()`](https://pedrobtz.github.io/zuproto/reference/proto_decode_df.md)
+builds. With `each`, it reads the stream in chunks of `chunk_rows`
+messages and calls `each(df)` on each chunk instead, so a stream larger
+than memory can be processed. `proto_write_delimited()` writes a stream.
+
 A stream that ends inside a length or a message is a
 `zuproto_parse_error`.
 
@@ -134,7 +135,9 @@ column table of
 one message per row, or a list of messages as
 [`proto_encode()`](https://pedrobtz.github.io/zuproto/reference/proto_encode.md)
 takes them. `NA` values leave fields unset, and `<oneof>_case` columns
-are ignored.
+are ignored. A `NULL` cell leaves its field unset too, so a `Value` that
+held JSON null is not written back: a data frame cannot tell it from an
+unset one.
 
 ## Examples
 
