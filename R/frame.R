@@ -10,9 +10,9 @@
 #' whole call, and the condition's `index` says which one.
 #'
 #' With `field`, the input is one message instead, and the rows are the
-#' elements of its repeated message field `field`. That is how feeds that
-#' wrap their records in one message become tables, a GTFS Realtime
-#' `FeedMessage` and its `entity` field for one.
+#' elements of its repeated message field `field`. That is how a feed that
+#' wraps its records in one message becomes a table. A GTFS Realtime
+#' `FeedMessage` is one, with its records in the `entity` field.
 #'
 #' @section Columns:
 #' | Field | Column |
@@ -24,17 +24,18 @@
 #' | `repeated` message | list of data frames |
 #' | `map` | list of named vectors or lists |
 #' | `Struct`, `Value`, `ListValue`, `Any` | list, as in [proto_decode()] |
-#' | `oneof` | a column per member, plus `<oneof>_case` with the member set (`<oneof>_case_` if a field has that name) |
+#' | `oneof` | a column per member, plus `<oneof>_case` with the member set |
 #' | extension | a column named `[pkg.ext]` per extension the pool knows |
 #'
 #' A field a row does not set is `NA` (`NULL` in a list column) when the
-#' field tracks presence; otherwise it takes its default, or is `NA` with
-#' `defaults = FALSE`. A message field that no row sets is an all-`NA`
-#' logical column rather than a data frame, which is also where the columns
-#' of a recursive type end. A message type with no fields, such as `Empty`,
-#' is a list column: `list()` where set, `NULL` where not. A nested message
-#' that is set but has every field unset reads as unset, since its row is
-#' all `NA`.
+#' field tracks presence. Otherwise it takes its default, or is `NA` with
+#' `defaults = FALSE`. The `<oneof>_case` column is named `<oneof>_case_`
+#' instead when a field has that name. A message field that no row sets is
+#' an all-`NA` logical column rather than a data frame, which is also where
+#' the columns of a recursive type end. A message type with no fields, such
+#' as `Empty`, is a list column: `list()` where set, `NULL` where not. A
+#' nested message that is set but has every field unset reads as unset,
+#' since its row is all `NA`.
 #'
 #' @inheritParams proto_decode
 #' @param x For `proto_decode_df()`, a list of raw vectors, one message
@@ -64,8 +65,8 @@ proto_decode_df <- function(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e7
 ) {
   call <- sys.call()
@@ -132,13 +133,15 @@ proto_decode_df <- function(
 
 #' Length-delimited streams
 #'
-#' `proto_read_delimited()` reads a stream of messages, each preceded by its
-#' length as a varint, as Java's `writeDelimitedTo()`, Python's
-#' `_VarintBytes` helpers and many `.pb` log files write them, into a data
-#' frame like [proto_decode_df()] builds. With `each`, it reads the stream
-#' in chunks of `chunk_rows` messages and calls `each(df)` on each chunk
-#' instead, so a stream larger than memory can be processed.
-#' `proto_write_delimited()` writes one.
+#' In a length-delimited stream, each message is preceded by its length as
+#' a varint. Java's `writeDelimitedTo()` writes such streams, as do
+#' Python's `_VarintBytes` helpers and many `.pb` log files.
+#'
+#' `proto_read_delimited()` reads a stream into a data frame like
+#' [proto_decode_df()] builds. With `each`, it reads the stream in chunks
+#' of `chunk_rows` messages and calls `each(df)` on each chunk instead, so
+#' a stream larger than memory can be processed. `proto_write_delimited()`
+#' writes a stream.
 #'
 #' A stream that ends inside a length or a message is a
 #' `zuproto_parse_error`.
@@ -167,8 +170,8 @@ proto_read_delimited <- function(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e7
 ) {
   call <- sys.call()
@@ -224,7 +227,11 @@ proto_read_delimited <- function(
     if (need_more && !eof) {
       # At least as much as is pending, so a message larger than one read
       # is gathered in doubling steps, not copied again on every read.
-      chunk <- read_chunk(con, max(1048576, length(pending)), call)
+      chunk <- read_chunk(
+        con,
+        max(zpb_stream_read_bytes, length(pending)),
+        call
+      )
       if (length(chunk) == 0L) {
         eof <- TRUE
       } else {
@@ -331,34 +338,27 @@ df_options <- function(
 ) {
   check_pool(pool, call = call)
   check_type(type, call = call)
-  int64 <- zpb_match_arg(
+  opts <- decode_options(
     int64,
-    zpb_choices$int64,
-    "int64",
-    call
-  )
-  check_int64_mode(int64, call)
-  enums <- zpb_match_arg(
     enums,
-    zpb_choices$enums,
-    "enums",
+    defaults,
+    "drop",
+    bytes,
+    max_size,
+    max_depth,
     call
   )
-  bytes <- zpb_match_arg(bytes, zpb_choices$bytes, "bytes", call)
-  check_flag(defaults, "defaults", call)
-  check_limit(max_size, "max_size", 1, 2^53, call)
-  check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)
   check_limit(max_rows, "max_rows", 1, 2^31 - 1, call)
-  list(
-    int64 = match(int64, zpb_choices$int64) - 1L,
-    enums = match(enums, zpb_choices$enums) - 1L,
-    defaults = as.integer(defaults),
-    bytes_base64 = as.integer(bytes == "base64"),
-    max_depth = as.integer(max_depth),
-    max_size = as.double(max_size),
-    max_rows = as.double(max_rows),
-    chunk_rows = Inf,
-    field = ""
+  # Frames have no unknown-field column, so `unknown` is not an option.
+  opts$keep_unknown <- NULL
+  c(
+    opts,
+    list(
+      max_size = as.double(max_size),
+      max_rows = as.double(max_rows),
+      chunk_rows = Inf,
+      field = ""
+    )
   )
 }
 

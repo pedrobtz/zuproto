@@ -15,8 +15,8 @@ proto_read_delimited(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e+07
 )
 
@@ -81,22 +81,26 @@ invisibly.
 \code{path}, the path, invisibly.
 }
 \description{
-\code{proto_read_delimited()} reads a stream of messages, each preceded by its
-length as a varint, as Java's \code{writeDelimitedTo()}, Python's
-\verb{_VarintBytes} helpers and many \code{.pb} log files write them, into a data
-frame like \code{\link[=proto_decode_df]{proto_decode_df()}} builds. With \code{each}, it reads the stream
-in chunks of \code{chunk_rows} messages and calls \code{each(df)} on each chunk
-instead, so a stream larger than memory can be processed.
-\code{proto_write_delimited()} writes one.
+In a length-delimited stream, each message is preceded by its length as
+a varint. Java's \code{writeDelimitedTo()} writes such streams, as do
+Python's \verb{_VarintBytes} helpers and many \code{.pb} log files.
 }
 \details{
+\code{proto_read_delimited()} reads a stream into a data frame like
+\code{\link[=proto_decode_df]{proto_decode_df()}} builds. With \code{each}, it reads the stream in chunks
+of \code{chunk_rows} messages and calls \code{each(df)} on each chunk instead, so
+a stream larger than memory can be processed. \code{proto_write_delimited()}
+writes a stream.
+
 A stream that ends inside a length or a message is a
 \code{zuproto_parse_error}.
 
 \code{proto_write_delimited()} takes a data frame whose columns
 follow the column table of \code{\link[=proto_decode_df]{proto_decode_df()}}, one message per row,
 or a list of messages as \code{\link[=proto_encode]{proto_encode()}} takes them. \code{NA} values leave
-fields unset, and \verb{<oneof>_case} columns are ignored.
+fields unset, and \verb{<oneof>_case} columns are ignored. A \code{NULL} cell
+leaves its field unset too, so a \code{Value} that held JSON null is not
+written back: a data frame cannot tell it from an unset one.
 }
 \examples{
 pool <- proto_pool()

@@ -23,13 +23,14 @@
 #' an untrusted source. Message bytes, by contrast, are never trusted.
 #'
 #' Files are added in dependency order, whatever order the set lists them
-#' in. A file already in the pool is skipped if its contents are identical
-#' and is a `zuproto_pool_conflict` if they are not; the same holds for a
-#' file listed twice. The exception is a bundled well-known type's file,
+#' in. A file already in the pool is skipped if its contents are identical.
+#' It is a `zuproto_pool_conflict` if they are not, and the same holds for
+#' a file listed twice. The exception is a bundled well-known type's file,
 #' which another `protoc` release writes differently: the pool keeps its
-#' own copy and skips the one in the set. A file importing one that is neither in the set nor
-#' in the pool is a `zuproto_pool_error` naming both, and nothing from the
-#' set is added. Extensions are loaded with the files that declare them.
+#' own copy and skips the one in the set. A file importing one that is
+#' neither in the set nor in the pool is a `zuproto_pool_error` naming
+#' both, and nothing from the set is added. Extensions are loaded with the
+#' files that declare them.
 #'
 #' @param x A serialised `FileDescriptorSet`: a raw vector, a path to a
 #'   file, or a connection. `NULL` for the well-known types only.
@@ -139,7 +140,11 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
       error = function(e) {
         zpb_abort(
           "zuproto_io_error",
-          sprintf("Cannot read file '%s': %s", x, conditionMessage(e)),
+          sprintf(
+            "Cannot read file '%s': %s.",
+            x,
+            sub("[.]$", "", conditionMessage(e))
+          ),
           call = call
         )
       }
@@ -210,7 +215,7 @@ read_connection <- function(con, call = NULL, limit = Inf) {
   chunks <- list()
   got <- 0
   while (got < limit) {
-    chunk <- read_chunk(con, min(65536, limit - got), call)
+    chunk <- read_chunk(con, min(zpb_read_bytes, limit - got), call)
     if (length(chunk) == 0L) {
       break
     }
@@ -318,7 +323,8 @@ pool_add_set <- function(pool, bytes, call = NULL) {
       if (!is.null(err)) {
         zpb_abort(
           "zuproto_pool_error",
-          sprintf("Cannot add '%s': %s", name, err),
+          # upb's messages have no full stop, but one is not doubled.
+          sprintf("Cannot add '%s': %s.", name, sub("[.]$", "", err)),
           file = name,
           call = call
         )
@@ -345,4 +351,5 @@ check_file <- function(path, call) {
       call = call
     )
   }
+  invisible(path)
 }

@@ -20,7 +20,8 @@ zpb_match_arg <- function(x, choices, arg, call = NULL) {
   x
 }
 
-# `int64 = "integer64"` makes bit64 vectors, so bit64 must be there to use them.
+# `int64 = "integer64"` makes bit64 vectors, so bit64 must be there to use
+# them.
 check_int64_mode <- function(int64, call = NULL) {
   if (int64 == "integer64" && !requireNamespace("bit64", quietly = TRUE)) {
     zpb_invalid_argument(
@@ -62,8 +63,8 @@ check_limit <- function(x, arg, lo, hi, call = NULL) {
   invisible(x)
 }
 
-# The `n` arguments in `...`, named `dots`, that are passed on to `fun`: each named, and named as
-# one of its options, so a typo is a zuproto error rather than R's.
+# Check that the names of the `n` arguments in `...` (`dots`) are all
+# options of `fun`, so a typo is a zuproto error rather than R's.
 check_dots <- function(dots, n, fun, call = NULL) {
   options <- setdiff(names(formals(fun)), c("x", "type", "pool", "..."))
   # ...names() is NULL when no argument is named, and gives an unnamed one

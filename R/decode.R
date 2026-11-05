@@ -2,21 +2,33 @@
 # R checks arguments, reads input within max_size, and turns C's error
 # codes and warning counts into classed conditions.
 
-# Default limits, design section 5. zuproto_info() reports these.
+# Default limits, design section 5. zuproto_info() reports these. The
+# functions' signatures repeat them as literals, so the help shows the
+# values; a test checks the two agree.
 zpb_limits <- list(max_size = 64 * 1024^2, max_depth = 100L)
+
+# The largest `max_size`: a double counts bytes exactly up to 2^53.
+zpb_max_size_cap <- 2^53
+
+# Bytes read from a connection at a time: a whole stream (read_connection())
+# and a delimited stream with `each` (proto_read_delimited()).
+zpb_read_bytes <- 65536
+zpb_stream_read_bytes <- 1048576
 
 # The most `max_depth` accepts, and the deepest nesting proto_encode()
 # writes (ZPB_ENCODE_MAX_DEPTH in C counts the top-level message too).
 zpb_encode_max_depth <- 1000L
 
-# The choices of the decode arguments, built once rather than per call:
-# argument handling is most of a small message's decode time.
+# The choices of the decode, encode and JSON arguments, built once rather
+# than per call: argument handling is most of a small message's decode
+# time.
 zpb_choices <- list(
   int64 = c("double", "character", "integer64"),
   enums = c("factor", "integer", "character"),
   unknown = c("drop", "keep"),
   bytes = c("raw", "base64"),
-  json_enums = c("name", "integer")
+  json_enums = c("name", "integer"),
+  extra = c("error", "ignore")
 )
 
 #' Decode one Protocol Buffers message
@@ -54,9 +66,9 @@ zpb_choices <- list(
 #' A field that tracks presence (a message, a oneof member, a proto2 or
 #' proto3 `optional` field) is left out when it is not set. A field that
 #' does not track presence cannot be told apart from its default on the
-#' wire; with `defaults = TRUE` it takes its default (`0`, `""`, `FALSE`,
+#' wire. With `defaults = TRUE` it takes its default (`0`, `""`, `FALSE`,
 #' the enum's first value, an empty vector), as other protobuf runtimes
-#' do; with `defaults = FALSE` it is left out when it holds its default.
+#' do. With `defaults = FALSE` it is left out when it holds its default.
 #'
 #' Required fields are not checked: a proto2 `required` field missing
 #' from the input decodes like any unset field.
@@ -110,12 +122,13 @@ proto_decode <- function(
   defaults = TRUE,
   unknown = c("drop", "keep"),
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth
+  max_size = 64 * 1024^2,
+  max_depth = 100L
 ) {
   # A fast path, since argument handling was most of a small message's
   # decode time: arguments left at their defaults are not checked, and the
-  # call is only captured when there is an error to raise.
+  # call is only captured when there is an error to raise. `.subset2()`
+  # reads the pointer without dispatching on `$`, as is faster.
   if (
     !inherits(pool, "proto_pool") ||
       !.Call(zpb_pool_is_valid, .subset2(pool, "ptr"))
@@ -183,7 +196,7 @@ decode_options <- function(
   unknown <- zpb_match_arg(unknown, zpb_choices$unknown, "unknown", call)
   bytes <- zpb_match_arg(bytes, zpb_choices$bytes, "bytes", call)
   check_flag(defaults, "defaults", call)
-  check_limit(max_size, "max_size", 1, 2^53, call)
+  check_limit(max_size, "max_size", 1, zpb_max_size_cap, call)
   # upb's decoder recurses once per level; 1000 stays far below the depth
   # (about 5000) at which the C stack ran out on an 8 MB stack.
   check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)

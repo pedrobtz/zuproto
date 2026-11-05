@@ -13,8 +13,8 @@ proto_to_json(
   proto_names = FALSE,
   enums = c("name", "integer"),
   parse = FALSE,
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth
+  max_size = 64 * 1024^2,
+  max_depth = 100L
 )
 
 proto_from_json(
@@ -23,7 +23,7 @@ proto_from_json(
   pool,
   ignore_unknown = FALSE,
   check_required = TRUE,
-  max_size = zpb_limits$max_size
+  max_size = 64 * 1024^2
 )
 }
 \arguments{
@@ -85,11 +85,11 @@ parsed values, not as text.
 
 JSON meets R values through
 \href{https://CRAN.R-project.org/package=zujson}{zujson}, which must be
-installed for it: \code{proto_to_json(parse = TRUE)} returns
-\code{\link[zujson:json_parse]{zujson::json_parse()}}'s R value, and \code{proto_from_json()} takes an R value
-as well as JSON text, written with \code{\link[zujson:json_write]{zujson::json_write()}}. There, a
-length-1 vector is a JSON scalar: give a repeated field of one element as
-\code{I(x)} or \code{list(x)}.
+installed for it. \code{proto_to_json(parse = TRUE)} returns
+\code{\link[zujson:json_parse]{zujson::json_parse()}}'s R value. \code{proto_from_json()} takes an R value as
+well as JSON text, and writes it with \code{\link[zujson:json_write]{zujson::json_write()}}. There, a
+length-1 vector is a JSON scalar, so give a repeated field of one element
+as \code{I(x)} or \code{list(x)}.
 }
 \examples{
 pool <- proto_pool()
