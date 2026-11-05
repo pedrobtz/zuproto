@@ -162,6 +162,13 @@ proto_from_json <- function(
       call
     )
   }
+  if (Encoding(json) == "bytes") {
+    zpb_invalid_argument(
+      "json",
+      "`json` must be text, not a string marked as bytes.",
+      call
+    )
+  }
   check_flag(ignore_unknown, "ignore_unknown", call)
   check_flag(check_required, "check_required", call)
   check_limit(max_size, "max_size", 1, 2^53, call)
@@ -182,7 +189,7 @@ proto_from_json <- function(
     ignore_unknown = as.integer(ignore_unknown),
     check_required = as.integer(check_required)
   )
-  res <- .Call(zpb_from_json, pool$ptr, type, enc2utf8(json), opts)
+  res <- .Call(zpb_from_json, pool$ptr, type, json, opts)
   if (!is.null(res$error)) {
     # upb's JSON parser stops at 64 levels, below the encoder's 1000. If
     # that changes, the encoder's limit is raised as proto_encode() does.
@@ -248,11 +255,13 @@ proto_unpack_any <- function(x, pool, ...) {
     )
   }
   check_dots(...names(), ...length(), proto_decode, call)
-  ok <- is.list(x) &&
-    is.character(x$type_url) &&
-    length(x$type_url) == 1L &&
-    !is.na(x$type_url) &&
-    is.raw(x$value)
+  # Exact names: `$` would take `type_url_x` or `values` as well.
+  type_url <- if (is.list(x)) x[["type_url", exact = TRUE]]
+  value <- if (is.list(x)) x[["value", exact = TRUE]]
+  ok <- is.character(type_url) &&
+    length(type_url) == 1L &&
+    !is.na(type_url) &&
+    is.raw(value)
   if (!ok) {
     zpb_invalid_argument(
       "x",
@@ -260,18 +269,18 @@ proto_unpack_any <- function(x, pool, ...) {
       call
     )
   }
-  type <- sub(".*/", "", x$type_url)
-  if (!grepl("/", x$type_url, fixed = TRUE) || !nzchar(type)) {
+  type <- sub(".*/", "", type_url)
+  if (!grepl("/", type_url, fixed = TRUE) || !nzchar(type)) {
     zpb_invalid_argument(
       "x",
       sprintf(
         "`x$type_url` ('%s') must name a type after its last /.",
-        x$type_url
+        type_url
       ),
       call
     )
   }
-  proto_decode(x$value, type, pool, ...)
+  proto_decode(value, type, pool, ...)
 }
 
 #' @rdname proto_unpack_any

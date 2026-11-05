@@ -271,11 +271,15 @@ static void finish_values(zpb_build_ctx *ctx, const zpb_fielddef *f, SEXP out)
             SET_STRING_ELT(cls, 0, Rf_mkChar("POSIXct"));
             SET_STRING_ELT(cls, 1, Rf_mkChar("POSIXt"));
             Rf_setAttrib(out, R_ClassSymbol, cls);
-            Rf_setAttrib(out, Rf_install("tzone"), Rf_mkString("UTC"));
-            UNPROTECT(1);
+            SEXP tz = PROTECT(Rf_mkString("UTC"));
+            Rf_setAttrib(out, Rf_install("tzone"), tz);
+            UNPROTECT(2);
         } else if (w == ZPB_WKT_DURATION) {
-            Rf_setAttrib(out, Rf_install("units"), Rf_mkString("secs"));
-            Rf_setAttrib(out, R_ClassSymbol, Rf_mkString("difftime"));
+            SEXP units = PROTECT(Rf_mkString("secs"));
+            Rf_setAttrib(out, Rf_install("units"), units);
+            SEXP cls = PROTECT(Rf_mkString("difftime"));
+            Rf_setAttrib(out, R_ClassSymbol, cls);
+            UNPROTECT(2);
         } else if (w == ZPB_WKT_WRAPPER) {
             finish_values(ctx, wrapper_value_field(m), out);
         }
@@ -587,11 +591,15 @@ static SEXP build_message(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg
             SET_STRING_ELT(cls, 0, Rf_mkChar("POSIXct"));
             SET_STRING_ELT(cls, 1, Rf_mkChar("POSIXt"));
             Rf_setAttrib(out, R_ClassSymbol, cls);
-            Rf_setAttrib(out, Rf_install("tzone"), Rf_mkString("UTC"));
-            UNPROTECT(1);
+            SEXP tz = PROTECT(Rf_mkString("UTC"));
+            Rf_setAttrib(out, Rf_install("tzone"), tz);
+            UNPROTECT(2);
         } else {
-            Rf_setAttrib(out, Rf_install("units"), Rf_mkString("secs"));
-            Rf_setAttrib(out, R_ClassSymbol, Rf_mkString("difftime"));
+            SEXP units = PROTECT(Rf_mkString("secs"));
+            Rf_setAttrib(out, Rf_install("units"), units);
+            SEXP cls = PROTECT(Rf_mkString("difftime"));
+            Rf_setAttrib(out, R_ClassSymbol, cls);
+            UNPROTECT(2);
         }
         UNPROTECT(1);
         return out;
@@ -740,6 +748,26 @@ static SEXP make_frame(SEXP cols, SEXP names, R_xlen_t n)
     return cols;
 }
 
+/* The name of oneof `oneof`'s case column: `<oneof>_case`, with "_"
+ * added while a field of m has that name (#115). frame_type() in
+ * R/frame.R makes the same name, to skip the column when encoding. */
+static const char *case_name(const zpb_msgdef *m, const char *oneof)
+{
+    size_t len = strlen(oneof) + 5;
+    int nf = zpb_msgdef_field_count(m);
+    for (;;) {
+        char *name = R_alloc(len + 1, 1);
+        snprintf(name, len + 1, "%s_case", oneof);
+        memset(name + strlen(oneof) + 5, '_', len - strlen(oneof) - 5);
+        name[len] = '\0';
+        int taken = 0;
+        for (int j = 0; j < nf && !taken; j++)
+            taken = strcmp(zpb_field_name(zpb_msgdef_field(m, j)), name) == 0;
+        if (!taken) return name;
+        len++;
+    }
+}
+
 static SEXP build_frame(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg **rows,
                         R_xlen_t n);
 
@@ -814,6 +842,12 @@ static SEXP list_column(zpb_build_ctx *ctx, const zpb_fielddef *f, const zpb_msg
             x = build_map(ctx, f, v.map_val);
         } else if (frames) {
             size_t k = zpb_array_size(v.array_val);
+            /* A data frame's row count is an int (compact row names). */
+            if (k > INT_MAX) {
+                fail(ctx, ZPB_BUILD_ERR_LONG_FRAME, f);
+                UNPROTECT(1);
+                return NULL;
+            }
             const zpb_msg **elts =
                 k > 0 ? (const zpb_msg **) R_alloc(k, sizeof *elts) : NULL;
             for (size_t j = 0; j < k; j++) elts[j] = zpb_array_get(v.array_val, j).msg_val;
@@ -889,11 +923,7 @@ static SEXP build_frame(zpb_build_ctx *ctx, const zpb_msgdef *m, const zpb_msg *
             SET_STRING_ELT(col, i, set != NULL ? Rf_mkCharCE(zpb_field_name(set), CE_UTF8)
                                                : NA_STRING);
         }
-        const char *name = zpb_oneof_name(od);
-        size_t len = strlen(name) + 6;
-        char *case_name = R_alloc(len, 1);
-        snprintf(case_name, len, "%s_case", name);
-        SET_STRING_ELT(names, k, Rf_mkCharCE(case_name, CE_UTF8));
+        SET_STRING_ELT(names, k, Rf_mkCharCE(case_name(m, zpb_oneof_name(od)), CE_UTF8));
         k++;
     }
 

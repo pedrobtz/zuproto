@@ -24,7 +24,7 @@
 #' | `repeated` message | list of data frames |
 #' | `map` | list of named vectors or lists |
 #' | `Struct`, `Value`, `ListValue`, `Any` | list, as in [proto_decode()] |
-#' | `oneof` | a column per member, plus `<oneof>_case` with the member set |
+#' | `oneof` | a column per member, plus `<oneof>_case` with the member set (`<oneof>_case_` if a field has that name) |
 #' | extension | a column named `[pkg.ext]` per extension the pool knows |
 #'
 #' A field a row does not set is `NA` (`NULL` in a list column) when the
@@ -222,7 +222,9 @@ proto_read_delimited <- function(
   repeat {
     # Read only when the bytes in hand hold no whole chunk of messages.
     if (need_more && !eof) {
-      chunk <- read_chunk(con, 1048576L, call)
+      # At least as much as is pending, so a message larger than one read
+      # is gathered in doubling steps, not copied again on every read.
+      chunk <- read_chunk(con, max(1048576, length(pending)), call)
       if (length(chunk) == 0L) {
         eof <- TRUE
       } else {
@@ -259,12 +261,15 @@ proto_read_delimited <- function(
 #' @details `proto_write_delimited()` takes a data frame whose columns
 #'   follow the column table of [proto_decode_df()], one message per row,
 #'   or a list of messages as [proto_encode()] takes them. `NA` values leave
-#'   fields unset, and `<oneof>_case` columns are ignored.
+#'   fields unset, and `<oneof>_case` columns are ignored. A `NULL` cell
+#'   leaves its field unset too, so a `Value` that held JSON null is not
+#'   written back: a data frame cannot tell it from an unset one.
 #' @export
 proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
   call <- sys.call()
   check_pool(pool, call = call)
   check_type(type, call = call)
+  check_dots(...names(), ...length(), proto_encode, call)
   if (
     !is.null(path) && (!is.character(path) || length(path) != 1L || is.na(path))
   ) {
@@ -294,10 +299,19 @@ proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
     )
   }
   stream <- .Call(zpb_frame_delimited, raws)
+  if (is.null(stream)) {
+    zpb_abort(
+      c("zuproto_size_limit", "zuproto_limit_error"),
+      "The stream would be longer than a raw vector can be.",
+      limit = "memory",
+      limit_value = NA_real_,
+      call = call
+    )
+  }
   if (is.null(path)) {
     return(stream)
   }
-  writeBin(stream, path)
+  with_io(writeBin(stream, path), sprintf("write '%s'", path), call)
   invisible(path)
 }
 
@@ -377,7 +391,7 @@ df_finish <- function(res, type, field, max_size, max_depth, max_rows, call) {
       tryCatch(
         decode_error(res, type, max_size, max_depth, call),
         zuproto_error = function(e) {
-          if (res$index > 0) {
+          if (isTRUE(res$index > 0)) {
             e$message <- sprintf(
               "Message %s: %s",
               format(res$index),
@@ -446,11 +460,28 @@ frame_type <- function(pool, type, cache) {
     msg <- f$type %in% c("message", "group")
     # An extension's name is already its column's, "[full.name]".
     cache[[type]] <- list(
-      skip = paste0(unique(f$oneof[!is.na(f$oneof)]), "_case"),
+      skip = case_names(unique(f$oneof[!is.na(f$oneof)]), f$name),
       sub = as.list(stats::setNames(f$type_name[msg], f$name[msg]))
     )
   }
   cache[[type]]
+}
+
+# The names of the `<oneof>_case` columns, as build_frame() makes them: "_"
+# is added while a field has the name (#115).
+case_names <- function(oneofs, fields) {
+  vapply(
+    oneofs,
+    function(o) {
+      name <- paste0(o, "_case")
+      while (name %in% fields) {
+        name <- paste0(name, "_")
+      }
+      name
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
 }
 
 # A data frame's rows as messages for proto_encode(): a column's element i,

@@ -357,7 +357,11 @@ and writes one message per row.
   `google_protobuf_FileDescriptorSet_parse()` and adds files in
   dependency order with `upb_DefPool_AddFile()`, reporting a missing
   import by file name. A file already in the pool with identical bytes
-  is skipped; with different bytes it is a `zuproto_pool_conflict`.
+  is skipped; with different bytes it is a `zuproto_pool_conflict`. The
+  exception is a file of `wkt.binpb`: a set built by another `protoc`
+  release embeds its own `descriptor.proto` or `timestamp.proto`, which
+  differ in options or comments, so the pool keeps its bundled copy and
+  skips the set's (decided 2026-11-05, #116).
 - The well-known types ship as one serialised descriptor set in
   `inst/descriptors/wkt.binpb`, generated at vendoring time by `protoc`
   from the pinned release's `.proto` files: the ten well-known types and

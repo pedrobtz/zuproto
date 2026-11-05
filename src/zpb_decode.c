@@ -126,7 +126,9 @@ SEXP zpb_decode(SEXP ptr, SEXP type, SEXP raw, SEXP opts)
     SEXP value = zpb_build(&ctx, m, msg);
     if (value == NULL) {
         const char *err =
-            ctx.err == ZPB_BUILD_ERR_NUL ? "nul_in_string" : "string_too_long";
+            ctx.err == ZPB_BUILD_ERR_NUL          ? "nul_in_string"
+            : ctx.err == ZPB_BUILD_ERR_LONG_FRAME ? "frame_too_long"
+                                                  : "string_too_long";
         /* err_field points into the pool, which outlives the arena. */
         holder_finalize(hptr);
         UNPROTECT(1);
@@ -318,7 +320,9 @@ SEXP zpb_decode_df(SEXP ptr, SEXP type, SEXP x, SEXP opts)
     SEXP value = zpb_build_frame(&ctx, row_def, rows, n);
     if (value == NULL) {
         const char *err =
-            ctx.err == ZPB_BUILD_ERR_NUL ? "nul_in_string" : "string_too_long";
+            ctx.err == ZPB_BUILD_ERR_NUL          ? "nul_in_string"
+            : ctx.err == ZPB_BUILD_ERR_LONG_FRAME ? "frame_too_long"
+                                                  : "string_too_long";
         holder_finalize(hptr);
         UNPROTECT(1);
         return df_result(R_NilValue, err, ctx.err_field, 0, consumed, 0, 0);
@@ -336,9 +340,17 @@ SEXP zpb_frame_delimited(SEXP msgs)
 {
     R_xlen_t n = XLENGTH(msgs);
     double total = 0;
-    for (R_xlen_t i = 0; i < n; i++) total += 10 + (double) XLENGTH(VECTOR_ELT(msgs, i));
-    if (total > R_XLEN_T_MAX) zpb_internal_error("the stream would be too long for a raw vector");
-    unsigned char *buf = (unsigned char *) R_alloc((size_t) total + 1, 1);
+    for (R_xlen_t i = 0; i < n; i++) {
+        uint64_t size = (uint64_t) XLENGTH(VECTOR_ELT(msgs, i));
+        int prefix = 1;
+        while (size >>= 7) prefix++;
+        total += prefix + (double) XLENGTH(VECTOR_ELT(msgs, i));
+    }
+    /* R raises this one: too long for a raw vector is a size limit. */
+    if (total > R_XLEN_T_MAX) return R_NilValue;
+    /* Written in place, so the stream is in memory once. */
+    SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t) total));
+    unsigned char *buf = RAW(out);
     size_t at = 0;
     for (R_xlen_t i = 0; i < n; i++) {
         SEXP r = VECTOR_ELT(msgs, i);
@@ -351,8 +363,6 @@ SEXP zpb_frame_delimited(SEXP msgs)
         if (XLENGTH(r) > 0) memcpy(buf + at, RAW(r), (size_t) XLENGTH(r));
         at += (size_t) XLENGTH(r);
     }
-    SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t) at));
-    if (at > 0) memcpy(RAW(out), buf, at);
     UNPROTECT(1);
     return out;
 }
@@ -444,7 +454,18 @@ SEXP zpb_from_json(SEXP ptr, SEXP type, SEXP json, SEXP opts)
         zpb_defpool_find_message(pool, Rf_translateCharUTF8(STRING_ELT(type, 0)));
     if (m == NULL) return json_result(R_NilValue, "unknown_type", NULL);
 
-    const char *text = Rf_translateCharUTF8(STRING_ELT(json, 0));
+    /* upb's JSON parser at v36.2 copies the bytes of a string literal as
+     * they are, so text that is not valid UTF-8 would reach a string field
+     * (#107). RFC 8259 requires UTF-8; zpb_char_utf8() checks it. */
+    const char *text;
+    switch (zpb_char_utf8(STRING_ELT(json, 0), &text)) {
+    case ZPB_TEXT_BYTES:
+        return json_result(R_NilValue, "json", "the JSON text is marked as bytes, not text");
+    case ZPB_TEXT_INVALID:
+        return json_result(R_NilValue, "json", "the JSON text is not valid UTF-8");
+    case ZPB_TEXT_NATIVE:
+        return json_result(R_NilValue, "json", "the native encoding cannot read the JSON text");
+    }
     size_t len = strlen(text);
     decode_holder *h;
     SEXP hptr = new_holder(&h, zpb_arena_ceiling(pool, ceilings, m, (double) len, 1));

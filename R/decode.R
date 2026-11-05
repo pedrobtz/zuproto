@@ -257,6 +257,16 @@ decode_error <- function(res, type, max_size, max_depth, call) {
       limit_value = NA_real_,
       call = call
     ),
+    frame_too_long = zpb_abort(
+      "zuproto_unrepresentable",
+      sprintf(
+        "Cannot decode the input as '%s': field '%s' has 2^31 elements or more, too many for the rows of a data frame.",
+        type,
+        res$field
+      ),
+      field = res$field,
+      call = call
+    ),
     nul_in_string = ,
     string_too_long = zpb_abort(
       "zuproto_unrepresentable",
