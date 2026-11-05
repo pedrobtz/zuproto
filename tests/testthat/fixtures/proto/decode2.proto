@@ -22,3 +22,24 @@ extend Legacy {
   optional string tag = 100;
   repeated int32 codes = 101;
 }
+
+// proto2 groups, singular and repeated, for decoding, encoding and writing
+// back a data frame with a group column (#118).
+message Grouped {
+  optional group Item = 1 {
+    optional int32 a = 2;
+  }
+  repeated group Row = 3 {
+    optional string s = 4;
+  }
+}
+
+// A field named like the oneof's case column, which build_frame() then
+// names kind_case_ (#115).
+message CaseClash {
+  oneof kind {
+    int32 a = 1;
+    string b = 2;
+  }
+  optional int32 kind_case = 3;
+}
