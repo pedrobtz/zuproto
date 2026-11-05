@@ -39,3 +39,15 @@ test_that("the functions' default limits are zuproto_info()'s", {
     }
   }
 })
+
+test_that("pools and zuproto_info() print a summary", {
+  # #126: the print methods had no test.
+  expect_output(
+    print(proto_pool()),
+    "^<proto_pool: [0-9]+ files, [0-9]+ message types>$"
+  )
+  out <- capture.output(print(zuproto_info()))
+  expect_identical(out[[1]], "<zuproto_info>")
+  # Every value starts in the same column.
+  expect_length(unique(nchar(sub("^([a-z_]+: +).*", "\\1", out[-1]))), 1L)
+})

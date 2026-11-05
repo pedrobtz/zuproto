@@ -446,7 +446,7 @@ test_that("an error code R does not map is a zuproto_internal_error", {
     decode_error(list(error = "out_of_memory"), "pkg.M", 1, 1, NULL),
     class = "zuproto_internal_error"
   )
-  expect_match(conditionMessage(err), "out of memory")
+  expect_identical(err$code, "out_of_memory")
 })
 
 test_that("strings that are not valid UTF-8 text are type mismatches", {

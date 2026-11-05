@@ -313,7 +313,7 @@ proto_pack_any <- function(
 }
 
 require_zujson <- function(arg, call = NULL) {
-  if (!requireNamespace("zujson", quietly = TRUE)) {
+  if (!has_namespace("zujson")) {
     zpb_invalid_argument(
       arg,
       "JSON as R values needs the zujson package. Install it, or give and take JSON text.",

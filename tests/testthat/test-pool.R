@@ -274,3 +274,14 @@ test_that("a set's differing copy of a bundled well-known type is skipped", {
   ) |>
     expect_error(class = "zuproto_pool_conflict")
 })
+
+test_that("a file that exists but cannot be read is a zuproto_io_error", {
+  # #126: readBin()'s failure had no test.
+  skip_on_os("windows")
+  path <- withr::local_tempfile()
+  writeBin(fixture("schema"), path)
+  Sys.chmod(path, "000")
+  withr::defer(Sys.chmod(path, "644"))
+  skip_if(file.access(path, 4) == 0, "the file is still readable (root?)")
+  expect_error(proto_pool(path), class = "zuproto_io_error")
+})

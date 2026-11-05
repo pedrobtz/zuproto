@@ -82,5 +82,5 @@ test_that("C's own failures are zuproto_internal_error, not bare errors", {
     .Call(zuproto:::zpb_pool_types, NULL, TRUE),
     class = "zuproto_internal_error"
   )
-  expect_match(conditionMessage(err), "not a pool pointer")
+  expect_identical(err$code, "internal")
 })

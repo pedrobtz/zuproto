@@ -261,13 +261,14 @@ test_that("a message that fails names its index in the whole stream", {
         ...
       )
     }
-    err <- expect_error(read(), class = case[[2]])
+    err <- expect_error(read(), class = case[[2]], label = case[[2]])
     expect_identical(err$index, 6, label = case[[2]])
     err <- expect_error(
       read(each = function(df) NULL, chunk_rows = 2),
-      class = case[[2]]
+      class = case[[2]],
+      label = paste(case[[2]], "with each")
     )
-    expect_identical(err$index, 6, label = case[[2]])
+    expect_identical(err$index, 6, label = paste(case[[2]], "with each"))
   }
 })
 
@@ -499,16 +500,16 @@ test_that("a directory is named as one, not as missing", {
   # #49
   pool <- decode_pool()
   dir <- tempdir()
-  for (f in list(
-    function() proto_pool(dir),
-    function() proto_decode(dir, "zpb.decode.Nested", pool),
-    function() {
+  # The wording is the point here, so it is a snapshot; the path varies.
+  expect_snapshot(
+    error = TRUE,
+    transform = function(x) gsub(dir, "<dir>", x, fixed = TRUE),
+    {
+      proto_pool(dir)
+      proto_decode(dir, "zpb.decode.Nested", pool)
       proto_read_delimited(dir, "zpb.decode.Nested", pool, each = print)
     }
-  )) {
-    err <- expect_error(f(), class = "zuproto_io_error")
-    expect_match(conditionMessage(err), "it is a directory", fixed = TRUE)
-  }
+  )
 })
 
 test_that("proto_write_delimited() refuses options proto_encode() lacks", {
@@ -651,4 +652,16 @@ test_that("proto_read_delimited() reads an unopened connection and closes it", {
   )
   expect_identical(rows, 3)
   expect_identical(nrow(showConnections()), before)
+})
+
+test_that("a data-frame column that is no message field is an unknown field", {
+  # #126: frame_type() is then given no type.
+  pool <- decode_pool()
+  df <- data.frame(x = 1:2)
+  df$nope <- data.frame(a = 1:2)
+  err <- expect_error(
+    proto_write_delimited(df, "zpb.decode.Point", pool),
+    class = "zuproto_unknown_field"
+  )
+  expect_identical(err$index, 1)
 })

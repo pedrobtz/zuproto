@@ -833,3 +833,18 @@ test_that("decoding reads an unopened connection and closes it", {
   expect_identical(x[c("x", "y")], list(x = 1L, y = 2L))
   expect_identical(nrow(showConnections()), before)
 })
+
+test_that("int64 = \"integer64\" needs bit64, and says so when it is missing", {
+  # #126: has_namespace() is replaced, as if bit64 were not installed.
+  local_mocked_bindings(has_namespace = function(pkg) pkg != "bit64")
+  err <- expect_error(
+    proto_decode(
+      raw(),
+      "zpb.decode.Scalars",
+      decode_pool(),
+      int64 = "integer64"
+    ),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "int64")
+})

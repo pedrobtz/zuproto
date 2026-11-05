@@ -135,19 +135,10 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
   if (is.character(x) && length(x) == 1L && !is.na(x)) {
     check_file(x, call)
     size <- min(file.size(x), limit)
-    return(tryCatch(
+    return(with_io(
       readBin(x, "raw", size),
-      error = function(e) {
-        zpb_abort(
-          "zuproto_io_error",
-          sprintf(
-            "Cannot read file '%s': %s.",
-            x,
-            sub("[.]$", "", conditionMessage(e))
-          ),
-          call = call
-        )
-      }
+      sprintf("read file '%s'", x),
+      call
     ))
   }
   zpb_invalid_argument(
@@ -177,7 +168,11 @@ with_io <- function(expr, what, call) {
     reason <- if (length(warnings) > 0L) warnings[[1L]] else res
     zpb_abort(
       "zuproto_io_error",
-      sprintf("Cannot %s: %s.", what, conditionMessage(reason)),
+      sprintf(
+        "Cannot %s: %s.",
+        what,
+        sub("[.]$", "", conditionMessage(reason))
+      ),
       call = call
     )
   }

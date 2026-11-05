@@ -416,14 +416,22 @@ test_that("pack and unpack refuse arguments their codec does not take", {
   pool <- decode_pool()
   any <- proto_pack_any(list(x = 1L), "zpb.decode.Point", pool)
   calls <- list(
-    function() proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1),
-    function() proto_pack_any(list(), "zpb.decode.Point", pool, "x.io/", TRUE),
-    function() proto_unpack_any(any, pool, foo = 1),
-    function() proto_unpack_any(any, pool, "factor")
+    pack_named = function() {
+      proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1)
+    },
+    pack_unnamed = function() {
+      proto_pack_any(list(), "zpb.decode.Point", pool, "x.io/", TRUE)
+    },
+    unpack_named = function() proto_unpack_any(any, pool, foo = 1),
+    unpack_unnamed = function() proto_unpack_any(any, pool, "factor")
   )
-  for (f in calls) {
-    err <- expect_error(f(), class = "zuproto_invalid_argument")
-    expect_identical(err$arg, "...")
+  for (name in names(calls)) {
+    err <- expect_error(
+      calls[[name]](),
+      class = "zuproto_invalid_argument",
+      label = name
+    )
+    expect_identical(err$arg, "...", label = name)
   }
 })
 
@@ -487,4 +495,15 @@ test_that("proto_unpack_any() reads type_url and value by their exact names", {
     class = "zuproto_invalid_argument"
   )
   expect_identical(err$arg, "x")
+})
+
+test_that("R values as JSON need zujson, and say so when it is missing", {
+  # #126: has_namespace() is replaced, as if zujson were not installed.
+  local_mocked_bindings(has_namespace = function(pkg) pkg != "zujson")
+  pool <- proto_pool()
+  err <- expect_error(
+    proto_from_json(list(value = 1L), "google.protobuf.Int32Value", pool),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "json")
 })
