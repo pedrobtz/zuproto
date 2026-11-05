@@ -15,7 +15,16 @@ concurrency:
 # plus exactly tools/patches/. A change under src/vendor/ must update
 # PROVENANCE too.
 jobs:
+  # Skips documentation and metadata-only changes, CRAN-SUBMISSION
+  # included, by the same rules as the r-actions workflows.
+  changes:
+    uses: pedrobtz/r-actions/.github/workflows/changes.yml@v1
+    with:
+      name: vendor
+
   vendor:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.docs-only != 'true' }}
     uses: pedrobtz/r-actions/.github/workflows/vendor.yml@v1
     with:
       vendor-dir: src/vendor

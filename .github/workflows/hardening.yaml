@@ -21,7 +21,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Skips documentation and metadata-only changes, CRAN-SUBMISSION
+  # included, by the same rules as the r-actions workflows.
+  changes:
+    uses: pedrobtz/r-actions/.github/workflows/changes.yml@v1
+    with:
+      name: hardening
+
   canaries:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.docs-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

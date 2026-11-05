@@ -1,0 +1,24 @@
+# Tags a CRAN submission and opens the development-version bump. The trigger
+# is a push to main that changes CRAN-SUBMISSION, the file
+# devtools::submit_cran() writes: commit it on a branch, merge the pull
+# request, and this tags the submitted commit with the bare version, creates
+# the release and opens a [skip ci] pull request bumping to <version>.9000.
+# Merge that once CRAN accepts. Don't put [skip ci] on the merge commit of
+# the CRAN-SUBMISSION pull request: it would skip this workflow too.
+#
+# Every other workflow skips a change to CRAN-SUBMISSION alone.
+on:
+  push:
+    branches: [main, master]
+    paths: [CRAN-SUBMISSION]
+
+name: cran-release
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  cran-release:
+    # Pinned to a commit because this workflow holds a write token.
+    uses: pedrobtz/r-actions/.github/workflows/cran-release.yml@4062705ecc3560e85ec8045b30d0e9951fa447a2 # v1.30.0
