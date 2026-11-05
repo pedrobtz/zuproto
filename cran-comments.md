@@ -27,8 +27,8 @@ Buffers release v36.2 (Google LLC; BSD-3-Clause; 'utf8_range' also MIT,
 Yibo Cai), in `src/vendor/`. `inst/COPYRIGHTS` and `src/vendor/PROVENANCE`
 record the upstream files, their hashes and the local patches, which keep
 the compiled code free of `stderr`, `abort()` and diagnostic pragmas and
-fix four issues that sanitizers and fuzzing found, three of them reported
-upstream (protocolbuffers/protobuf#31030, #31031, #31032).
+fix four issues that sanitizers and fuzzing found, all reported upstream
+(protocolbuffers/protobuf#31030, #31031, #31032, #31323).
 
 ## Method References
 

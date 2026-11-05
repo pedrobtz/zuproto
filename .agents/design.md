@@ -466,7 +466,9 @@ None touches decoder logic.
    default values used the `char str[1]` struct hack, and UBSan reported
    its reads past index 0 as out of bounds when a schema has a string
    `[default = …]`. It becomes a C99 flexible array member, and its two
-   allocations add the byte the NUL terminator needs.
+   allocations add the byte the NUL terminator needs. Reported upstream
+   as protocolbuffers/protobuf#31323 (it shows under strict flexible-array
+   semantics, such as clang's `-fstrict-flex-arrays=3`).
 6. `0006-any-empty-url.patch` (Stage 7, found by `fuzz_decode`): upb's
    JSON encoder computed `data + size` on an `Any`'s empty `type_url`,
    whose data is then `NULL`, before checking for the empty URL; `NULL +
