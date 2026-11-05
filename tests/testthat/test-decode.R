@@ -889,3 +889,13 @@ test_that("concatenated messages merge (#67)", {
   expect_identical(merged$child$depth, 2L)
   expect_identical(merged$child$child$depth, 3L)
 })
+
+test_that("varint() writes values above 2^53 exactly and quietly (#132)", {
+  expect_no_warning(v <- varint(2^64 - 2^53))
+  expect_identical(
+    v,
+    as.raw(c(rep(0x80, 7), 0xf0, 0xff, 0x01))
+  )
+  expect_identical(varint(2^63), as.raw(c(rep(0x80, 9), 0x01)))
+  expect_identical(varint(300), as.raw(c(0xac, 0x02)))
+})
