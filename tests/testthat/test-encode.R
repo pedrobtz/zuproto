@@ -614,3 +614,215 @@ test_that("every scalar kind of the mapping round-trips its edge values", {
     }
   }
 })
+
+test_that("64-bit integers as strings take digits and a minus sign only", {
+  # #105: strtoull() skipped leading space and wrapped " -1" to 2^64 - 1.
+  pool <- decode_pool()
+  bad <- c(" -1", " 1", "+1", "1 ", "\t+7", "", "-")
+  for (s in bad) {
+    expect_error(
+      proto_encode(list(f_uint64 = s), "zpb.decode.Scalars", pool),
+      class = "zuproto_type_mismatch",
+      label = sprintf("uint64 %s", encodeString(s, quote = '"'))
+    )
+    expect_error(
+      proto_encode(list(f_int64 = s), "zpb.decode.Scalars", pool),
+      class = "zuproto_type_mismatch",
+      label = sprintf("int64 %s", encodeString(s, quote = '"'))
+    )
+    expect_error(
+      proto_encode(
+        list(by_uint64 = stats::setNames("a", s)),
+        "zpb.decode.Uint64Keys",
+        pool
+      ),
+      class = "zuproto_type_mismatch",
+      label = sprintf("uint64 key %s", encodeString(s, quote = '"'))
+    )
+    expect_error(
+      proto_encode(
+        list(by_int64 = stats::setNames("a", s)),
+        "zpb.decode.Maps",
+        pool
+      ),
+      class = "zuproto_type_mismatch",
+      label = sprintf("int64 key %s", encodeString(s, quote = '"'))
+    )
+  }
+  x <- proto_decode(
+    proto_encode(
+      list(f_int64 = "-5", f_uint64 = "18446744073709551615"),
+      "zpb.decode.Scalars",
+      pool
+    ),
+    "zpb.decode.Scalars",
+    pool,
+    int64 = "character"
+  )
+  expect_identical(x$f_int64, "-5")
+  expect_identical(x$f_uint64, "18446744073709551615")
+})
+
+test_that("functions, environments, symbols and calls are type mismatches", {
+  # #108: XLENGTH() on them raised a bare error from inside the walk.
+  pool <- decode_pool()
+  values <- list(sum, new.env(), quote(a), quote(f(x)))
+  sites <- list(
+    list(type = "zpb.decode.Scalars", wrap = function(v) list(f_int32 = v)),
+    list(type = "zpb.decode.Nested", wrap = function(v) list(child = v)),
+    list(type = "zpb.decode.Maps", wrap = function(v) list(by_string = v)),
+    list(type = "zpb.decode.Repeated", wrap = function(v) list(packed = v)),
+    list(type = "zpb.decode.WellKnown", wrap = function(v) list(when = v)),
+    list(type = "zpb.decode.WellKnown", wrap = function(v) list(value = v)),
+    list(type = "zpb.decode.WellKnown", wrap = function(v) list(list = v)),
+    list(
+      type = "zpb.decode.WellKnown",
+      wrap = function(v) list(meta = list(k = v))
+    ),
+    list(type = "google.protobuf.Value", wrap = function(v) v),
+    list(type = "google.protobuf.Timestamp", wrap = function(v) v),
+    list(type = "zpb.decode.Point", wrap = function(v) v)
+  )
+  for (site in sites) {
+    for (v in values) {
+      label <- sprintf("%s in %s", typeof(v), site$type)
+      err <- expect_error(
+        proto_encode(site$wrap(v), site$type, pool),
+        class = "zuproto_type_mismatch",
+        label = label
+      )
+      expect_type(err$path, "character")
+    }
+  }
+})
+
+test_that("a Value takes factors as text and refuses dates and named vectors", {
+  # #109: a factor was written as its codes, a Date as its day count, and
+  # a named vector lost its names.
+  pool <- decode_pool()
+  json <- function(x) {
+    proto_to_json(
+      proto_encode(x, "google.protobuf.Value", pool),
+      "google.protobuf.Value",
+      pool
+    )
+  }
+  expect_identical(json(factor("b", levels = c("a", "b"))), '"b"')
+  expect_identical(json(factor(c("b", "a"))), '["b","a"]')
+  expect_identical(json(list(f = factor("x"))), '{"f":"x"}')
+  expect_identical(json(c(1, 2)), "[1,2]")
+  refused <- list(
+    date = as.Date("2026-01-01"),
+    dates = as.Date(c("2026-01-01", "2026-01-02")),
+    posixct = as.POSIXct(0, tz = "UTC"),
+    difftime = as.difftime(1, units = "secs"),
+    in_struct = list(p = as.POSIXct(0, tz = "UTC")),
+    named = c(a = 1, b = 2),
+    named_scalar = c(a = 1),
+    complex = 1i,
+    bad_factor = structure(3L, levels = "a", class = "factor")
+  )
+  for (case in names(refused)) {
+    expect_error(
+      proto_encode(refused[[case]], "google.protobuf.Value", pool),
+      class = "zuproto_type_mismatch",
+      label = case
+    )
+  }
+})
+
+test_that("integer64 elements of a ListValue keep their value", {
+  skip_if_not_installed("bit64")
+  # #109: elt() dropped the class, so the bits were read as a double.
+  pool <- decode_pool()
+  raw <- proto_encode(
+    bit64::as.integer64(c(1, 2)),
+    "google.protobuf.Value",
+    pool
+  )
+  expect_identical(proto_to_json(raw, "google.protobuf.Value", pool), "[1,2]")
+})
+
+test_that("a native string the locale cannot read is a type mismatch", {
+  # #106: in a C locale R wrote the bytes as "<ff><fe>" escapes.
+  pool <- decode_pool()
+  withr::local_locale(c(LC_CTYPE = "C"))
+  x <- rawToChar(as.raw(c(0x61, 0xff, 0xfe)))
+  expect_identical(Encoding(x), "unknown")
+  err <- expect_error(
+    proto_encode(list(f_string = x), "zpb.decode.Scalars", pool),
+    class = "zuproto_type_mismatch"
+  )
+  expect_identical(err$path, "f_string")
+  expect_error(
+    proto_encode(
+      list(by_string = stats::setNames(1L, x)),
+      "zpb.decode.Maps",
+      pool
+    ),
+    class = "zuproto_type_mismatch"
+  )
+  # Marked strings are still read by their mark.
+  utf8 <- rawToChar(as.raw(c(0x63, 0x61, 0x66, 0xc3, 0xa9)))
+  Encoding(utf8) <- "UTF-8"
+  latin1 <- rawToChar(as.raw(c(0x63, 0x61, 0x66, 0xe9)))
+  Encoding(latin1) <- "latin1"
+  want <- as.raw(c(0x72, 0x05, 0x63, 0x61, 0x66, 0xc3, 0xa9))
+  expect_identical(
+    proto_encode(list(f_string = utf8), "zpb.decode.Scalars", pool),
+    want
+  )
+  expect_identical(
+    proto_encode(list(f_string = latin1), "zpb.decode.Scalars", pool),
+    want
+  )
+})
+
+test_that("encoding refuses the values each type-mismatch branch exists for", {
+  # #111: these branches of src/zpb_fill.c had no test.
+  pool <- decode_pool()
+  mismatch <- function(x, type, path) {
+    label <- deparse1(substitute(x))
+    err <- expect_error(
+      proto_encode(x, type, pool),
+      class = "zuproto_type_mismatch",
+      label = label
+    )
+    expect_identical(err$path, path, label = label)
+  }
+  bad_factor <- structure(5L, levels = "LOW", class = "factor")
+  mismatch(list(f_enum = bad_factor), "zpb.decode.Scalars", "f_enum")
+  mismatch(list(f_enum = 2^40), "zpb.decode.Scalars", "f_enum")
+  mismatch(list(blobs = c("a", "b")), "zpb.decode.Repeated", "blobs[1]")
+  mismatch(list(meta = list(1, 2)), "zpb.decode.WellKnown", "meta")
+  mismatch(
+    list(points = list(`4294967296` = list(x = 1L))),
+    "zpb.decode.Maps",
+    'points["4294967296"]'
+  )
+  mismatch(list(points = c(`1` = 1)), "zpb.decode.Maps", 'points["1"]')
+  mismatch(list(i32 = 1:2), "zpb.decode.WellKnown", "i32")
+  mismatch(list(any = 1), "zpb.decode.WellKnown", "any")
+  mismatch(list(list = sum), "zpb.decode.WellKnown", "list")
+})
+
+test_that("a Value nests to upb's encoder limit and no further", {
+  # #117: upb counts each ListValue as a level and the walk does not, so
+  # 500 nested lists are 1000 levels.
+  pool <- decode_pool()
+  nest <- function(n) {
+    value <- 1
+    for (i in seq_len(n)) {
+      value <- list(value)
+    }
+    value
+  }
+  raw <- proto_encode(nest(500), "google.protobuf.Value", pool)
+  x <- proto_decode(raw, "google.protobuf.Value", pool, max_depth = 1000)
+  expect_identical(proto_encode(x, "google.protobuf.Value", pool), raw)
+  err <- expect_error(
+    proto_encode(nest(501), "google.protobuf.Value", pool),
+    class = "zuproto_depth_limit"
+  )
+  expect_identical(err$limit, "max_depth")
+})

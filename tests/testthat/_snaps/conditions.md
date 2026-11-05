@@ -25,6 +25,11 @@
     Condition
       Error in `proto_decode()`:
       ! Message type 'no.such.Type' is not in the pool.
+    Code
+      proto_pool(file("no/such/file.binpb"))
+    Condition
+      Error in `proto_pool()`:
+      ! Cannot open connection: cannot open file 'no/such/file.binpb': No such file or directory.
 
 # decoding errors read well
 
@@ -102,6 +107,60 @@
     Condition
       Error:
       ! Cannot decode the input as 'pkg.M': out of memory.
+    Code
+      zuproto:::decode_error(list(error = "arena_limit"), "pkg.M", 1e+06, 100, NULL)
+    Condition
+      Error:
+      ! Cannot decode the input as 'pkg.M': it needs more memory than a message of that type and size can legitimately need.
+    Code
+      zuproto:::decode_error(list(error = "frame_too_long", field = "pkg.M.items"),
+      "pkg.M", 1e+06, 100, NULL)
+    Condition
+      Error:
+      ! Cannot decode the input as 'pkg.M': field 'pkg.M.items' has 2^31 elements or more, too many for the rows of a data frame.
+    Code
+      proto_encode(as.Date("2026-01-01"), "google.protobuf.Value", pool)
+    Condition
+      Error in `proto_encode()`:
+      ! Cannot encode as 'google.protobuf.Value': The value is a classed vector a Value cannot hold; convert it to a number or a string first.
+    Code
+      proto_encode(c(a = 1), "google.protobuf.Value", pool)
+    Condition
+      Error in `proto_encode()`:
+      ! Cannot encode as 'google.protobuf.Value': The value is a named vector; give a Struct as a named list.
+    Code
+      proto_encode(list(f_int32 = sum), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_encode()`:
+      ! Cannot encode as 'zpb.decode.Scalars': Field `f_int32` must be a vector or a list.
+    Code
+      proto_encode(list(f_uint64 = " -1"), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_encode()`:
+      ! Cannot encode as 'zpb.decode.Scalars': Field `f_uint64` must be a decimal integer from 0 to 2^64 - 1.
+    Code
+      proto_write_delimited(list(), "zpb.decode.Point", pool, determinstic = TRUE)
+    Condition
+      Error in `proto_write_delimited()`:
+      ! `...` takes only proto_encode's options (`deterministic`, `unknown`, `check_required`, `extra`); not `determinstic`.
+    Code
+      proto_write_delimited(list(list(x = 1L)), "zpb.decode.Point", pool, path = "no/such/dir/x.bin")
+    Condition
+      Error in `proto_write_delimited()`:
+      ! Cannot write 'no/such/dir/x.bin': cannot open file 'no/such/dir/x.bin': No such file or directory.
+
+# a string the native encoding cannot read is described
+
+    Code
+      proto_encode(list(f_string = x), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_encode()`:
+      ! Cannot encode as 'zpb.decode.Scalars': Field `f_string` must be text the native encoding can read.
+    Code
+      proto_from_json(x, "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_from_json()`:
+      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: the native encoding cannot read the JSON text.
 
 # JSON errors read well
 
@@ -125,6 +184,16 @@
     Condition
       Error in `proto_unpack_any()`:
       ! `x$type_url` ('x') must name a type after its last /.
+    Code
+      proto_from_json(bad, "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_from_json()`:
+      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: the JSON text is not valid UTF-8.
+    Code
+      proto_from_json(bytes, "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_from_json()`:
+      ! `json` must be text, not a string marked as bytes.
 
 # warnings read well
 
@@ -138,4 +207,9 @@
     Condition
       Warning in `proto_decode()`:
       1 enum value in 'zpb.decode.Scalars' named no value of its enum and became NA.
+    Code
+      x <- proto_enums(low, "low.E")
+    Condition
+      Warning in `proto_enums()`:
+      1 enum number in 'low.E' could not be represented: -2^31 became NA.
 

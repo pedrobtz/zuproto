@@ -740,3 +740,96 @@ test_that("Timestamp and Duration seconds beyond 2^53 warn of precision loss", {
     -2^53
   )
 })
+
+test_that("the ceiling cache keeps every type's ceiling when it grows", {
+  # #114: the table starts at 64 slots and rehashes past 32 types; no test
+  # had decoded that many types in one pool.
+  field <- function(name, number, type, label = "LABEL_OPTIONAL", ...) {
+    list(name = name, number = number, label = label, type = type, ...)
+  }
+  big <- lapply(seq_len(400), function(i) {
+    field(sprintf("f%d", i), i, "TYPE_INT64")
+  })
+  small <- lapply(seq_len(40), function(i) {
+    list(name = sprintf("S%d", i), field = list(field("v", 1L, "TYPE_INT32")))
+  })
+  file <- list(
+    name = "grow.proto",
+    package = "grow",
+    syntax = "proto3",
+    message_type = c(
+      list(list(
+        name = "Holder",
+        field = list(field(
+          "big",
+          1L,
+          "TYPE_MESSAGE",
+          label = "LABEL_REPEATED",
+          type_name = ".grow.Big"
+        ))
+      )),
+      list(list(name = "Big", field = big)),
+      small
+    )
+  )
+  pool <- proto_pool(proto_encode(
+    list(file = list(file)),
+    "google.protobuf.FileDescriptorSet",
+    proto_pool()
+  ))
+  # 2000 empty Big messages: 2 bytes each, a whole Big struct once decoded.
+  raw <- rep(as.raw(c(0x0a, 0x00)), 2000)
+  expect_length(proto_decode(raw, "grow.Holder", pool)$big, 2000L)
+  for (i in seq_len(40)) {
+    expect_length(
+      proto_decode(as.raw(c(0x08, 0x01)), sprintf("grow.S%d", i), pool),
+      1L
+    )
+  }
+  expect_length(proto_decode(raw, "grow.Holder", pool)$big, 2000L)
+})
+
+test_that("a type reaching more than 64 others decodes", {
+  # #114: the reachable-type worklist starts at 64 entries.
+  chain <- lapply(0:69, function(i) {
+    list(
+      name = sprintf("C%d", i),
+      field = if (i < 69) {
+        list(list(
+          name = "next",
+          number = 1L,
+          label = "LABEL_OPTIONAL",
+          type = "TYPE_MESSAGE",
+          type_name = sprintf(".chain.C%d", i + 1)
+        ))
+      }
+    )
+  })
+  file <- list(
+    name = "chain.proto",
+    package = "chain",
+    syntax = "proto3",
+    message_type = chain
+  )
+  pool <- proto_pool(proto_encode(
+    list(file = list(file)),
+    "google.protobuf.FileDescriptorSet",
+    proto_pool()
+  ))
+  raw <- as.raw(c(0x0a, 0x02, 0x0a, 0x00))
+  x <- proto_decode(raw, "chain.C0", pool)
+  expect_type(x$`next`$`next`, "list")
+  expect_length(x$`next`$`next`, 0L)
+})
+
+test_that("decoding reads an unopened connection and closes it", {
+  # #113: every unopened-connection test expected a failure.
+  pool <- decode_pool()
+  path <- withr::local_tempfile()
+  raw <- proto_encode(list(x = 1L, y = 2L), "zpb.decode.Point", pool)
+  writeBin(raw, path)
+  before <- nrow(showConnections())
+  x <- proto_decode(file(path), "zpb.decode.Point", pool)
+  expect_identical(x[c("x", "y")], list(x = 1L, y = 2L))
+  expect_identical(nrow(showConnections()), before)
+})

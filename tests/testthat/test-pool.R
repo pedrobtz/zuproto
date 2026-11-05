@@ -190,3 +190,87 @@ test_that("files and connections that cannot be read are io errors", {
   withr::defer(close(con))
   expect_error(proto_pool(con), class = "zuproto_io_error")
 })
+
+test_that("a pool is built from an unopened connection, which is then closed", {
+  # #113
+  path <- withr::local_tempfile()
+  writeBin(fixture("schema"), path)
+  before <- nrow(showConnections())
+  pool <- proto_pool(file(path))
+  expect_true("zpb.test.Scalars" %in% proto_types(pool)$name)
+  expect_identical(nrow(showConnections()), before)
+})
+
+test_that("a warning from an open() that succeeds is passed on once", {
+  # #96 and #113: open() is replaced so that it warns and still opens.
+  path <- withr::local_tempfile()
+  writeBin(fixture("schema"), path)
+  local_mocked_bindings(open_rb = function(con) {
+    warning(structure(
+      class = c("zpb_test_warning", "warning", "condition"),
+      list(message = "opened with a warning", call = NULL)
+    ))
+    open(con, "rb")
+  })
+  seen <- 0
+  pool <- withCallingHandlers(
+    proto_pool(file(path)),
+    zpb_test_warning = function(w) {
+      seen <<- seen + 1
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_identical(seen, 1)
+  expect_true("zpb.test.Scalars" %in% proto_types(pool)$name)
+})
+
+test_that("a set's differing copy of a bundled well-known type is skipped", {
+  # #116: another protoc release writes timestamp.proto differently, and
+  # every set built with --include_imports carried that copy.
+  base <- proto_pool()
+  wkt <- proto_decode(wkt_bytes(), "google.protobuf.FileDescriptorSet", base)
+  ts <- Filter(
+    function(f) identical(f$name, "google/protobuf/timestamp.proto"),
+    wkt$file
+  )[[1]]
+  ts$options$go_package <- "example.com/old/timestamppb"
+  user <- list(
+    name = "uses_ts.proto",
+    package = "usets",
+    syntax = "proto3",
+    dependency = "google/protobuf/timestamp.proto",
+    message_type = list(list(
+      name = "Event",
+      field = list(list(
+        name = "at",
+        number = 1L,
+        label = "LABEL_OPTIONAL",
+        type = "TYPE_MESSAGE",
+        type_name = ".google.protobuf.Timestamp"
+      ))
+    ))
+  )
+  set <- proto_encode(
+    list(file = list(ts, user)),
+    "google.protobuf.FileDescriptorSet",
+    base
+  )
+  pool <- proto_pool(set)
+  expect_true("usets.Event" %in% proto_types(pool)$name)
+  expect_identical(
+    pool$files[["google/protobuf/timestamp.proto"]],
+    base$files[["google/protobuf/timestamp.proto"]]
+  )
+  # A file that is not bundled still conflicts.
+  other <- user
+  other$package <- "usets2"
+  proto_pool_add(
+    pool,
+    proto_encode(
+      list(file = list(other)),
+      "google.protobuf.FileDescriptorSet",
+      base
+    )
+  ) |>
+    expect_error(class = "zuproto_pool_conflict")
+})

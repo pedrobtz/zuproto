@@ -10,6 +10,7 @@ test_that("argument and pool errors read well", {
     proto_pool_add(proto_pool(), fixture("uses_dep"))
     proto_pool_add(proto_pool(fixture("dep")), fixture("dep_v2"))
     proto_decode(raw(), "no.such.Type", proto_pool())
+    proto_pool(file("no/such/file.binpb"))
   })
 })
 
@@ -63,24 +64,78 @@ test_that("encoding errors read well", {
     proto_encode(deep, "zpb.decode.Nested", pool)
     zuproto:::encode_error(list(error = "other"), "pkg.M", NULL)
     zuproto:::decode_error(list(error = "out_of_memory"), "pkg.M", 1, 1, NULL)
+    zuproto:::decode_error(list(error = "arena_limit"), "pkg.M", 1e6, 100, NULL)
+    zuproto:::decode_error(
+      list(error = "frame_too_long", field = "pkg.M.items"),
+      "pkg.M",
+      1e6,
+      100,
+      NULL
+    )
+    proto_encode(as.Date("2026-01-01"), "google.protobuf.Value", pool)
+    proto_encode(c(a = 1), "google.protobuf.Value", pool)
+    proto_encode(list(f_int32 = sum), "zpb.decode.Scalars", pool)
+    proto_encode(list(f_uint64 = " -1"), "zpb.decode.Scalars", pool)
+    proto_write_delimited(list(), "zpb.decode.Point", pool, determinstic = TRUE)
+    proto_write_delimited(
+      list(list(x = 1L)),
+      "zpb.decode.Point",
+      pool,
+      path = "no/such/dir/x.bin"
+    )
+  })
+})
+
+test_that("a string the native encoding cannot read is described", {
+  pool <- decode_pool()
+  withr::local_locale(c(LC_CTYPE = "C"))
+  x <- rawToChar(as.raw(c(0x61, 0xff)))
+  expect_snapshot(error = TRUE, {
+    proto_encode(list(f_string = x), "zpb.decode.Scalars", pool)
+    proto_from_json(x, "zpb.decode.Scalars", pool)
   })
 })
 
 test_that("JSON errors read well", {
   pool <- decode_pool()
+  bad <- rawToChar(as.raw(c(charToRaw('{"f_string":"'), 0xff, charToRaw('"}'))))
+  Encoding(bad) <- "UTF-8"
+  bytes <- bad
+  Encoding(bytes) <- "bytes"
   expect_snapshot(error = TRUE, {
     proto_from_json('{"f_int32": "x"}', "zpb.decode.Scalars", pool)
     proto_pack_any(list(), "zpb.decode.Point", pool, prefix = "x.io")
     proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1)
     proto_unpack_any(list(type_url = "x", value = raw()), pool)
+    proto_from_json(bad, "zpb.decode.Scalars", pool)
+    proto_from_json(bytes, "zpb.decode.Scalars", pool)
   })
 })
 
 test_that("warnings read well", {
   pool <- decode_pool()
+  low <- proto_pool(proto_encode(
+    list(
+      file = list(list(
+        name = "low.proto",
+        package = "low",
+        syntax = "proto3",
+        enum_type = list(list(
+          name = "E",
+          value = list(
+            list(name = "Z", number = 0L),
+            list(name = "LOW", number = -2^31)
+          )
+        ))
+      ))
+    ),
+    "google.protobuf.FileDescriptorSet",
+    proto_pool()
+  ))
   raw <- c(as.raw(0x80), as.raw(0x01), as.raw(5)) # f_enum = 5
   expect_snapshot({
     x <- proto_decode(msg_fixture("scalars_big"), "zpb.decode.Scalars", pool)
     x <- proto_decode(raw, "zpb.decode.Scalars", pool)
+    x <- proto_enums(low, "low.E")
   })
 })
