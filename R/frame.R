@@ -10,9 +10,9 @@
 #' whole call, and the condition's `index` says which one.
 #'
 #' With `field`, the input is one message instead, and the rows are the
-#' elements of its repeated message field `field`. That is how feeds that
-#' wrap their records in one message become tables, a GTFS Realtime
-#' `FeedMessage` and its `entity` field for one.
+#' elements of its repeated message field `field`. That is how a feed that
+#' wraps its records in one message becomes a table. A GTFS Realtime
+#' `FeedMessage` is one, with its records in the `entity` field.
 #'
 #' @section Columns:
 #' | Field | Column |
@@ -28,13 +28,14 @@
 #' | extension | a column named `[pkg.ext]` per extension the pool knows |
 #'
 #' A field a row does not set is `NA` (`NULL` in a list column) when the
-#' field tracks presence; otherwise it takes its default, or is `NA` with
-#' `defaults = FALSE`. A message field that no row sets is an all-`NA`
-#' logical column rather than a data frame, which is also where the columns
-#' of a recursive type end. A message type with no fields, such as `Empty`,
-#' is a list column: `list()` where set, `NULL` where not. A nested message
-#' that is set but has every field unset reads as unset, since its row is
-#' all `NA`.
+#' field tracks presence. Otherwise it takes its default, or is `NA` with
+#' `defaults = FALSE`. The `<oneof>_case` column is named `<oneof>_case_`
+#' instead when a field has that name. A message field that no row sets is
+#' an all-`NA` logical column rather than a data frame, which is also where
+#' the columns of a recursive type end. A message type with no fields, such
+#' as `Empty`, is a list column: `list()` where set, `NULL` where not. A
+#' nested message that is set but has every field unset reads as unset,
+#' since its row is all `NA`.
 #'
 #' @inheritParams proto_decode
 #' @param x For `proto_decode_df()`, a list of raw vectors, one message
@@ -64,8 +65,8 @@ proto_decode_df <- function(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e7
 ) {
   call <- sys.call()
@@ -132,13 +133,15 @@ proto_decode_df <- function(
 
 #' Length-delimited streams
 #'
-#' `proto_read_delimited()` reads a stream of messages, each preceded by its
-#' length as a varint, as Java's `writeDelimitedTo()`, Python's
-#' `_VarintBytes` helpers and many `.pb` log files write them, into a data
-#' frame like [proto_decode_df()] builds. With `each`, it reads the stream
-#' in chunks of `chunk_rows` messages and calls `each(df)` on each chunk
-#' instead, so a stream larger than memory can be processed.
-#' `proto_write_delimited()` writes one.
+#' In a length-delimited stream, each message is preceded by its length as
+#' a varint. Java's `writeDelimitedTo()` writes such streams, as do
+#' Python's `_VarintBytes` helpers and many `.pb` log files.
+#'
+#' `proto_read_delimited()` reads a stream into a data frame like
+#' [proto_decode_df()] builds. With `each`, it reads the stream in chunks
+#' of `chunk_rows` messages and calls `each(df)` on each chunk instead, so
+#' a stream larger than memory can be processed. `proto_write_delimited()`
+#' writes a stream.
 #'
 #' A stream that ends inside a length or a message is a
 #' `zuproto_parse_error`.
@@ -167,8 +170,8 @@ proto_read_delimited <- function(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e7
 ) {
   call <- sys.call()
@@ -222,7 +225,13 @@ proto_read_delimited <- function(
   repeat {
     # Read only when the bytes in hand hold no whole chunk of messages.
     if (need_more && !eof) {
-      chunk <- read_chunk(con, 1048576L, call)
+      # At least as much as is pending, so a message larger than one read
+      # is gathered in doubling steps, not copied again on every read.
+      chunk <- read_chunk(
+        con,
+        max(zpb_stream_read_bytes, length(pending)),
+        call
+      )
       if (length(chunk) == 0L) {
         eof <- TRUE
       } else {
@@ -259,12 +268,15 @@ proto_read_delimited <- function(
 #' @details `proto_write_delimited()` takes a data frame whose columns
 #'   follow the column table of [proto_decode_df()], one message per row,
 #'   or a list of messages as [proto_encode()] takes them. `NA` values leave
-#'   fields unset, and `<oneof>_case` columns are ignored.
+#'   fields unset, and `<oneof>_case` columns are ignored. A `NULL` cell
+#'   leaves its field unset too, so a `Value` that held JSON null is not
+#'   written back: a data frame cannot tell it from an unset one.
 #' @export
 proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
   call <- sys.call()
   check_pool(pool, call = call)
   check_type(type, call = call)
+  check_dots(...names(), ...length(), proto_encode, call)
   if (
     !is.null(path) && (!is.character(path) || length(path) != 1L || is.na(path))
   ) {
@@ -294,10 +306,19 @@ proto_write_delimited <- function(x, type, pool, path = NULL, ...) {
     )
   }
   stream <- .Call(zpb_frame_delimited, raws)
+  if (is.null(stream)) {
+    zpb_abort(
+      c("zuproto_size_limit", "zuproto_limit_error"),
+      "The stream would be longer than a raw vector can be.",
+      limit = "memory",
+      limit_value = NA_real_,
+      call = call
+    )
+  }
   if (is.null(path)) {
     return(stream)
   }
-  writeBin(stream, path)
+  with_io(writeBin(stream, path), sprintf("write '%s'", path), call)
   invisible(path)
 }
 
@@ -317,34 +338,27 @@ df_options <- function(
 ) {
   check_pool(pool, call = call)
   check_type(type, call = call)
-  int64 <- zpb_match_arg(
+  opts <- decode_options(
     int64,
-    zpb_choices$int64,
-    "int64",
-    call
-  )
-  check_int64_mode(int64, call)
-  enums <- zpb_match_arg(
     enums,
-    zpb_choices$enums,
-    "enums",
+    defaults,
+    "drop",
+    bytes,
+    max_size,
+    max_depth,
     call
   )
-  bytes <- zpb_match_arg(bytes, zpb_choices$bytes, "bytes", call)
-  check_flag(defaults, "defaults", call)
-  check_limit(max_size, "max_size", 1, 2^53, call)
-  check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)
   check_limit(max_rows, "max_rows", 1, 2^31 - 1, call)
-  list(
-    int64 = match(int64, zpb_choices$int64) - 1L,
-    enums = match(enums, zpb_choices$enums) - 1L,
-    defaults = as.integer(defaults),
-    bytes_base64 = as.integer(bytes == "base64"),
-    max_depth = as.integer(max_depth),
-    max_size = as.double(max_size),
-    max_rows = as.double(max_rows),
-    chunk_rows = Inf,
-    field = ""
+  # Frames have no unknown-field column, so `unknown` is not an option.
+  opts$keep_unknown <- NULL
+  c(
+    opts,
+    list(
+      max_size = as.double(max_size),
+      max_rows = as.double(max_rows),
+      chunk_rows = Inf,
+      field = ""
+    )
   )
 }
 
@@ -377,7 +391,7 @@ df_finish <- function(res, type, field, max_size, max_depth, max_rows, call) {
       tryCatch(
         decode_error(res, type, max_size, max_depth, call),
         zuproto_error = function(e) {
-          if (res$index > 0) {
+          if (isTRUE(res$index > 0)) {
             e$message <- sprintf(
               "Message %s: %s",
               format(res$index),
@@ -446,11 +460,28 @@ frame_type <- function(pool, type, cache) {
     msg <- f$type %in% c("message", "group")
     # An extension's name is already its column's, "[full.name]".
     cache[[type]] <- list(
-      skip = paste0(unique(f$oneof[!is.na(f$oneof)]), "_case"),
+      skip = case_names(unique(f$oneof[!is.na(f$oneof)]), f$name),
       sub = as.list(stats::setNames(f$type_name[msg], f$name[msg]))
     )
   }
   cache[[type]]
+}
+
+# The names of the `<oneof>_case` columns, as build_frame() makes them: "_"
+# is added while a field has the name (#115).
+case_names <- function(oneofs, fields) {
+  vapply(
+    oneofs,
+    function(o) {
+      name <- paste0(o, "_case")
+      while (name %in% fields) {
+        name <- paste0(name, "_")
+      }
+      name
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
 }
 
 # A data frame's rows as messages for proto_encode(): a column's element i,

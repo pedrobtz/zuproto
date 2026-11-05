@@ -46,17 +46,17 @@
 #'     not valid, or not the type's, or [proto_to_json()] could not write a
 #'     message (an `Any` whose packed type is not in the pool). Carries
 #'     `detail`, upb's description.}
-#'   \item{`zuproto_limit_error`}{A limit was reached. The subclasses
-#'     `zuproto_size_limit` (the input, or the memory decoding it needs,
-#'     is too large for `max_size`), `zuproto_depth_limit` (messages nest
-#'     deeper than `max_depth`) and `zuproto_row_limit` (more rows than
-#'     `max_rows`) name which. Carries `limit`, the
-#'     argument's name, and `limit_value`, its value. A decode that needs
-#'     more memory than any message of its type and size could has `limit`
-#'     `"memory"` and `limit_value` `NA`: no argument raises that ceiling.
-#'     [proto_encode()] raises
-#'     `zuproto_depth_limit` for messages nested deeper than 1000 levels,
-#'     the most `max_depth` lets [proto_decode()] accept.}
+#'   \item{`zuproto_limit_error`}{A limit was reached, and a subclass names
+#'     which. `zuproto_size_limit`: the input, or the memory decoding it
+#'     needs, is too large for `max_size`. `zuproto_depth_limit`: messages
+#'     nest deeper than `max_depth`. `zuproto_row_limit`: there are more rows
+#'     than `max_rows`. It carries `limit`, the argument's name, and
+#'     `limit_value`, its value. A decode can need more memory than any
+#'     message of its type and size could. Then `limit` is `"memory"` and
+#'     `limit_value` is `NA`, since no argument raises that ceiling.
+#'     [proto_encode()] raises `zuproto_depth_limit` for messages nested
+#'     deeper than 1000 levels, the most `max_depth` lets [proto_decode()]
+#'     accept.}
 #'   \item{`zuproto_internal_error`}{Memory ran out, or upb reported a
 #'     status zuproto does not expect. Carries `code`.}
 #' }
@@ -87,7 +87,8 @@ NULL
 
 # Two kinds of error builder: a `*_error()` function maps an error code the
 # C side returned to its condition, and an `abort_*()` function raises one
-# fixed condition.
+# fixed condition. abort_internal() is the exception: it takes the code, to
+# pick its message.
 zpb_abort <- function(class, message, ..., call = NULL) {
   stop(structure(
     class = c(class, "zuproto_error", "error", "condition"),

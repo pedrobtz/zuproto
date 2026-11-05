@@ -13,8 +13,8 @@ proto_decode_df(
   enums = c("factor", "integer", "character"),
   defaults = TRUE,
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth,
+  max_size = 64 * 1024^2,
+  max_depth = 100L,
   max_rows = 1e+07
 )
 }
@@ -72,9 +72,9 @@ whole call, and the condition's \code{index} says which one.
 }
 \details{
 With \code{field}, the input is one message instead, and the rows are the
-elements of its repeated message field \code{field}. That is how feeds that
-wrap their records in one message become tables, a GTFS Realtime
-\code{FeedMessage} and its \code{entity} field for one.
+elements of its repeated message field \code{field}. That is how a feed that
+wraps its records in one message becomes a table. A GTFS Realtime
+\code{FeedMessage} is one, with its records in the \code{entity} field.
 }
 \section{Columns}{
 \tabular{ll}{
@@ -92,13 +92,14 @@ wrap their records in one message become tables, a GTFS Realtime
 
 
 A field a row does not set is \code{NA} (\code{NULL} in a list column) when the
-field tracks presence; otherwise it takes its default, or is \code{NA} with
-\code{defaults = FALSE}. A message field that no row sets is an all-\code{NA}
-logical column rather than a data frame, which is also where the columns
-of a recursive type end. A message type with no fields, such as \code{Empty},
-is a list column: \code{list()} where set, \code{NULL} where not. A nested message
-that is set but has every field unset reads as unset, since its row is
-all \code{NA}.
+field tracks presence. Otherwise it takes its default, or is \code{NA} with
+\code{defaults = FALSE}. The \verb{<oneof>_case} column is named \verb{<oneof>_case_}
+instead when a field has that name. A message field that no row sets is
+an all-\code{NA} logical column rather than a data frame, which is also where
+the columns of a recursive type end. A message type with no fields, such
+as \code{Empty}, is a list column: \code{list()} where set, \code{NULL} where not. A
+nested message that is set but has every field unset reads as unset,
+since its row is all \code{NA}.
 }
 
 \examples{

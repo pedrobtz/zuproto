@@ -37,7 +37,13 @@
   messages, is never refused for it. `proto_to_json()` bounds every
   `Any` it writes by `max_depth`.
 * `proto_encode()` nests as deep as `proto_decode()` accepts (1000
-  levels), and refuses strings that are not valid UTF-8, a `Date` for a
-  `Timestamp`, and a field given twice. `proto_write_delimited()` writes
-  back frames whose nested messages hold oneofs. Failures that are no
-  user error are a `zuproto_internal_error`.
+  levels), and refuses strings that are not valid UTF-8 (or that a
+  non-UTF-8 locale cannot read), a `Date` for a `Timestamp`, a field
+  given twice, and 64-bit integer strings with spaces or a plus sign. In a
+  `Value`, a factor is written as its labels; dates, times and named
+  vectors are refused. `proto_from_json()` refuses JSON text that is not
+  valid UTF-8.
+  `proto_write_delimited()` writes back frames whose nested messages hold
+  oneofs. Failures that are no user error are a `zuproto_internal_error`.
+* A pool keeps its bundled well-known types when a descriptor set carries
+  another `protoc` release's copy of them.

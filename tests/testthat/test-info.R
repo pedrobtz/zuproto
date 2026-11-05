@@ -17,3 +17,37 @@ test_that("conditions carry their classes and fields", {
   )
   expect_identical(err$arg, "x")
 })
+
+test_that("the functions' default limits are zuproto_info()'s", {
+  # #127: the signatures give the limits as literals, for the help pages.
+  limits <- zuproto_info()$limits
+  funs <- list(
+    proto_decode = proto_decode,
+    proto_decode_df = proto_decode_df,
+    proto_read_delimited = proto_read_delimited,
+    proto_to_json = proto_to_json,
+    proto_from_json = proto_from_json
+  )
+  for (name in names(funs)) {
+    f <- formals(funs[[name]])
+    for (limit in intersect(names(limits), names(f))) {
+      expect_identical(
+        eval(f[[limit]]),
+        limits[[limit]],
+        label = paste(name, limit)
+      )
+    }
+  }
+})
+
+test_that("pools and zuproto_info() print a summary", {
+  # #126: the print methods had no test.
+  expect_output(
+    print(proto_pool()),
+    "^<proto_pool: [0-9]+ files, [0-9]+ message types>$"
+  )
+  out <- capture.output(print(zuproto_info()))
+  expect_identical(out[[1]], "<zuproto_info>")
+  # Every value starts in the same column.
+  expect_length(unique(nchar(sub("^([a-z_]+: +).*", "\\1", out[-1]))), 1L)
+})

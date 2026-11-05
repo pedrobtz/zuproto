@@ -48,17 +48,17 @@ message type does not define. Carries \code{path}.}
 not valid, or not the type's, or \code{\link[=proto_to_json]{proto_to_json()}} could not write a
 message (an \code{Any} whose packed type is not in the pool). Carries
 \code{detail}, upb's description.}
-\item{\code{zuproto_limit_error}}{A limit was reached. The subclasses
-\code{zuproto_size_limit} (the input, or the memory decoding it needs,
-is too large for \code{max_size}), \code{zuproto_depth_limit} (messages nest
-deeper than \code{max_depth}) and \code{zuproto_row_limit} (more rows than
-\code{max_rows}) name which. Carries \code{limit}, the
-argument's name, and \code{limit_value}, its value. A decode that needs
-more memory than any message of its type and size could has \code{limit}
-\code{"memory"} and \code{limit_value} \code{NA}: no argument raises that ceiling.
-\code{\link[=proto_encode]{proto_encode()}} raises
-\code{zuproto_depth_limit} for messages nested deeper than 1000 levels,
-the most \code{max_depth} lets \code{\link[=proto_decode]{proto_decode()}} accept.}
+\item{\code{zuproto_limit_error}}{A limit was reached, and a subclass names
+which. \code{zuproto_size_limit}: the input, or the memory decoding it
+needs, is too large for \code{max_size}. \code{zuproto_depth_limit}: messages
+nest deeper than \code{max_depth}. \code{zuproto_row_limit}: there are more rows
+than \code{max_rows}. It carries \code{limit}, the argument's name, and
+\code{limit_value}, its value. A decode can need more memory than any
+message of its type and size could. Then \code{limit} is \code{"memory"} and
+\code{limit_value} is \code{NA}, since no argument raises that ceiling.
+\code{\link[=proto_encode]{proto_encode()}} raises \code{zuproto_depth_limit} for messages nested
+deeper than 1000 levels, the most \code{max_depth} lets \code{\link[=proto_decode]{proto_decode()}}
+accept.}
 \item{\code{zuproto_internal_error}}{Memory ran out, or upb reported a
 status zuproto does not expect. Carries \code{code}.}
 }

@@ -80,7 +80,7 @@ proto_fields <- function(pool, type) {
 proto_enums <- function(pool, type) {
   call <- sys.call()
   check_pool(pool, call = call)
-  check_type(type, call = call)
+  check_type(type, call = call, what = "enum")
   cols <- .Call(zpb_pool_enums, pool$ptr, type)
   if (is.null(cols)) {
     zpb_abort(
@@ -107,13 +107,18 @@ proto_enums <- function(pool, type) {
   as.data.frame(cols)
 }
 
-check_type <- function(type, arg = "type", call = NULL) {
+check_type <- function(type, arg = "type", call = NULL, what = "message") {
   if (
     !is.character(type) || length(type) != 1L || is.na(type) || !nzchar(type)
   ) {
     zpb_invalid_argument(
       arg,
-      sprintf("`%s` must be a message type's full name, a single string.", arg),
+      sprintf(
+        "`%s` must be %s %s type's full name, a single string.",
+        arg,
+        if (what == "enum") "an" else "a",
+        what
+      ),
       call
     )
   }

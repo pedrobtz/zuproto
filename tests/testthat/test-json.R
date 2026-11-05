@@ -416,13 +416,94 @@ test_that("pack and unpack refuse arguments their codec does not take", {
   pool <- decode_pool()
   any <- proto_pack_any(list(x = 1L), "zpb.decode.Point", pool)
   calls <- list(
-    function() proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1),
-    function() proto_pack_any(list(), "zpb.decode.Point", pool, "x.io/", TRUE),
-    function() proto_unpack_any(any, pool, foo = 1),
-    function() proto_unpack_any(any, pool, "factor")
+    pack_named = function() {
+      proto_pack_any(list(), "zpb.decode.Point", pool, foo = 1)
+    },
+    pack_unnamed = function() {
+      proto_pack_any(list(), "zpb.decode.Point", pool, "x.io/", TRUE)
+    },
+    unpack_named = function() proto_unpack_any(any, pool, foo = 1),
+    unpack_unnamed = function() proto_unpack_any(any, pool, "factor")
   )
-  for (f in calls) {
-    err <- expect_error(f(), class = "zuproto_invalid_argument")
-    expect_identical(err$arg, "...")
+  for (name in names(calls)) {
+    err <- expect_error(
+      calls[[name]](),
+      class = "zuproto_invalid_argument",
+      label = name
+    )
+    expect_identical(err$arg, "...", label = name)
   }
+})
+
+test_that("JSON text that is not valid UTF-8 is refused before upb parses it", {
+  # #107: upb copied the bytes of a string literal into a string field.
+  pool <- proto_pool()
+  type <- "google.protobuf.FieldDescriptorProto"
+  bad <- rawToChar(as.raw(c(charToRaw('{"name":"'), 0xff, charToRaw('"}'))))
+  Encoding(bad) <- "UTF-8"
+  expect_error(proto_from_json(bad, type, pool), class = "zuproto_json_error")
+  struct <- rawToChar(as.raw(c(charToRaw('{"k":"'), 0xfe, charToRaw('"}'))))
+  Encoding(struct) <- "UTF-8"
+  expect_error(
+    proto_from_json(struct, "google.protobuf.Struct", pool),
+    class = "zuproto_json_error"
+  )
+  bytes <- bad
+  Encoding(bytes) <- "bytes"
+  err <- expect_error(
+    proto_from_json(bytes, type, pool),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "json")
+})
+
+test_that("JSON text the C locale cannot read is refused", {
+  # #107: enc2utf8() wrote the bytes as "<ff>" escapes.
+  pool <- proto_pool()
+  withr::local_locale(c(LC_CTYPE = "C"))
+  text <- rawToChar(as.raw(c(charToRaw('{"name":"'), 0xff, charToRaw('"}'))))
+  expect_error(
+    proto_from_json(text, "google.protobuf.FieldDescriptorProto", pool),
+    class = "zuproto_json_error"
+  )
+  expect_identical(
+    proto_from_json(
+      '{"name":"a"}',
+      "google.protobuf.FieldDescriptorProto",
+      pool
+    ),
+    as.raw(c(0x0a, 0x01, 0x61))
+  )
+})
+
+test_that("proto_unpack_any() reads type_url and value by their exact names", {
+  # #125: `$` matched `type_url_x` and `values` partially.
+  pool <- proto_pool()
+  partial <- list(
+    type_url_x = "type.googleapis.com/google.protobuf.Int32Value",
+    values = as.raw(c(0x08, 0x01))
+  )
+  expect_error(
+    proto_unpack_any(partial, pool),
+    class = "zuproto_invalid_argument"
+  )
+  err <- expect_error(
+    proto_unpack_any(
+      list(type_url = "type.googleapis.com/", value = raw()),
+      pool
+    ),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "x")
+})
+
+test_that("R values as JSON need zujson, and say so when it is missing", {
+  # #126: has_namespace() is replaced, as if zujson were not installed.
+  local_mocked_bindings(has_namespace = function(pkg) pkg != "zujson")
+  pool <- proto_pool()
+  err <- expect_error(
+    proto_from_json(list(value = 1L), "google.protobuf.Int32Value", pool),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "json")
 })

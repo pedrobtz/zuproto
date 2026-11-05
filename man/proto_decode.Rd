@@ -13,8 +13,8 @@ proto_decode(
   defaults = TRUE,
   unknown = c("drop", "keep"),
   bytes = c("raw", "base64"),
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth
+  max_size = 64 * 1024^2,
+  max_depth = 100L
 )
 }
 \arguments{
@@ -98,9 +98,9 @@ Repeated \code{Timestamp}, \code{Duration} and wrapper fields become vectors.
 A field that tracks presence (a message, a oneof member, a proto2 or
 proto3 \code{optional} field) is left out when it is not set. A field that
 does not track presence cannot be told apart from its default on the
-wire; with \code{defaults = TRUE} it takes its default (\code{0}, \code{""}, \code{FALSE},
+wire. With \code{defaults = TRUE} it takes its default (\code{0}, \code{""}, \code{FALSE},
 the enum's first value, an empty vector), as other protobuf runtimes
-do; with \code{defaults = FALSE} it is left out when it holds its default.
+do. With \code{defaults = FALSE} it is left out when it holds its default.
 
 Required fields are not checked: a proto2 \code{required} field missing
 from the input decodes like any unset field.

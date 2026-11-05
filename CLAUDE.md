@@ -24,10 +24,10 @@ questions (§18) are still open.
 
 ## Current state
 
-Scaffolded 2026-10-24 with `create-pkg.sh -c`; no functionality yet. The
-roadmap in `.agents/roadmap.md` takes it to v0.1.0. Stage 0 is a go/no-go: if
-the upb amalgamation cannot be made CRAN-clean with the design's two patches,
-the design goes back to the maintainer before Stage 1.
+Scaffolded 2026-10-24 with `create-pkg.sh -c`. Every stage of the roadmap
+in `.agents/roadmap.md` is merged, and the version is set to 0.1.0. What
+remains before submission is the critical review's issues (label `review`)
+and `pkg-cran-review`.
 
 ## Stage tracking
 
@@ -149,7 +149,7 @@ The design fixes these before any code exists. Add each further one when a
 stage establishes it.
 
 - **All upb calls go through `src/zpb_upb.h`.** No other file includes the
-  vendored header, and a test enforces it. Otherwise a re-vendor, against
+  vendored header, and `tools/verify-vendor` enforces it. Otherwise a re-vendor, against
   upb's unstable API, means edits all over `src/`.
 - **Never call R while upb is on the C stack.** upb uses `setjmp`/`longjmp`
   for decoder errors; an R error unwinding through those frames skips its
@@ -162,8 +162,10 @@ stage establishes it.
 - **Descriptor sets are trusted, message bytes are not.** Every limit
   (`max_size`, `max_depth`, `max_rows`, the arena byte ceiling) and UTF-8
   validation applies to message bytes.
-- **Vendored patches are only the two in the design (§9.2).** A patch that
-  touches decoder logic is a reason to stop and report upstream.
+- **Vendored patches are only those in the design (§9.2).** Each one is
+  listed there with its reason, and each upb bug it works around is
+  reported upstream. A patch that touches decoder logic is a reason to
+  stop and report upstream.
 - **A builder that fails returns `NULL` with its PROTECTs undone**, never
   `Rf_error()`: the entry point must hand the error back to R to raise with
   its class. Only out-of-memory and broken internal invariants call
@@ -199,7 +201,7 @@ stage establishes it.
   (Python's protobuf), with provenance and SHA-256 in
   `fixtures/DESCRIPTORS.tsv` and `fixtures/msg/MANIFEST.tsv`.
 - **Keep the suite inside the CRAN time budget.** The design's target is
-  under 15 s; it ran in 9.3 s installed when last measured (2026-10-26).
+  under 15 s; it ran in 10.6 s installed when last measured (2026-11-05).
 
 ## Definition of done
 

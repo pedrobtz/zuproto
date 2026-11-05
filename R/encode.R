@@ -98,7 +98,7 @@ encode_options <- function(
   check_flag(deterministic, "deterministic", call)
   check_flag(unknown, "unknown", call)
   check_flag(check_required, "check_required", call)
-  extra <- zpb_match_arg(extra, c("error", "ignore"), "extra", call)
+  extra <- zpb_match_arg(extra, zpb_choices$extra, "extra", call)
   list(
     deterministic = as.integer(deterministic),
     check_required = as.integer(check_required),

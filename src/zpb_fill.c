@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <R_ext/Riconv.h>
+
 #include "zpb.h"
 #include "zpb_build.h"
 
@@ -76,20 +78,73 @@ static int fail(fill_ctx *ctx, int err, const char *detail)
 
 /* ---- R values ---- */
 
+/* A native string in a locale that is not UTF-8, converted with iconv
+ * into memory that lives until the .Call returns. R's own translation
+ * would write bytes the locale cannot read as <xx> escapes (#106). */
+static int native_utf8(SEXP c, const char **s)
+{
+    size_t in_left = (size_t) LENGTH(c);
+    if (in_left > (SIZE_MAX - 1) / 4) return ZPB_TEXT_NATIVE;
+    /* A character of the native encoding takes at most four UTF-8 bytes
+     * and at least one byte of its own. */
+    size_t out_left = 4 * in_left;
+    char *buf = R_alloc(out_left + 1, 1);
+    void *cd = Riconv_open("UTF-8", "");
+    if (cd == (void *) -1) return ZPB_TEXT_NATIVE;
+    const char *in = CHAR(c);
+    char *out = buf;
+    size_t r = Riconv(cd, &in, &in_left, &out, &out_left);
+    Riconv_close(cd);
+    if (r == (size_t) -1 || in_left != 0) return ZPB_TEXT_NATIVE;
+    *out = '\0';
+    *s = buf;
+    return 0;
+}
+
+int zpb_char_utf8(SEXP c, const char **s)
+{
+    if (Rf_getCharCE(c) == CE_BYTES) return ZPB_TEXT_BYTES;
+    if (Rf_charIsUTF8(c)) {
+        /* ASCII, UTF-8, or native in a UTF-8 locale: the bytes as they are,
+         * once checked. */
+        if (!zpb_utf8_valid(CHAR(c), (size_t) LENGTH(c))) return ZPB_TEXT_INVALID;
+        *s = CHAR(c);
+        return 0;
+    }
+    if (Rf_getCharCE(c) == CE_LATIN1) {
+        /* Every byte is a Latin-1 character, so translation cannot fail. */
+        *s = Rf_translateCharUTF8(c);
+        return 0;
+    }
+    return native_utf8(c, s);
+}
+
 /* A string as UTF-8 for upb. One R marks as bytes has no encoding to
- * translate from, and one that claims UTF-8 but is not valid would reach
+ * translate from, and one that is not valid in its encoding would reach
  * the message as R's <xx> escapes. `name` says whether it is a name (a
  * field's, a map or Struct key), for the description. */
 static int utf8_elt(fill_ctx *ctx, SEXP c, int name, const char **s)
 {
-    if (Rf_getCharCE(c) == CE_BYTES)
+    switch (zpb_char_utf8(c, s)) {
+    case ZPB_TEXT_BYTES:
         return fail(ctx, FILL_TYPE, name ? "has a name marked as bytes, not text"
                                          : "must not be a string marked as bytes");
-    if (Rf_charIsUTF8(c) && !zpb_utf8_valid(CHAR(c), (size_t) LENGTH(c)))
+    case ZPB_TEXT_INVALID:
         return fail(ctx, FILL_TYPE, name ? "has a name that is not valid UTF-8"
                                          : "must be valid UTF-8");
-    *s = Rf_translateCharUTF8(c);
+    case ZPB_TEXT_NATIVE:
+        return fail(ctx, FILL_TYPE, name ? "has a name the native encoding cannot read"
+                                         : "must be text the native encoding can read");
+    }
     return 0;
+}
+
+/* An R value the walk can look into: NULL, an atomic vector or a list. A
+ * function, environment, symbol or call is a type mismatch (#108), not
+ * something to call XLENGTH() on. */
+static int is_value(SEXP x)
+{
+    return x == R_NilValue || Rf_isVectorAtomic(x) || TYPEOF(x) == VECSXP;
 }
 
 static int is_integer64(SEXP x)
@@ -107,7 +162,7 @@ static int64_t integer64_elt(SEXP x, R_xlen_t i)
 static int is_unset(SEXP x)
 {
     if (x == R_NilValue) return 1;
-    if (XLENGTH(x) != 1) return 0;
+    if (!is_value(x) || XLENGTH(x) != 1) return 0;
     if (is_integer64(x)) return integer64_elt(x, 0) == INT64_MIN; /* bit64's NA */
     switch (TYPEOF(x)) {
     case LGLSXP: return LOGICAL(x)[0] == NA_LOGICAL;
@@ -175,9 +230,19 @@ static int str_elt(fill_ctx *ctx, SEXP x, R_xlen_t i, const char **s)
     return utf8_elt(ctx, c, 0, s);
 }
 
+/* Decimal integers as proto_decode() writes them: an optional minus sign
+ * then digits, nothing else. strtoll() and strtoull() would also take
+ * leading space and a plus sign, and strtoull() a minus sign, which it
+ * wraps modulo 2^64 (#105). */
+static int is_digit(char c)
+{
+    return c >= '0' && c <= '9';
+}
+
 static int parse_int64(const char *s, int64_t *out)
 {
     char *end;
+    if (!is_digit(s[s[0] == '-'])) return -1;
     errno = 0;
     long long v = strtoll(s, &end, 10);
     if (errno != 0 || end == s || *end != '\0') return -1;
@@ -188,7 +253,7 @@ static int parse_int64(const char *s, int64_t *out)
 static int parse_uint64(const char *s, uint64_t *out)
 {
     char *end;
-    if (*s == '-' || *s == '\0') return -1;
+    if (!is_digit(s[0])) return -1;
     errno = 0;
     unsigned long long v = strtoull(s, &end, 10);
     if (errno != 0 || end == s || *end != '\0') return -1;
@@ -398,19 +463,45 @@ static int fill_scalar_wkt(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEX
 static int fill_struct(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x);
 static int fill_list_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x);
 
+/* An atomic vector a Value can hold: plain, a factor (its levels, as
+ * text) or integer64. A date, time or other classed vector would lose its
+ * class, and a named one its names, so both are refused (#109). */
+static int value_atomic(fill_ctx *ctx, SEXP x)
+{
+    if (Rf_isObject(x) && !is_factor(x) && !is_integer64(x))
+        return fail(ctx, FILL_TYPE, "is a classed vector a Value cannot hold; "
+                                    "convert it to a number or a string first");
+    if (Rf_getAttrib(x, R_NamesSymbol) != R_NilValue)
+        return fail(ctx, FILL_TYPE, "is a named vector; give a Struct as a named list");
+    return 0;
+}
+
 /* Value: NULL or NA is null, a logical, number or string of length 1 that
  * scalar, a named list a Struct, anything else a ListValue. */
 static int fill_value_wkt(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
 {
     zpb_value v;
     memset(&v, 0, sizeof v);
+    if (!is_value(x)) return fail(ctx, FILL_TYPE, "must be a vector or a list");
     if (is_unset(x)) return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 1), v);
-    if (XLENGTH(x) == 1 && (!Rf_isObject(x) || is_integer64(x))) {
+    if (Rf_isVectorAtomic(x) && value_atomic(ctx, x) < 0) return -1;
+    if (XLENGTH(x) == 1 && Rf_isVectorAtomic(x)) {
         switch (TYPEOF(x)) {
         case LGLSXP:
             v.bool_val = LOGICAL(x)[0] != 0;
             return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 4), v);
         case INTSXP:
+            if (is_factor(x)) {
+                const char *s;
+                SEXP levels = Rf_getAttrib(x, R_LevelsSymbol);
+                int code = INTEGER(x)[0];
+                if (TYPEOF(levels) != STRSXP || code < 1 || code > XLENGTH(levels))
+                    return fail(ctx, FILL_TYPE, "is a factor with invalid codes");
+                if (utf8_elt(ctx, STRING_ELT(levels, code - 1), 0, &s) < 0) return -1;
+                return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 3),
+                                 zpb_value_str(s, strlen(s)));
+            }
+            /* fall through */
         case REALSXP:
             if (num_elt(ctx, x, 0, &v.double_val) < 0) return -1;
             return set_field(ctx, msg, zpb_msgdef_field_by_number(m, 2), v);
@@ -435,14 +526,28 @@ static int fill_value_wkt(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP
     return fill_list_value(ctx, zpb_field_msgdef(f), sub, x);
 }
 
-/* Element i of an atomic vector or list, as an R value of length 1. */
+/* Element i of an atomic vector or list, as an R value of length 1. A
+ * factor's element keeps its levels and an integer64's its class, so the
+ * Value walk reads them as fill_value_wkt() reads a scalar. */
 static SEXP elt(SEXP x, R_xlen_t i)
 {
     if (TYPEOF(x) == VECSXP) return VECTOR_ELT(x, i);
+    SEXP e;
     switch (TYPEOF(x)) {
     case LGLSXP: return Rf_ScalarLogical(LOGICAL(x)[i]);
-    case INTSXP: return Rf_ScalarInteger(INTEGER(x)[i]);
-    case REALSXP: return Rf_ScalarReal(REAL(x)[i]);
+    case INTSXP:
+        if (!is_factor(x)) return Rf_ScalarInteger(INTEGER(x)[i]);
+        e = PROTECT(Rf_ScalarInteger(INTEGER(x)[i]));
+        Rf_setAttrib(e, R_LevelsSymbol, Rf_getAttrib(x, R_LevelsSymbol));
+        Rf_setAttrib(e, R_ClassSymbol, Rf_getAttrib(x, R_ClassSymbol));
+        UNPROTECT(1);
+        return e;
+    case REALSXP:
+        if (!is_integer64(x)) return Rf_ScalarReal(REAL(x)[i]);
+        e = PROTECT(Rf_ScalarReal(REAL(x)[i]));
+        Rf_setAttrib(e, R_ClassSymbol, Rf_getAttrib(x, R_ClassSymbol));
+        UNPROTECT(1);
+        return e;
     case STRSXP: return Rf_ScalarString(STRING_ELT(x, i));
     }
     return R_NilValue;
@@ -462,8 +567,13 @@ static int fill_nested_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, S
 static int fill_list_value(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
 {
     switch (TYPEOF(x)) {
-    case VECSXP: case LGLSXP: case INTSXP: case REALSXP: case STRSXP: break;
-    default: return fail(ctx, FILL_TYPE, "must be a list or an atomic vector");
+    case VECSXP: break;
+    case LGLSXP: case INTSXP: case REALSXP: case STRSXP:
+        if (value_atomic(ctx, x) < 0) return -1;
+        break;
+    default:
+        return fail(ctx, FILL_TYPE,
+                    "must be a list, or a logical, numeric or character vector");
     }
     const zpb_fielddef *values = zpb_msgdef_field_by_number(m, 1);
     const zpb_msgdef *value_def = zpb_field_msgdef(values);
@@ -626,12 +736,9 @@ static int fill_map(fill_ctx *ctx, zpb_msg *msg, const zpb_fielddef *f, SEXP x)
 
 static int fill_field(fill_ctx *ctx, zpb_msg *msg, const zpb_fielddef *f, SEXP x)
 {
+    if (!is_value(x)) return fail(ctx, FILL_TYPE, "must be a vector or a list");
     if (zpb_field_is_map(f)) return fill_map(ctx, msg, f, x);
-    if (zpb_field_is_repeated(f)) {
-        if (TYPEOF(x) != VECSXP && !Rf_isVectorAtomic(x))
-            return fail(ctx, FILL_TYPE, "must be a vector or a list");
-        return fill_repeated(ctx, msg, f, x);
-    }
+    if (zpb_field_is_repeated(f)) return fill_repeated(ctx, msg, f, x);
     int ct = zpb_field_ctype(f);
     if (ct == ZPB_CTYPE_MESSAGE) {
         const zpb_msgdef *sm = zpb_field_msgdef(f);
@@ -734,6 +841,7 @@ static int fill_generic(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x
 static int fill_message_body(fill_ctx *ctx, const zpb_msgdef *m, zpb_msg *msg, SEXP x)
 {
     R_CheckStack();
+    if (!is_value(x)) return fail(ctx, FILL_TYPE, "must be a vector or a list");
     switch (zpb_msgdef_wkt(m)) {
     case ZPB_WKT_TIMESTAMP:
     case ZPB_WKT_DURATION:

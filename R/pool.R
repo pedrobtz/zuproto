@@ -23,11 +23,14 @@
 #' an untrusted source. Message bytes, by contrast, are never trusted.
 #'
 #' Files are added in dependency order, whatever order the set lists them
-#' in. A file already in the pool is skipped if its contents are identical
-#' and is a `zuproto_pool_conflict` if they are not; the same holds for a
-#' file listed twice. A file importing one that is neither in the set nor
-#' in the pool is a `zuproto_pool_error` naming both, and nothing from the
-#' set is added. Extensions are loaded with the files that declare them.
+#' in. A file already in the pool is skipped if its contents are identical.
+#' It is a `zuproto_pool_conflict` if they are not, and the same holds for
+#' a file listed twice. The exception is a bundled well-known type's file,
+#' which another `protoc` release writes differently: the pool keeps its
+#' own copy and skips the one in the set. A file importing one that is
+#' neither in the set nor in the pool is a `zuproto_pool_error` naming
+#' both, and nothing from the set is added. Extensions are loaded with the
+#' files that declare them.
 #'
 #' @param x A serialised `FileDescriptorSet`: a raw vector, a path to a
 #'   file, or a connection. `NULL` for the well-known types only.
@@ -100,6 +103,16 @@ check_pool <- function(pool, arg = "pool", call = NULL) {
   invisible(pool)
 }
 
+# The names of the files in wkt.binpb, read once.
+bundled_files <- function() {
+  if (is.null(zpb_cache$bundled)) {
+    zpb_cache$bundled <- .Call(zpb_set_files, wkt_bytes())$name
+  }
+  zpb_cache$bundled
+}
+
+zpb_cache <- new.env(parent = emptyenv())
+
 wkt_bytes <- function() {
   path <- system.file(
     "descriptors",
@@ -122,15 +135,10 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
   if (is.character(x) && length(x) == 1L && !is.na(x)) {
     check_file(x, call)
     size <- min(file.size(x), limit)
-    return(tryCatch(
+    return(with_io(
       readBin(x, "raw", size),
-      error = function(e) {
-        zpb_abort(
-          "zuproto_io_error",
-          sprintf("Cannot read file '%s': %s", x, conditionMessage(e)),
-          call = call
-        )
-      }
+      sprintf("read file '%s'", x),
+      call
     ))
   }
   zpb_invalid_argument(
@@ -140,15 +148,15 @@ read_input <- function(x, arg, call = NULL, limit = Inf) {
   )
 }
 
-# open() and readBin() on a connection, failing as zuproto_io_error.
-open_connection <- function(con, call) {
-  # open() warns with the reason ("No such file or directory") before it
-  # fails with a generic error; the reason goes in the error. A warning
-  # from an open() that succeeds is passed on (#96).
+# Evaluate an I/O call, failing as zuproto_io_error with "Cannot <what>".
+# Base R warns with the reason ("No such file or directory") before it
+# fails with a generic error; the reason goes in the error. A warning from
+# a call that succeeds is passed on (#96).
+with_io <- function(expr, what, call) {
   warnings <- list()
   res <- tryCatch(
     withCallingHandlers(
-      open(con, "rb"),
+      expr,
       warning = function(w) {
         warnings[[length(warnings) + 1L]] <<- w
         invokeRestart("muffleWarning")
@@ -160,13 +168,27 @@ open_connection <- function(con, call) {
     reason <- if (length(warnings) > 0L) warnings[[1L]] else res
     zpb_abort(
       "zuproto_io_error",
-      sprintf("Cannot open connection: %s.", conditionMessage(reason)),
+      sprintf(
+        "Cannot %s: %s.",
+        what,
+        sub("[.]$", "", conditionMessage(reason))
+      ),
       call = call
     )
   }
   for (w in warnings) {
     warning(w)
   }
+  invisible(res)
+}
+
+# open() on a connection, by itself so tests can replace it.
+open_rb <- function(con) {
+  open(con, "rb")
+}
+
+open_connection <- function(con, call) {
+  with_io(open_rb(con), "open connection", call)
   invisible(con)
 }
 
@@ -188,7 +210,7 @@ read_connection <- function(con, call = NULL, limit = Inf) {
   chunks <- list()
   got <- 0
   while (got < limit) {
-    chunk <- read_chunk(con, min(65536, limit - got), call)
+    chunk <- read_chunk(con, min(zpb_read_bytes, limit - got), call)
     if (length(chunk) == 0L) {
       break
     }
@@ -225,7 +247,10 @@ pool_add_set <- function(pool, bytes, call = NULL) {
       new[[name]]$bytes
     }
     if (!is.null(old)) {
-      if (identical(old, bytes_i)) {
+      # A bundled well-known type's file from another protoc release, as
+      # `--include_imports` embeds it, is skipped too: the pool's copy
+      # stays, and upb's handling of these types is built in (#116).
+      if (identical(old, bytes_i) || name %in% bundled_files()) {
         next
       }
       zpb_abort(
@@ -293,7 +318,8 @@ pool_add_set <- function(pool, bytes, call = NULL) {
       if (!is.null(err)) {
         zpb_abort(
           "zuproto_pool_error",
-          sprintf("Cannot add '%s': %s", name, err),
+          # upb's messages have no full stop, but one is not doubled.
+          sprintf("Cannot add '%s': %s.", name, sub("[.]$", "", err)),
           file = name,
           call = call
         )
@@ -320,4 +346,5 @@ check_file <- function(path, call) {
       call = call
     )
   }
+  invisible(path)
 }

@@ -30,16 +30,16 @@ zuproto_info <- function() {
 format.zuproto_info <- function(x, ...) {
   c(
     "<zuproto_info>",
-    paste0("zuproto:  ", x$version),
+    paste0("zuproto:   ", x$version),
     paste0(
-      "upb:      protobuf ",
+      "upb:       protobuf ",
       x$protobuf,
       " (",
       substr(x$protobuf_commit, 1, 7),
       ")"
     ),
     paste0(
-      "max_size: ",
+      "max_size:  ",
       format(x$limits$max_size, scientific = FALSE),
       " bytes"
     ),

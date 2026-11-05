@@ -20,9 +20,10 @@ zpb_match_arg <- function(x, choices, arg, call = NULL) {
   x
 }
 
-# `int64 = "integer64"` makes bit64 vectors, so bit64 must be there to use them.
+# `int64 = "integer64"` makes bit64 vectors, so bit64 must be there to use
+# them.
 check_int64_mode <- function(int64, call = NULL) {
-  if (int64 == "integer64" && !requireNamespace("bit64", quietly = TRUE)) {
+  if (int64 == "integer64" && !has_namespace("bit64")) {
     zpb_invalid_argument(
       "int64",
       '`int64 = "integer64"` needs the bit64 package. Install it, or use `int64 = "character"` for exact values.',
@@ -62,8 +63,8 @@ check_limit <- function(x, arg, lo, hi, call = NULL) {
   invisible(x)
 }
 
-# The `n` arguments in `...`, named `dots`, that are passed on to `fun`: each named, and named as
-# one of its options, so a typo is a zuproto error rather than R's.
+# Check that the names of the `n` arguments in `...` (`dots`) are all
+# options of `fun`, so a typo is a zuproto error rather than R's.
 check_dots <- function(dots, n, fun, call = NULL) {
   options <- setdiff(names(formals(fun)), c("x", "type", "pool", "..."))
   # ...names() is NULL when no argument is named, and gives an unnamed one
@@ -88,4 +89,10 @@ check_dots <- function(dots, n, fun, call = NULL) {
     )
   }
   invisible(dots)
+}
+
+# Whether a suggested package can be loaded; by itself so tests can replace
+# it.
+has_namespace <- function(pkg) {
+  requireNamespace(pkg, quietly = TRUE)
 }

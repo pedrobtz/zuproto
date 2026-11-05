@@ -261,13 +261,14 @@ test_that("a message that fails names its index in the whole stream", {
         ...
       )
     }
-    err <- expect_error(read(), class = case[[2]])
+    err <- expect_error(read(), class = case[[2]], label = case[[2]])
     expect_identical(err$index, 6, label = case[[2]])
     err <- expect_error(
       read(each = function(df) NULL, chunk_rows = 2),
-      class = case[[2]]
+      class = case[[2]],
+      label = paste(case[[2]], "with each")
     )
-    expect_identical(err$index, 6, label = case[[2]])
+    expect_identical(err$index, 6, label = paste(case[[2]], "with each"))
   }
 })
 
@@ -499,14 +500,168 @@ test_that("a directory is named as one, not as missing", {
   # #49
   pool <- decode_pool()
   dir <- tempdir()
-  for (f in list(
-    function() proto_pool(dir),
-    function() proto_decode(dir, "zpb.decode.Nested", pool),
-    function() {
+  # The wording is the point here, so it is a snapshot; the path varies.
+  expect_snapshot(
+    error = TRUE,
+    transform = function(x) gsub(dir, "<dir>", x, fixed = TRUE),
+    {
+      proto_pool(dir)
+      proto_decode(dir, "zpb.decode.Nested", pool)
       proto_read_delimited(dir, "zpb.decode.Nested", pool, each = print)
     }
-  )) {
-    err <- expect_error(f(), class = "zuproto_io_error")
-    expect_match(conditionMessage(err), "it is a directory", fixed = TRUE)
+  )
+})
+
+test_that("proto_write_delimited() refuses options proto_encode() lacks", {
+  # #110: a misspelt option was an unclassed "unused argument" error, and
+  # with no rows no error at all.
+  pool <- decode_pool()
+  df <- data.frame(x = 1:2, y = 3:4)
+  err <- expect_error(
+    proto_write_delimited(df, "zpb.decode.Point", pool, determinstic = TRUE),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(err$arg, "...")
+  expect_error(
+    proto_write_delimited(
+      df[0, ],
+      "zpb.decode.Point",
+      pool,
+      determinstic = TRUE
+    ),
+    class = "zuproto_invalid_argument"
+  )
+  expect_error(
+    proto_write_delimited(df, "zpb.decode.Point", pool, TRUE),
+    class = "zuproto_invalid_argument"
+  )
+  expect_identical(
+    proto_write_delimited(df, "zpb.decode.Point", pool, check_required = FALSE),
+    proto_write_delimited(df, "zpb.decode.Point", pool)
+  )
+})
+
+test_that("proto_write_delimited() raises a write failure as zuproto_io_error", {
+  # #110: writeBin() failed with an unclassed error and a warning.
+  pool <- decode_pool()
+  path <- file.path(withr::local_tempdir(), "no", "such", "dir", "x.bin")
+  expect_no_warning(
+    expect_error(
+      proto_write_delimited(data.frame(x = 1L), "zpb.decode.Point", pool, path),
+      class = "zuproto_io_error"
+    )
+  )
+})
+
+test_that("a field named like a oneof's case column keeps its values", {
+  # #115: both columns were named kind_case, and writing the frame back
+  # dropped the field's.
+  pool <- decode_pool()
+  type <- "zpb.decode2.CaseClash"
+  msgs <- list(
+    proto_encode(list(a = 1L, kind_case = 7L), type, pool),
+    proto_encode(list(b = "x"), type, pool)
+  )
+  df <- proto_decode_df(msgs, type, pool)
+  expect_false(anyDuplicated(names(df)) > 0)
+  expect_identical(df$kind_case, c(7L, NA))
+  expect_identical(df$kind_case_, c("a", "b"))
+  back <- proto_read_delimited(
+    proto_write_delimited(df, type, pool),
+    type,
+    pool
+  )
+  expect_identical(back, df)
+})
+
+test_that("groups decode, encode, list and write back like messages", {
+  # #118: no fixture had a group field.
+  pool <- decode_pool()
+  type <- "zpb.decode2.Grouped"
+  f <- proto_fields(pool, type)
+  expect_identical(f$type[f$name %in% c("item", "row")], c("group", "group"))
+  x <- list(item = list(a = 1L), row = list(list(s = "p"), list(s = "q")))
+  raw <- proto_encode(x, type, pool)
+  # Groups are start- and end-group tags: field 1 opens with 0x0b.
+  expect_identical(raw[1], as.raw(0x0b))
+  y <- proto_decode(raw, type, pool)
+  expect_identical(y$item$a, 1L)
+  expect_identical(vapply(y$row, `[[`, "", "s"), c("p", "q"))
+  expect_identical(proto_encode(y, type, pool), raw)
+  df <- proto_decode_df(list(raw, raw), type, pool)
+  expect_identical(df$item$a, c(1L, 1L))
+  stream <- proto_write_delimited(df, type, pool)
+  expect_identical(proto_read_delimited(stream, type, pool), df)
+})
+
+test_that("proto_read_delimited() refuses an x that is not raw, a path or a connection", {
+  # #120
+  pool <- decode_pool()
+  for (x in list(42, NA_character_, c("a", "b"), list())) {
+    err <- expect_error(
+      proto_read_delimited(x, "zpb.decode.Point", pool),
+      class = "zuproto_invalid_argument",
+      label = deparse1(x)
+    )
+    expect_identical(err$arg, "x", label = deparse1(x))
+    # With `each`, the stream is read by open_path().
+    err <- expect_error(
+      proto_read_delimited(x, "zpb.decode.Point", pool, each = identity),
+      class = "zuproto_invalid_argument",
+      label = paste(deparse1(x), "with each")
+    )
+    expect_identical(err$arg, "x", label = paste(deparse1(x), "with each"))
   }
+})
+
+test_that("a message larger than one read is gathered from a connection", {
+  # #125: the reads now grow with the bytes pending.
+  pool <- decode_pool()
+  big <- list(strings = strrep("a", 3 * 1048576))
+  raw <- proto_encode(big, "zpb.decode.Repeated", pool)
+  path <- withr::local_tempfile()
+  writeBin(
+    proto_write_delimited(list(big, big), "zpb.decode.Repeated", pool),
+    path
+  )
+  rows <- 0
+  proto_read_delimited(
+    path,
+    "zpb.decode.Repeated",
+    pool,
+    each = function(df) rows <<- rows + nrow(df)
+  )
+  expect_identical(rows, 2)
+})
+
+test_that("proto_read_delimited() reads an unopened connection and closes it", {
+  # #113
+  pool <- decode_pool()
+  path <- withr::local_tempfile()
+  df <- data.frame(x = 1:3, y = 4:6)
+  writeBin(proto_write_delimited(df, "zpb.decode.Point", pool), path)
+  before <- nrow(showConnections())
+  back <- proto_read_delimited(file(path), "zpb.decode.Point", pool)
+  expect_identical(back$x, 1:3)
+  rows <- 0
+  proto_read_delimited(
+    file(path),
+    "zpb.decode.Point",
+    pool,
+    each = function(d) rows <<- rows + nrow(d)
+  )
+  expect_identical(rows, 3)
+  expect_identical(nrow(showConnections()), before)
+})
+
+test_that("a data-frame column that is no message field is an unknown field", {
+  # #126: frame_type() is then given no type.
+  pool <- decode_pool()
+  df <- data.frame(x = 1:2)
+  df$nope <- data.frame(a = 1:2)
+  err <- expect_error(
+    proto_write_delimited(df, "zpb.decode.Point", pool),
+    class = "zuproto_unknown_field"
+  )
+  expect_identical(err$index, 1)
 })

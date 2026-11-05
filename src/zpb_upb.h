@@ -946,6 +946,9 @@ static inline int zpb_check_any(const zpb_defpool *p, zpb_ceilings *c, const zpb
         const upb_MessageDef *packed = upb_DefPool_FindMessageByNameWithSize(
             p, slash + 1, (size_t) (url.data + url.size - (slash + 1)));
         if (packed == NULL) return ZPB_DECODE_OK; /* likewise, before its arena */
+        /* No level is left for the payload. upb would read a depth of 0 as
+         * its default of 100, so decoding it is skipped. */
+        if (depth < 1) return ZPB_DECODE_DEPTH;
         double grow = zpb_arena_ceiling(p, c, packed, (double) val.size, 1);
         ca->limit = (double) ca->limit + grow >= (double) SIZE_MAX ? SIZE_MAX
                                                                   : ca->limit + (size_t) grow;

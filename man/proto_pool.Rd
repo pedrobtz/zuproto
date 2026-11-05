@@ -37,11 +37,14 @@ than \code{protoc} does. Load sets you or your tools produced, not ones from
 an untrusted source. Message bytes, by contrast, are never trusted.
 
 Files are added in dependency order, whatever order the set lists them
-in. A file already in the pool is skipped if its contents are identical
-and is a \code{zuproto_pool_conflict} if they are not; the same holds for a
-file listed twice. A file importing one that is neither in the set nor
-in the pool is a \code{zuproto_pool_error} naming both, and nothing from the
-set is added. Extensions are loaded with the files that declare them.
+in. A file already in the pool is skipped if its contents are identical.
+It is a \code{zuproto_pool_conflict} if they are not, and the same holds for
+a file listed twice. The exception is a bundled well-known type's file,
+which another \code{protoc} release writes differently: the pool keeps its
+own copy and skips the one in the set. A file importing one that is
+neither in the set nor in the pool is a \code{zuproto_pool_error} naming
+both, and nothing from the set is added. Extensions are loaded with the
+files that declare them.
 }
 \examples{
 pool <- proto_pool()

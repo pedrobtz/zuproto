@@ -17,11 +17,11 @@
 #'
 #' JSON meets R values through
 #' [zujson](https://CRAN.R-project.org/package=zujson), which must be
-#' installed for it: `proto_to_json(parse = TRUE)` returns
-#' [zujson::json_parse()]'s R value, and `proto_from_json()` takes an R value
-#' as well as JSON text, written with [zujson::json_write()]. There, a
-#' length-1 vector is a JSON scalar: give a repeated field of one element as
-#' `I(x)` or `list(x)`.
+#' installed for it. `proto_to_json(parse = TRUE)` returns
+#' [zujson::json_parse()]'s R value. `proto_from_json()` takes an R value as
+#' well as JSON text, and writes it with [zujson::json_write()]. There, a
+#' length-1 vector is a JSON scalar, so give a repeated field of one element
+#' as `I(x)` or `list(x)`.
 #'
 #' @inheritParams proto_decode
 #' @param x For `proto_to_json()`, the binary message: a raw vector, a path
@@ -53,8 +53,8 @@ proto_to_json <- function(
   proto_names = FALSE,
   enums = c("name", "integer"),
   parse = FALSE,
-  max_size = zpb_limits$max_size,
-  max_depth = zpb_limits$max_depth
+  max_size = 64 * 1024^2,
+  max_depth = 100L
 ) {
   # A fast path, as in proto_decode().
   if (
@@ -116,7 +116,7 @@ json_options <- function(
   check_flag(emit_defaults, "emit_defaults", call)
   check_flag(proto_names, "proto_names", call)
   enums <- zpb_match_arg(enums, zpb_choices$json_enums, "enums", call)
-  check_limit(max_size, "max_size", 1, 2^53, call)
+  check_limit(max_size, "max_size", 1, zpb_max_size_cap, call)
   check_limit(max_depth, "max_depth", 1, zpb_encode_max_depth, call)
   list(
     max_depth = as.integer(max_depth),
@@ -128,7 +128,7 @@ json_options <- function(
 
 # json_options() with every argument at its default, built once.
 zpb_json_defaults <- list(
-  max_depth = zpb_limits$max_depth,
+  max_depth = 100L,
   json_options = 0L
 )
 
@@ -137,8 +137,7 @@ zpb_json_defaults <- list(
 #'   or an R value to write as JSON with [zujson::json_write()].
 #' @param ignore_unknown Whether to skip JSON fields the type does not
 #'   define, rather than fail.
-#' @param check_required Whether a missing proto2 `required` field is an
-#'   error.
+#' @inheritParams proto_encode
 #' @export
 proto_from_json <- function(
   json,
@@ -146,7 +145,7 @@ proto_from_json <- function(
   pool,
   ignore_unknown = FALSE,
   check_required = TRUE,
-  max_size = zpb_limits$max_size
+  max_size = 64 * 1024^2
 ) {
   call <- sys.call()
   check_pool(pool, call = call)
@@ -162,9 +161,16 @@ proto_from_json <- function(
       call
     )
   }
+  if (Encoding(json) == "bytes") {
+    zpb_invalid_argument(
+      "json",
+      "`json` must be text, not a string marked as bytes.",
+      call
+    )
+  }
   check_flag(ignore_unknown, "ignore_unknown", call)
   check_flag(check_required, "check_required", call)
-  check_limit(max_size, "max_size", 1, 2^53, call)
+  check_limit(max_size, "max_size", 1, zpb_max_size_cap, call)
   size <- nchar(json, type = "bytes")
   if (size > max_size) {
     zpb_abort(
@@ -182,14 +188,15 @@ proto_from_json <- function(
     ignore_unknown = as.integer(ignore_unknown),
     check_required = as.integer(check_required)
   )
-  res <- .Call(zpb_from_json, pool$ptr, type, enc2utf8(json), opts)
+  res <- .Call(zpb_from_json, pool$ptr, type, json, opts)
   if (!is.null(res$error)) {
     # upb's JSON parser stops at 64 levels, below the encoder's 1000. If
     # that changes, the encoder's limit is raised as proto_encode() does.
     if (identical(res$error, "max_depth")) {
-      return(encode_error(res, type, call))
+      encode_error(res, type, call)
+    } else {
+      json_error(res, type, max_size, NA, call)
     }
-    json_error(res, type, max_size, NA, call)
   }
   res$value
 }
@@ -248,11 +255,13 @@ proto_unpack_any <- function(x, pool, ...) {
     )
   }
   check_dots(...names(), ...length(), proto_decode, call)
-  ok <- is.list(x) &&
-    is.character(x$type_url) &&
-    length(x$type_url) == 1L &&
-    !is.na(x$type_url) &&
-    is.raw(x$value)
+  # Exact names: `$` would take `type_url_x` or `values` as well.
+  type_url <- if (is.list(x)) x[["type_url", exact = TRUE]]
+  value <- if (is.list(x)) x[["value", exact = TRUE]]
+  ok <- is.character(type_url) &&
+    length(type_url) == 1L &&
+    !is.na(type_url) &&
+    is.raw(value)
   if (!ok) {
     zpb_invalid_argument(
       "x",
@@ -260,18 +269,18 @@ proto_unpack_any <- function(x, pool, ...) {
       call
     )
   }
-  type <- sub(".*/", "", x$type_url)
-  if (!grepl("/", x$type_url, fixed = TRUE) || !nzchar(type)) {
+  type <- sub(".*/", "", type_url)
+  if (!grepl("/", type_url, fixed = TRUE) || !nzchar(type)) {
     zpb_invalid_argument(
       "x",
       sprintf(
         "`x$type_url` ('%s') must name a type after its last /.",
-        x$type_url
+        type_url
       ),
       call
     )
   }
-  proto_decode(x$value, type, pool, ...)
+  proto_decode(value, type, pool, ...)
 }
 
 #' @rdname proto_unpack_any
@@ -304,7 +313,7 @@ proto_pack_any <- function(
 }
 
 require_zujson <- function(arg, call = NULL) {
-  if (!requireNamespace("zujson", quietly = TRUE)) {
+  if (!has_namespace("zujson")) {
     zpb_invalid_argument(
       arg,
       "JSON as R values needs the zujson package. Install it, or give and take JSON text.",
