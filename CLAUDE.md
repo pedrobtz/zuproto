@@ -243,10 +243,16 @@ documentation and a `NEWS.md` entry.
 - **The pretest is automated and does not read `cran-comments.md`.** A
   NOTE that is explained but not fixed gets the upload archived. Fix the
   NOTE, as under Vendored native code, instead of justifying it.
-- **After acceptance,** `pkg-post-cran` tags the submitted commit with
-  the bare version, `0.1.0` (no `v`), publishes the GitHub release,
-  bumps to `0.1.0.9000`, closes the version’s parent issue and moves the
-  board card.
+- **After submitting,** commit the `CRAN-SUBMISSION` file that
+  `devtools::submit_cran()` writes, on a branch, and merge its pull
+  request without `[skip ci]`. Every other workflow skips that change.
+  On the push to main, `cran-release.yaml` tags the submitted commit
+  with the bare version, `0.1.0` (no `v`), creates the GitHub release,
+  and opens a `[skip ci]` pull request that bumps to `0.1.0.9000`. Merge
+  that pull request only after CRAN accepts. The file stays tracked: it
+  is in `.Rbuildignore`, not `.gitignore`.
+- **After acceptance,** merge the bump pull request. `pkg-post-cran`
+  then closes the version’s parent issue and moves the board card.
 
 ## Editing rules
 
@@ -270,8 +276,12 @@ instead of writing bespoke ones, and pin a released tag rather than
 `main`. Pin a workflow that holds a write token, such as `coverage.yml`,
 to a commit, with the tag in a comment. The `R-CMD-check` workflow must
 call `r-cmd-check.yml`, because a hand-rolled one does not count as the
-pre-submission check. This package calls `r-cmd-check.yml@v1` and
-`coverage.yml@v1`; `pkgdown.yaml` is the scaffold’s own r-lib workflow.
+pre-submission check. This package calls `r-cmd-check.yml@v1`,
+`coverage.yml@v1` and `cran-release.yml` (pinned to v1.30.0);
+`pkgdown.yaml` is the scaffold’s own r-lib workflow. The local jobs in
+`conformance`, `hardening` and `vendor` are gated by `changes.yml`.
+`coverage` and `pkgdown` instead ignore `CRAN-SUBMISSION` by path,
+because they run on documentation changes on purpose.
 
 Small edits get a small run. The shared workflows look at the files a
 pull request changes, compared with its merge base:

@@ -166,7 +166,9 @@
 <li>
 <strong>The pretest is automated and does not read <code>cran-comments.md</code>.</strong> A NOTE that is explained but not fixed gets the upload archived. Fix the NOTE, as under Vendored native code, instead of justifying it.</li>
 <li>
-<strong>After acceptance,</strong> <code>pkg-post-cran</code> tags the submitted commit with the bare version, <code>0.1.0</code> (no <code>v</code>), publishes the GitHub release, bumps to <code>0.1.0.9000</code>, closes the version’s parent issue and moves the board card.</li>
+<strong>After submitting,</strong> commit the <code>CRAN-SUBMISSION</code> file that <code>devtools::submit_cran()</code> writes, on a branch, and merge its pull request without <code>[skip ci]</code>. Every other workflow skips that change. On the push to main, <code>cran-release.yaml</code> tags the submitted commit with the bare version, <code>0.1.0</code> (no <code>v</code>), creates the GitHub release, and opens a <code>[skip ci]</code> pull request that bumps to <code>0.1.0.9000</code>. Merge that pull request only after CRAN accepts. The file stays tracked: it is in <code>.Rbuildignore</code>, not <code>.gitignore</code>.</li>
+<li>
+<strong>After acceptance,</strong> merge the bump pull request. <code>pkg-post-cran</code> then closes the version’s parent issue and moves the board card.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="editing-rules">Editing rules<a class="anchor" aria-label="anchor" href="#editing-rules"></a></h2>
@@ -180,7 +182,7 @@
 </ul></div>
 <div class="section level2">
 <h2 id="continuous-integration">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration"></a></h2>
-<p>Workflows come from <code>pedrobtz/r-actions</code>. Call those reusable workflows instead of writing bespoke ones, and pin a released tag rather than <code>main</code>. Pin a workflow that holds a write token, such as <code>coverage.yml</code>, to a commit, with the tag in a comment. The <code>R-CMD-check</code> workflow must call <code>r-cmd-check.yml</code>, because a hand-rolled one does not count as the pre-submission check. This package calls <code>r-cmd-check.yml@v1</code> and <code>coverage.yml@v1</code>; <code>pkgdown.yaml</code> is the scaffold’s own r-lib workflow.</p>
+<p>Workflows come from <code>pedrobtz/r-actions</code>. Call those reusable workflows instead of writing bespoke ones, and pin a released tag rather than <code>main</code>. Pin a workflow that holds a write token, such as <code>coverage.yml</code>, to a commit, with the tag in a comment. The <code>R-CMD-check</code> workflow must call <code>r-cmd-check.yml</code>, because a hand-rolled one does not count as the pre-submission check. This package calls <code>r-cmd-check.yml@v1</code>, <code>coverage.yml@v1</code> and <code>cran-release.yml</code> (pinned to v1.30.0); <code>pkgdown.yaml</code> is the scaffold’s own r-lib workflow. The local jobs in <code>conformance</code>, <code>hardening</code> and <code>vendor</code> are gated by <code>changes.yml</code>. <code>coverage</code> and <code>pkgdown</code> instead ignore <code>CRAN-SUBMISSION</code> by path, because they run on documentation changes on purpose.</p>
 <p>Small edits get a small run. The shared workflows look at the files a pull request changes, compared with its merge base:</p>
 <ul><li>
 <strong>Markdown only</strong>, such as <code>README.md</code>, <code>NEWS.md</code> or <code>cran-comments.md</code>, skips every check. Only coverage and the pkgdown site run.</li>
