@@ -32,12 +32,15 @@ msg_fixture <- function(name) {
 # A pool holding the decode fixture schemas.
 decode_pool <- function() fixture_pool("decode", "decode2")
 
-# A varint, as raw bytes.
+# A varint, as raw bytes. Any double is exact here: dividing by 128 is
+# exact, so floor() and the subtraction are too. `%%` would warn above 2^53
+# (#132).
 varint <- function(n) {
   out <- raw()
   repeat {
-    byte <- n %% 128
-    n <- n %/% 128
+    q <- floor(n / 128)
+    byte <- n - q * 128
+    n <- q
     if (n == 0) {
       return(c(out, as.raw(byte)))
     }

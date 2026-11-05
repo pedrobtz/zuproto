@@ -1,3 +1,34 @@
+# a string the native encoding cannot read is described
+
+    Code
+      proto_encode(list(f_string = x), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_encode()`:
+      ! Cannot encode as 'zpb.decode.Scalars': Field `f_string` must be text the native encoding can read.
+    Code
+      proto_from_json(x, "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_from_json()`:
+      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: the native encoding cannot read the JSON text.
+
+# warnings read well
+
+    Code
+      x <- proto_decode(msg_fixture("scalars_big"), "zpb.decode.Scalars", pool)
+    Condition
+      Warning in `proto_decode()`:
+      4 values in 'zpb.decode.Scalars' could not be represented exactly: 64-bit integers beyond 2^53 were rounded, and 32-bit -2^31 became NA. Use `int64 = "character"` for exact 64-bit values.
+    Code
+      x <- proto_decode(raw, "zpb.decode.Scalars", pool)
+    Condition
+      Warning in `proto_decode()`:
+      1 enum value in 'zpb.decode.Scalars' named no value of its enum and became NA.
+    Code
+      x <- proto_enums(low, "low.E")
+    Condition
+      Warning in `proto_enums()`:
+      1 enum number in 'low.E' could not be represented: -2^31 became NA.
+
 # argument and pool errors read well
 
     Code
@@ -31,37 +62,6 @@
       Error in `proto_pool()`:
       ! Cannot open connection: cannot open file 'no/such/file.binpb': No such file or directory.
 
-# a string the native encoding cannot read is described
-
-    Code
-      proto_encode(list(f_string = x), "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_encode()`:
-      ! Cannot encode as 'zpb.decode.Scalars': Field `f_string` must be text the native encoding can read.
-    Code
-      proto_from_json(x, "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_from_json()`:
-      ! Cannot convert 'zpb.decode.Scalars' to or from JSON: the native encoding cannot read the JSON text.
-
-# warnings read well
-
-    Code
-      x <- proto_decode(msg_fixture("scalars_big"), "zpb.decode.Scalars", pool)
-    Condition
-      Warning in `proto_decode()`:
-      4 values in 'zpb.decode.Scalars' could not be represented exactly: 64-bit integers beyond 2^53 were rounded, and 32-bit -2^31 became NA. Use `int64 = "character"` for exact 64-bit values.
-    Code
-      x <- proto_decode(raw, "zpb.decode.Scalars", pool)
-    Condition
-      Warning in `proto_decode()`:
-      1 enum value in 'zpb.decode.Scalars' named no value of its enum and became NA.
-    Code
-      x <- proto_enums(low, "low.E")
-    Condition
-      Warning in `proto_enums()`:
-      1 enum number in 'low.E' could not be represented: -2^31 became NA.
-
 # JSON errors read well
 
     Code
@@ -94,40 +94,6 @@
     Condition
       Error in `proto_from_json()`:
       ! `json` must be text, not a string marked as bytes.
-
-# decoding errors read well
-
-    Code
-      proto_decode(as.raw(10), "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Scalars': the bytes are not a valid message of that type.
-    Code
-      proto_decode(c(as.raw(114), varint(2), bad), "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Scalars': a string field is not valid UTF-8.
-    Code
-      proto_decode(as.raw(c(114, 1, 0)), "zpb.decode.Scalars", pool)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Scalars': field 'zpb.decode.Scalars.f_string' holds a string R cannot, one containing a NUL byte.
-    Code
-      proto_decode(c(as.raw(c(8, 1, 18, 6)), nested), "zpb.decode.Nested", pool,
-      max_depth = 1)
-    Condition
-      Error in `proto_decode()`:
-      ! Cannot decode the input as 'zpb.decode.Nested': messages are nested deeper than `max_depth` (1).
-    Code
-      proto_decode(msg_fixture("scalars_set"), "zpb.decode.Scalars", pool, max_size = 10)
-    Condition
-      Error in `proto_decode()`:
-      ! The input is larger than `max_size` (10 bytes).
-    Code
-      proto_decode_df(rep(list(nested), 3), "zpb.decode.Nested", pool, max_rows = 2)
-    Condition
-      Error in `proto_decode_df()`:
-      ! There are more than `max_rows` (2) rows.
 
 # encoding errors read well
 
@@ -212,4 +178,38 @@
     Condition
       Error in `proto_write_delimited()`:
       ! Cannot write 'no/such/dir/x.bin': cannot open file 'no/such/dir/x.bin': No such file or directory.
+
+# decoding errors read well
+
+    Code
+      proto_decode(as.raw(10), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Scalars': the bytes are not a valid message of that type.
+    Code
+      proto_decode(c(as.raw(114), varint(2), bad), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Scalars': a string field is not valid UTF-8.
+    Code
+      proto_decode(as.raw(c(114, 1, 0)), "zpb.decode.Scalars", pool)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Scalars': field 'zpb.decode.Scalars.f_string' holds a string R cannot, one containing a NUL byte.
+    Code
+      proto_decode(c(as.raw(c(8, 1, 18, 6)), nested), "zpb.decode.Nested", pool,
+      max_depth = 1)
+    Condition
+      Error in `proto_decode()`:
+      ! Cannot decode the input as 'zpb.decode.Nested': messages are nested deeper than `max_depth` (1).
+    Code
+      proto_decode(msg_fixture("scalars_set"), "zpb.decode.Scalars", pool, max_size = 10)
+    Condition
+      Error in `proto_decode()`:
+      ! The input is larger than `max_size` (10 bytes).
+    Code
+      proto_decode_df(rep(list(nested), 3), "zpb.decode.Nested", pool, max_rows = 2)
+    Condition
+      Error in `proto_decode_df()`:
+      ! There are more than `max_rows` (2) rows.
 
