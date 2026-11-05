@@ -12,8 +12,10 @@
 #' `Any` messages convert only when the type they pack is in the pool.
 #'
 #' The entries of a map field, and so the keys of a `Struct`, are written
-#' in no fixed order: it can differ between R sessions. Compare JSON as
-#' parsed values, not as text.
+#' in no fixed order: it can differ between R sessions. With
+#' `parse = TRUE` they are sorted by key, as [proto_decode()] sorts maps, so
+#' the parsed value is the same in every session. Compare JSON as parsed
+#' values, not as text.
 #'
 #' JSON meets R values through
 #' [zujson](https://CRAN.R-project.org/package=zujson), which must be
@@ -101,8 +103,146 @@ proto_to_json <- function(
   if (!is.null(res$error)) {
     json_error(res, type, max_size, max_depth, sys.call())
   }
-  if (parse) zujson::json_parse(res$value) else res$value
+  if (!parse) {
+    return(res$value)
+  }
+  json_sort_maps(
+    zujson::json_parse(res$value),
+    type,
+    pool,
+    bitwAnd(opts$json_options, 2L) != 0L
+  )
 }
+
+# upb writes map entries, and so Struct keys, in hash order, which changes
+# between sessions (#102). Patching its encoder is ruled out (design
+# section 9.2), so the parsed value is sorted here, as proto_decode() sorts
+# maps: by key, numerically for integer keys. The walk follows the schema,
+# so message fields keep their order.
+json_sort_maps <- function(x, type, pool, proto_names) {
+  fields <- new.env(parent = emptyenv())
+  type_fields <- function(type) {
+    if (is.null(fields[[type]])) {
+      f <- proto_fields(pool, type)
+      f$key <- if (proto_names) f$name else f$json_name
+      fields[[type]] <- f
+    }
+    fields[[type]]
+  }
+  walk_value <- function(v) {
+    if (is.list(v) && !is.null(names(v))) {
+      walk_struct(v)
+    } else if (is.list(v)) {
+      lapply(v, walk_value)
+    } else {
+      v
+    }
+  }
+  walk_struct <- function(v) {
+    lapply(v[order(names(v), method = "radix")], walk_value)
+  }
+  walk_any <- function(v) {
+    url <- v[["@type"]]
+    if (!is.character(url) || length(url) != 1L) {
+      return(v)
+    }
+    inner <- sub("^.*/", "", url)
+    if (inner %in% zpb_json_wkt) {
+      if (!is.null(v[["value"]])) {
+        v["value"] <- list(walk(v[["value"]], inner))
+      }
+      v
+    } else {
+      walk(v, inner)
+    }
+  }
+  walk <- function(v, type) {
+    switch(
+      type,
+      google.protobuf.Struct = if (is.list(v)) walk_struct(v) else v,
+      google.protobuf.Value = walk_value(v),
+      google.protobuf.ListValue = walk_value(v),
+      google.protobuf.Any = if (is.list(v)) walk_any(v) else v,
+      walk_message(v, type)
+    )
+  }
+  walk_message <- function(v, type) {
+    if (!is.list(v) || is.null(names(v)) || type %in% zpb_json_wkt) {
+      return(v)
+    }
+    f <- type_fields(type)
+    f <- f[f$type == "message" & f$key %in% names(v), , drop = FALSE]
+    for (i in seq_len(nrow(f))) {
+      key <- f$key[i]
+      sub <- v[[key]]
+      if (is.null(sub)) {
+        next
+      }
+      sub <- if (f$map[i]) {
+        walk_map(sub, f$type_name[i])
+      } else if (f$label[i] == "repeated") {
+        if (is.list(sub)) lapply(sub, walk, f$type_name[i]) else sub
+      } else {
+        walk(sub, f$type_name[i])
+      }
+      v[key] <- list(sub)
+    }
+    v
+  }
+  walk_map <- function(m, entry) {
+    if (!is.list(m) || length(m) == 0L) {
+      return(m)
+    }
+    e <- type_fields(entry)
+    key_type <- e$type[e$number == 1L]
+    m <- m[map_key_order(names(m), key_type)]
+    val <- e[e$number == 2L, , drop = FALSE]
+    if (val$type == "message") {
+      m <- lapply(m, walk, val$type_name)
+    }
+    m
+  }
+  walk(x, type)
+}
+
+# The order of a map's JSON keys, for its key type.
+map_key_order <- function(keys, key_type) {
+  if (key_type %in% c("string", "bool")) {
+    return(order(keys, method = "radix"))
+  }
+  # Integer keys, possibly 64-bit: sort by sign, then by magnitude as
+  # digits padded to equal width, which is exact where doubles are not.
+  neg <- startsWith(keys, "-")
+  mag <- sub("^-", "", keys)
+  mag <- paste0(strrep("0", max(nchar(mag)) - nchar(mag)), mag)
+  rank <- integer(length(keys))
+  rank[order(mag, method = "radix")] <- seq_along(keys)
+  order(!neg, ifelse(neg, -rank, rank))
+}
+
+# The well-known types upb writes in a special JSON form, and so as the
+# "value" member when packed in an Any.
+zpb_json_wkt <- paste0(
+  "google.protobuf.",
+  c(
+    "Any",
+    "Struct",
+    "Value",
+    "ListValue",
+    "Timestamp",
+    "Duration",
+    "FieldMask",
+    "DoubleValue",
+    "FloatValue",
+    "Int64Value",
+    "UInt64Value",
+    "Int32Value",
+    "UInt32Value",
+    "BoolValue",
+    "StringValue",
+    "BytesValue"
+  )
+)
 
 # The checked options list for zpb_to_json().
 json_options <- function(

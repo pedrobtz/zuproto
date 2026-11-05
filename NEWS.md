@@ -22,6 +22,9 @@
   canonical JSON mapping through upb, and to and from R values through
   zujson when it is installed. `proto_unpack_any()` decodes an `Any`,
   and `proto_pack_any()` builds one (#60).
+  With `parse = TRUE`, map and `Struct` keys are sorted by key, so the
+  value is the same in every session; as text their order is unspecified
+  (#102).
   `int64 = "integer64"` decodes 64-bit fields as bit64 vectors.
 * Encoding accepts NaN in `double` and `float` fields, writes `NULL` in a
   `Value` field as JSON null, and takes any `Timestamp` or `Duration` the

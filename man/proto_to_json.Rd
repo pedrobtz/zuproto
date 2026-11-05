@@ -80,8 +80,10 @@ types take their special JSON forms (\code{Timestamp} as an RFC 3339 string,
 \code{Any} messages convert only when the type they pack is in the pool.
 
 The entries of a map field, and so the keys of a \code{Struct}, are written
-in no fixed order: it can differ between R sessions. Compare JSON as
-parsed values, not as text.
+in no fixed order: it can differ between R sessions. With
+\code{parse = TRUE} they are sorted by key, as \code{\link[=proto_decode]{proto_decode()}} sorts maps, so
+the parsed value is the same in every session. Compare JSON as parsed
+values, not as text.
 
 JSON meets R values through
 \href{https://CRAN.R-project.org/package=zujson}{zujson}, which must be

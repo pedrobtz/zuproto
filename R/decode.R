@@ -73,6 +73,13 @@ zpb_choices <- list(
 #' Required fields are not checked: a proto2 `required` field missing
 #' from the input decodes like any unset field.
 #'
+#' Concatenated messages merge, as protobuf specifies: decoding
+#' `c(raw1, raw2)` gives the message `raw1` holds with `raw2` merged into
+#' it. A singular field takes the last value, a repeated field appends, a
+#' map adds entries (a later key replaces an earlier one) and a message
+#' field merges. This is protobuf's `MergeFromString()`. A message's
+#' encoded size is `length(proto_encode(x, type, pool))`.
+#'
 #' @param x The serialised message: a raw vector, a path to a file, or a
 #'   connection. A file or connection is read up to `max_size` bytes.
 #' @param type The message type's full name, such as `"pkg.Message"`.
