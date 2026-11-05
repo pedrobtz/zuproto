@@ -153,6 +153,12 @@ the enum's first value, an empty vector), as other protobuf runtimes
 do. With <code>defaults = FALSE</code> it is left out when it holds its default.</p>
 <p>Required fields are not checked: a proto2 <code>required</code> field missing
 from the input decodes like any unset field.</p>
+<p>Concatenated messages merge, as protobuf specifies: decoding
+<code>c(raw1, raw2)</code> gives the message <code>raw1</code> holds with <code>raw2</code> merged into
+it. A singular field takes the last value, a repeated field appends, a
+map adds entries (a later key replaces an earlier one) and a message
+field merges. This is protobuf's <code>MergeFromString()</code>. A message's
+encoded size is <code>length(proto_encode(x, type, pool))</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

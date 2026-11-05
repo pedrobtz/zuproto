@@ -155,8 +155,10 @@ deterministically.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><code>Any</code> messages convert only when the type they pack is in the pool.</p>
 <p>The entries of a map field, and so the keys of a <code>Struct</code>, are written
-in no fixed order: it can differ between R sessions. Compare JSON as
-parsed values, not as text.</p>
+in no fixed order: it can differ between R sessions. With
+<code>parse = TRUE</code> they are sorted by key, as <code><a href="proto_decode.html">proto_decode()</a></code> sorts maps, so
+the parsed value is the same in every session. Compare JSON as parsed
+values, not as text.</p>
 <p>JSON meets R values through
 <a href="https://CRAN.R-project.org/package=zujson" class="external-link">zujson</a>, which must be
 installed for it. <code>proto_to_json(parse = TRUE)</code> returns
