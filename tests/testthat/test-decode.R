@@ -848,3 +848,44 @@ test_that("int64 = \"integer64\" needs bit64, and says so when it is missing", {
   )
   expect_identical(err$arg, "int64")
 })
+
+test_that("concatenated messages merge (#67)", {
+  pool <- decode_pool()
+  a <- proto_encode(
+    list(strings = "a"),
+    "zpb.decode.Repeated",
+    pool
+  )
+  b <- proto_encode(list(strings = "b"), "zpb.decode.Repeated", pool)
+  expect_identical(
+    proto_decode(c(a, b), "zpb.decode.Repeated", pool)$strings,
+    c("a", "b")
+  )
+  m1 <- proto_encode(
+    list(by_string = c(x = 1L, y = 2L)),
+    "zpb.decode.Maps",
+    pool
+  )
+  m2 <- proto_encode(
+    list(by_string = c(y = 9L, z = 3L)),
+    "zpb.decode.Maps",
+    pool
+  )
+  expect_identical(
+    proto_decode(c(m1, m2), "zpb.decode.Maps", pool)$by_string,
+    c(x = 1L, y = 9L, z = 3L)
+  )
+  n1 <- proto_encode(
+    list(depth = 1L, child = list(depth = 2L)),
+    "zpb.decode.Nested",
+    pool
+  )
+  n2 <- proto_encode(
+    list(child = list(child = list(depth = 3L))),
+    "zpb.decode.Nested",
+    pool
+  )
+  merged <- proto_decode(c(n1, n2), "zpb.decode.Nested", pool)
+  expect_identical(merged$child$depth, 2L)
+  expect_identical(merged$child$child$depth, 3L)
+})

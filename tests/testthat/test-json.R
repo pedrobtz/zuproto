@@ -507,3 +507,93 @@ test_that("R values as JSON need zujson, and say so when it is missing", {
   )
   expect_identical(err$arg, "json")
 })
+
+test_that("parse = TRUE sorts map and Struct keys by key (#102)", {
+  skip_if_not_installed("zujson")
+  pool <- decode_pool()
+  withr::local_seed(102)
+  words <- sample(paste0("k", 1:40))
+  ints <- sample(c(-1000L, -20L, -3L, 0L, 2L, 10L, 300L, 2147483647L))
+  raw <- proto_encode(
+    list(
+      by_string = setNames(seq_along(words), words),
+      by_int32 = setNames(as.character(ints), ints),
+      by_int64 = c(
+        "9007199254740993" = "a",
+        "9007199254740992" = "b",
+        "-9223372036854775808" = "c",
+        "5" = "d"
+      ),
+      by_bool = c("true" = "t", "false" = "f"),
+      points = setNames(
+        lapply(1:20, function(i) list(x = i)),
+        sample(1:20)
+      )
+    ),
+    "zpb.decode.Maps",
+    pool
+  )
+  parsed <- proto_to_json(raw, "zpb.decode.Maps", pool, parse = TRUE)
+  expect_identical(names(parsed$byString), sort(words, method = "radix"))
+  expect_identical(names(parsed$byInt32), as.character(sort(ints)))
+  expect_identical(
+    names(parsed$byInt64),
+    c("-9223372036854775808", "5", "9007199254740992", "9007199254740993")
+  )
+  expect_identical(names(parsed$byBool), c("false", "true"))
+  expect_identical(names(parsed$points), as.character(1:20))
+  # Message fields keep their declaration order.
+  expect_identical(
+    names(parsed),
+    c("byString", "byInt32", "byInt64", "byBool", "points")
+  )
+  by_name <- proto_to_json(
+    raw,
+    "zpb.decode.Maps",
+    pool,
+    proto_names = TRUE,
+    parse = TRUE
+  )
+  expect_identical(names(by_name$by_string), sort(words, method = "radix"))
+})
+
+test_that("parse = TRUE sorts Struct keys at every depth and inside Any", {
+  skip_if_not_installed("zujson")
+  pool <- decode_pool()
+  withr::local_seed(102)
+  keys <- sample(paste0("s", 1:30))
+  inner <- setNames(as.list(seq_along(keys)), keys)
+  meta <- c(inner, list(nested = inner, list = list(inner, 1)))
+  raw <- proto_encode(list(meta = meta), "zpb.decode.WellKnown", pool)
+  parsed <- proto_to_json(raw, "zpb.decode.WellKnown", pool, parse = TRUE)
+  expect_identical(
+    names(parsed$meta),
+    sort(c(keys, "nested", "list"), method = "radix")
+  )
+  expect_identical(names(parsed$meta$nested), sort(keys, method = "radix"))
+  expect_identical(names(parsed$meta$list[[1]]), sort(keys, method = "radix"))
+
+  # An Any packing a Struct writes it as "value"; one packing a message
+  # with a map writes the map inline.
+  any_struct <- proto_pack_any(inner, "google.protobuf.Struct", pool)
+  any_maps <- proto_pack_any(
+    list(by_string = setNames(seq_along(keys), keys)),
+    "zpb.decode.Maps",
+    pool
+  )
+  raw <- proto_encode(
+    list(by_name = list(b = any_struct, a = any_maps)),
+    "zpb.decode.AnyMap",
+    pool
+  )
+  parsed <- proto_to_json(raw, "zpb.decode.AnyMap", pool, parse = TRUE)
+  expect_identical(names(parsed$byName), c("a", "b"))
+  expect_identical(
+    names(parsed$byName$b$value),
+    sort(keys, method = "radix")
+  )
+  expect_identical(
+    names(parsed$byName$a$byString),
+    sort(keys, method = "radix")
+  )
+})
