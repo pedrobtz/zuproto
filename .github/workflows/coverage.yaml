@@ -1,8 +1,9 @@
 on:
-  push:
-    branches: [main, master]
-    # A change to CRAN-SUBMISSION alone is a release record: nothing to rebuild.
-    paths-ignore: [CRAN-SUBMISSION]
+  # No `push:`: a pull request already checks its merge with main,
+  # and the schedule checks main (r-actions README, "Pushes to main").
+  schedule:
+    - cron: "56 14 * * 0"
+  workflow_dispatch:
   pull_request:
     # A change to CRAN-SUBMISSION alone is a release record: nothing to rebuild.
     paths-ignore: [CRAN-SUBMISSION]
