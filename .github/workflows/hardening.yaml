@@ -5,11 +5,11 @@
 # through the shim alone; fuzz_build embeds R to reach the code that builds
 # R values and the encoder that walks them.
 on:
-  push:
-    branches: [main, master]
+  # No `push:`: a pull request already checks its merge with main,
+  # and the schedule checks main (r-actions README, "Pushes to main").
   pull_request:
   schedule:
-    - cron: "41 3 * * *"
+    - cron: "1 15 * * *"
   workflow_dispatch:
 
 name: hardening

@@ -1,6 +1,8 @@
 on:
-  push:
-    branches: [main, master]
+  # No `push:`: a pull request already checks its merge with main,
+  # and the schedule checks main (r-actions README, "Pushes to main").
+  schedule:
+    - cron: "6 15 * * 0"
   pull_request:
     types: [opened, synchronize, reopened, labeled]
   # A manual run is always full: the docs-only gate cannot list its changed
