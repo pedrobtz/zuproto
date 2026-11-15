@@ -5,16 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Shared conventions
 
-The portfolio's shared rules are synced into `.claude/shared/` from
-`pedrobtz/packages:claude/shared/`. Never edit them here. Where this file and
-a shared file disagree, this file wins for this package.
+<!-- r-skills: shared-rules -->
 
-@.claude/shared/workflow.md
-@.claude/shared/r-package.md
-@.claude/shared/ci.md
-@.claude/shared/native-code.md
-@.claude/shared/correctness.md
-@.claude/shared/assurance.md
+The portfolio's shared rules (`workflow`, `r-package`, `ci`, `native-code`,
+`correctness`, `assurance`) come from the
+[r-skills](https://github.com/pedrobtz/r-skills) plugin's `rules/`, loaded at
+session start because of the marker above. Never copy them here. Where this
+file and a shared rule disagree, this file wins for this package. Cloud
+sessions do not load the plugin and run without them.
 
 ## What this is
 
@@ -153,7 +151,7 @@ change that alters how a listed test fails, regenerate the list with
   `(size_t) -1`; 0 is a valid position.
 - **Internal native symbols use `zpb_` / `ZPB_`**, not `zuproto_`. This is a
   deliberate deviation from the package-prefix rule in
-  `.claude/shared/r-package.md`. `R_init_zuproto` is the only exported
+  the shared `r-package.md` rules. `R_init_zuproto` is the only exported
   symbol (hidden visibility from Stage 0).
 
 ## Testing
@@ -198,7 +196,7 @@ workflows. Its own workflows:
   releases a newer tag than the vendored one.
 
 The local jobs in `conformance`, `hardening` and `vendor` are gated by
-`changes.yml`. Deliberate deviations from `.claude/shared/ci.md`:
+`changes.yml`. Deliberate deviations from the shared `ci.md` rules:
 
 - **`coverage` and `pkgdown` ignore `CRAN-SUBMISSION` by `paths-ignore`**,
   because they run on documentation changes on purpose.
